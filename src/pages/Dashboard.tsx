@@ -4,13 +4,15 @@ import {
   Row,
   Col,
   Statistic,
-  Typography
+  Typography,
+  Button
 } from 'antd';
 import {
   UserOutlined,
   TeamOutlined,
   ManOutlined,
-  WomanOutlined
+  WomanOutlined,
+  ReloadOutlined
 } from '@ant-design/icons';
 import { Column } from '@ant-design/charts';
 import { getAllMembers, getAllFamilies } from '../services/firebase'; // Changed import
@@ -21,8 +23,10 @@ const { Title, Text } = Typography;
 
 const Dashboard: React.FC = () => {
   const [stats, setStats] = useState<DashboardStats | null>(null);
+  const [loading, setLoading] = useState(false);
 
   const loadData = useCallback(async () => {
+    setLoading(true);
     try {
       const [membersData, familiesData] = await Promise.all([
         getAllMembers(),
@@ -34,6 +38,8 @@ const Dashboard: React.FC = () => {
       setStats(dashboardStats);
     } catch (error) {
       console.error('Error loading data:', error);
+    } finally {
+      setLoading(false);
     }
   }, []);
 
@@ -66,17 +72,27 @@ const Dashboard: React.FC = () => {
   })) : [];  return (
     <div>
       {/* Header Section */}
-      <div style={{ marginBottom: 24 }}>
-        <Title level={2} style={{ marginBottom: 8 }}>
-          Tajneed Admin Dashboard
-        </Title>
-        <Text type="secondary">
-          Jamaat Ahmadiyya Muridke - Family & Membership Management System
-        </Text>
-        <br />
-        <Text type="secondary" style={{ fontSize: '12px' }}>
-          Last updated: {new Date().toLocaleString()} • {stats?.totalMembers || 0} total members
-        </Text>
+      <div style={{ marginBottom: 24, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+        <div>
+          <Title level={2} style={{ marginBottom: 8 }}>
+            Tajneed Admin Dashboard
+          </Title>
+          <Text type="secondary">
+            Jamaat Ahmadiyya Muridke - Family & Membership Management System
+          </Text>
+          <br />
+          <Text type="secondary" style={{ fontSize: '12px' }}>
+            Last updated: {new Date().toLocaleString()} • {stats?.totalMembers || 0} total members
+          </Text>
+        </div>
+        <Button
+          type="default"
+          icon={<ReloadOutlined />}
+          onClick={loadData}
+          loading={loading}
+        >
+          Refresh
+        </Button>
       </div>
 
       {/* Statistics Cards */}

@@ -24,7 +24,8 @@ import {
   EyeOutlined,
   TeamOutlined,
   UserOutlined,
-  ProfileOutlined
+  ProfileOutlined,
+  ReloadOutlined
 } from '@ant-design/icons';
 import { getAllFamilies, getAllMembers, addFamily, updateFamily, deleteFamily } from '../services/firebase'; // Changed import
 import type { Family, Member } from '../types';
@@ -248,13 +249,23 @@ const Families: React.FC = () => {
       <Card
         title={`Families (${families.length})`}
         extra={
-          <Button
-            type="primary"
-            icon={<PlusOutlined />}
-            onClick={handleAddFamily}
-          >
-            Add Family
-          </Button>
+          <Space>
+            <Button
+              type="default"
+              icon={<ReloadOutlined />}
+              onClick={loadData}
+              loading={loading}
+            >
+              Refresh
+            </Button>
+            <Button
+              type="primary"
+              icon={<PlusOutlined />}
+              onClick={handleAddFamily}
+            >
+              Add Family
+            </Button>
+          </Space>
         }
       >
         <Table

@@ -14,7 +14,9 @@ import {
   Popconfirm,
   Tag,
   Avatar,
-  Typography
+  Typography,
+  Row,
+  Col
 } from 'antd';
 import {
   PlusOutlined,
@@ -22,7 +24,8 @@ import {
   DeleteOutlined,
   UploadOutlined,
   DownloadOutlined,
-  UserOutlined
+  UserOutlined,
+  ReloadOutlined
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { getAllMembers, addMember, updateMember, deleteMember } from '../services/firebase'; // Changed import
@@ -235,6 +238,10 @@ const Members: React.FC = () => {
       title: 'Tanzeem',
       dataIndex: 'tanzeem',
       key: 'tanzeem',
+      sorter: (a: Member, b: Member) => {
+        const tanzeemOrder = ['saf-e-awal', 'saf-e-awal-girls', 'atfal', 'nasirat', 'khuddam', 'lajna', 'ansar'];
+        return tanzeemOrder.indexOf(a.tanzeem) - tanzeemOrder.indexOf(b.tanzeem);
+      },
       render: (tanzeem: Tanzeem) => (
         <Tag color="green">{getTanzeemDisplayName(tanzeem)}</Tag>
       ),
@@ -248,6 +255,11 @@ const Members: React.FC = () => {
       title: 'Halqa',
       dataIndex: 'halqa',
       key: 'halqa',
+      sorter: (a: Member, b: Member) => {
+        const halqaA = a.halqa || '';
+        const halqaB = b.halqa || '';
+        return halqaA.localeCompare(halqaB);
+      },
       render: (halqa: string) => halqa || '-',
     },
     {
@@ -294,6 +306,14 @@ const Members: React.FC = () => {
               Export CSV
             </Button>
             <Button
+              type="default"
+              icon={<ReloadOutlined />}
+              onClick={loadMembers}
+              loading={loading}
+            >
+              Refresh
+            </Button>
+            <Button
               type="primary"
               icon={<PlusOutlined />}
               onClick={handleAddMember}
@@ -332,142 +352,166 @@ const Members: React.FC = () => {
           layout="vertical"
           requiredMark={false}
         >
-          <Form.Item
-            name="name"
-            label="Full Name"
-            rules={[
-              { required: true, message: 'Please enter full name' },
-              { min: 2, message: 'Name must be at least 2 characters' }
-            ]}
-          >
-            <Input placeholder="Enter full name" />
-          </Form.Item>
+          <Row gutter={16}>
+            <Col xs={24} md={12}>
+              <Form.Item
+                name="name"
+                label="Full Name"
+                rules={[
+                  { required: true, message: 'Please enter full name' },
+                  { min: 2, message: 'Name must be at least 2 characters' }
+                ]}
+              >
+                <Input placeholder="Enter full name" />
+              </Form.Item>
+            </Col>
+            <Col xs={24} md={12}>
+              <Form.Item
+                name="fatherName"
+                label="Father Name"
+                rules={[
+                  { required: true, message: 'Please enter father name' }
+                ]}
+              >
+                <Input placeholder="Enter father name" />
+              </Form.Item>
+            </Col>
+          </Row>
 
-          <Form.Item
-            name="fatherName"
-            label="Father Name"
-            rules={[
-              { required: true, message: 'Please enter father name' }
-            ]}
-          >
-            <Input placeholder="Enter father name" />
-          </Form.Item>
+          <Row gutter={16}>
+            <Col xs={24} md={12}>
+              <Form.Item
+                name="gender"
+                label="Gender"
+                rules={[
+                  { required: true, message: 'Please select gender' }
+                ]}
+              >
+                <Select placeholder="Select gender">
+                  <Option value="male">Male</Option>
+                  <Option value="female">Female</Option>
+                </Select>
+              </Form.Item>
+            </Col>
+            <Col xs={24} md={12}>
+              <Form.Item
+                name="dateOfBirth"
+                label="Date of Birth"
+                rules={[
+                  { required: true, message: 'Please select date of birth' }
+                ]}
+              >
+                <DatePicker
+                  style={{ width: '100%' }}
+                  placeholder="Select date of birth"
+                  disabledDate={(current) => current && current > dayjs().endOf('day')}
+                />
+              </Form.Item>
+            </Col>
+          </Row>
 
-          <Form.Item
-            name="gender"
-            label="Gender"
-            rules={[
-              { required: true, message: 'Please select gender' }
-            ]}
-          >
-            <Select placeholder="Select gender">
-              <Option value="male">Male</Option>
-              <Option value="female">Female</Option>
-            </Select>
-          </Form.Item>
-
-          <Form.Item
-            name="dateOfBirth"
-            label="Date of Birth"
-            rules={[
-              { required: true, message: 'Please select date of birth' }
-            ]}
-          >
-            <DatePicker
-              style={{ width: '100%' }}
-              placeholder="Select date of birth"
-              disabledDate={(current) => current && current > dayjs().endOf('day')}
-            />
-          </Form.Item>
-
-          <Form.Item
-            name="cnic"
-            label="CNIC (Optional)"
-            rules={[
-              {
-                validator: (_, value) => {
-                  if (!value || validateCNIC(value)) {
-                    return Promise.resolve();
+          <Row gutter={16}>
+            <Col xs={24} md={12}>
+              <Form.Item
+                name="cnic"
+                label="CNIC (Optional)"
+                rules={[
+                  {
+                    validator: (_, value) => {
+                      if (!value || validateCNIC(value)) {
+                        return Promise.resolve();
+                      }
+                      return Promise.reject(new Error('Please enter a valid CNIC (13 digits)'));
+                    }
                   }
-                  return Promise.reject(new Error('Please enter a valid CNIC (13 digits)'));
-                }
-              }
-            ]}
-          >
-            <Input
-              placeholder="Enter CNIC (without dashes)"
-              maxLength={15}
-            />
-          </Form.Item>
-
-          <Form.Item
-            name="phone"
-            label="Phone"
-            rules={[
-              { required: true, message: 'Please enter phone number' },
-              {
-                validator: (_, value) => {
-                  if (!value || validatePhone(value)) {
-                    return Promise.resolve();
+                ]}
+              >
+                <Input
+                  placeholder="Enter CNIC (without dashes)"
+                  maxLength={15}
+                />
+              </Form.Item>
+            </Col>
+            <Col xs={24} md={12}>
+              <Form.Item
+                name="phone"
+                label="Phone"
+                rules={[
+                  { required: true, message: 'Please enter phone number' },
+                  {
+                    validator: (_, value) => {
+                      if (!value || validatePhone(value)) {
+                        return Promise.resolve();
+                      }
+                      return Promise.reject(new Error('Please enter a valid phone number'));
+                    }
                   }
-                  return Promise.reject(new Error('Please enter a valid phone number'));
-                }
-              }
-            ]}
-          >
-            <Input placeholder="Enter phone number" />
-          </Form.Item>
+                ]}
+              >
+                <Input placeholder="Enter phone number" />
+              </Form.Item>
+            </Col>
+          </Row>
 
-          <Form.Item
-            name="address"
-            label="Address"
-            rules={[
-              { required: true, message: 'Please enter address' }
-            ]}
-          >
-            <Input.TextArea
-              rows={3}
-              placeholder="Enter complete address"
-            />
-          </Form.Item>
+          <Row gutter={16}>
+            <Col xs={24} md={12}>
+              <Form.Item
+                name="halqa"
+                label="Halqa (Optional)"
+              >
+                <Input placeholder="Enter halqa name" />
+              </Form.Item>
+            </Col>
+            <Col xs={24} md={12}>
+              <Form.Item
+                name="profilePhoto"
+                label="Profile Photo (Optional)"
+              >
+                <Upload
+                  listType="picture-card"
+                  maxCount={1}
+                  beforeUpload={handleImageUpload}
+                  fileList={uploadedImage ? [{
+                    uid: '-1',
+                    name: 'profile.jpg',
+                    status: 'done',
+                    url: uploadedImage,
+                  }] : []}
+                  onRemove={() => {
+                    setUploadedImage('');
+                    return true;
+                  }}
+                  disabled={imageUploading}
+                >
+                  {!uploadedImage && (
+                    <div>
+                      <UploadOutlined />
+                      <div style={{ marginTop: 8 }}>
+                        {imageUploading ? 'Uploading...' : 'Upload'}
+                      </div>
+                    </div>
+                  )}
+                </Upload>
+              </Form.Item>
+            </Col>
+          </Row>
 
-          <Form.Item
-            name="halqa"
-            label="Halqa (Optional)"
-          >
-            <Input placeholder="Enter halqa name" />
-          </Form.Item>
-
-          <Form.Item
-            name="profilePhoto"
-            label="Profile Photo (Optional)"
-          >
-            <Upload
-              listType="picture-card"
-              maxCount={1}
-              beforeUpload={handleImageUpload}
-              fileList={uploadedImage ? [{
-                uid: '-1',
-                name: 'profile.jpg',
-                status: 'done',
-                url: uploadedImage,
-              }] : []}
-              onRemove={() => {
-                setUploadedImage('');
-                return true;
-              }}
-              disabled={imageUploading}
-            >
-              {!uploadedImage && (
-                <div>
-                  <UploadOutlined />
-                  <div style={{ marginTop: 8 }}>
-                    {imageUploading ? 'Uploading...' : 'Upload'}
-                  </div>
-                </div>
-              )}
-            </Upload>
-          </Form.Item>
+          <Row>
+            <Col xs={24}>
+              <Form.Item
+                name="address"
+                label="Address"
+                rules={[
+                  { required: true, message: 'Please enter address' }
+                ]}
+              >
+                <Input.TextArea
+                  rows={3}
+                  placeholder="Enter complete address"
+                />
+              </Form.Item>
+            </Col>
+          </Row>
         </Form>
       </Modal>
     </div>
