@@ -22,12 +22,12 @@ import type { Member, Family, AuthUser } from '../types';
 // Your web app's Firebase configuration
 // This configuration is specific to your Firebase project.
 const firebaseConfig = {
-  apiKey: "AIzaSyCkGKIs5NRPcKivtq39O-HqTe2QbLgkMww",
-  authDomain: "tajneed-258db.firebaseapp.com",
-  projectId: "tajneed-258db",
-  storageBucket: "tajneed-258db.firebasestorage.app",
-  messagingSenderId: "391048492265",
-  appId: "1:391048492265:web:077acfc74bb83207e9ac78"
+  apiKey: "AIzaSyCO0RQc15hOrg0bZi8zg8gynpXOMb_mu40",
+  authDomain: "jamat-tajneed.firebaseapp.com",
+  projectId: "jamat-tajneed",
+  storageBucket: "jamat-tajneed.firebasestorage.app",
+  messagingSenderId: "362523200164",
+  appId: "1:362523200164:web:03733acb4ce15004507431"
 };
 
 // Initialize Firebase
