@@ -11,10 +11,10 @@ import Families from './pages/Families';
 import FamilyDetails from './pages/FamilyDetails';
 import TanzeemView from './pages/TanzeemView';
 import Settings from './pages/Settings';
-import ImportData from './ImportData';
+import ImportData from './ImportAllData';
 
 // Set this to true to run the data import script
-const runImporter = true;
+const runImporter = false;
 
 // Protected Route component
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {

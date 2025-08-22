@@ -27,7 +27,14 @@ import {
   ProfileOutlined,
   ReloadOutlined
 } from '@ant-design/icons';
-import { getAllFamilies, getAllMembers, addFamily, updateFamily, deleteFamily } from '../services/firebase'; // Changed import
+import { 
+  getFamily, // Added to get existing family data
+  getAllFamilies, 
+  getAllMembers, 
+  addFamily, 
+  updateFamily, 
+  deleteFamily 
+} from '../services/firebase';
 import type { Family, Member } from '../types';
 import { getTanzeemDisplayName, formatDate } from '../utils/helpers';
 
@@ -127,20 +134,34 @@ const Families: React.FC = () => {
       const values = await form.validateFields();
       const formData: FamilyForm = values;
 
-      const familyData = {
-        familyName: formData.familyName,
-        headId: formData.headId,
-        memberIds: [], // Will be updated when members are assigned
-        totalMembers: 0,
-        halqa: formData.halqa || '',
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      };
-
       if (editingFamily) {
-        await updateFamily(editingFamily.id, familyData);
-        message.success('Family updated successfully');
+        // FIX: Fetch the existing family data first to preserve the memberIds array
+        const existingFamily = await getFamily(editingFamily.id);
+        if (existingFamily) {
+          const updatedFamily = {
+            ...existingFamily, // Retain all existing fields
+            familyName: formData.familyName,
+            headId: formData.headId,
+            halqa: formData.halqa || '',
+            updatedAt: new Date().toISOString(),
+          };
+          await updateFamily(editingFamily.id, updatedFamily);
+          message.success('Family updated successfully');
+        } else {
+          message.error('Failed to find existing family data.');
+          return;
+        }
       } else {
+        // Original logic for adding a new family
+        const familyData = {
+          familyName: formData.familyName,
+          headId: formData.headId,
+          memberIds: [], // Will be updated when members are assigned
+          totalMembers: 0,
+          halqa: formData.halqa || '',
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        };
         await addFamily(familyData);
         message.success('Family added successfully');
       }
