@@ -1,4 +1,6 @@
+// Import the functions you need from the SDKs you need
 import { initializeApp } from 'firebase/app';
+import { getAnalytics } from "firebase/analytics";
 import {
   getFirestore,
   collection,
@@ -20,18 +22,20 @@ import {
 import type { Member, Family, AuthUser } from '../types';
 
 // Your web app's Firebase configuration
-// This configuration is specific to your Firebase project.
+// For Firebase JS SDK v7.20.0 and later, measurementId is optional
 const firebaseConfig = {
-  apiKey: "AIzaSyCO0RQc15hOrg0bZi8zg8gynpXOMb_mu40",
-  authDomain: "jamat-tajneed.firebaseapp.com",
-  projectId: "jamat-tajneed",
-  storageBucket: "jamat-tajneed.firebasestorage.app",
-  messagingSenderId: "362523200164",
-  appId: "1:362523200164:web:03733acb4ce15004507431"
+  apiKey: "AIzaSyAa6zRE_7TKpT5nVq3VmO8Kr5-h12PpfGM",
+  authDomain: "jamat-tajneed-44f6d.firebaseapp.com",
+  projectId: "jamat-tajneed-44f6d",
+  storageBucket: "jamat-tajneed-44f6d.firebasestorage.app",
+  messagingSenderId: "794157972693",
+  appId: "1:794157972693:web:2f012a4f481c5dbc38f65c",
+  measurementId: "G-QGXD60BLHC"
 };
 
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
+const analytics = getAnalytics(app);
 // Removed Firebase Auth export as it's no longer used for login
 export const db = getFirestore(app);
 
