@@ -38,7 +38,7 @@ export interface Member {
   cnic?: string;
   dateOfBirth: string;
   age: number;
-  phone: string;
+  phone?: string;
   address: string;
   profilePhoto?: string;
   tanzeem: Tanzeem;
@@ -46,6 +46,8 @@ export interface Member {
   halqa?: string;
   hasNewTanzeemTransition?: boolean;
   talem?: string;
+  isDeceased?: boolean;
+  dateOfDeath?: string;
   
   // Religious Activities (per member)
   religiousActivities?: ReligiousActivities;

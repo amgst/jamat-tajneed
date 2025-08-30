@@ -16,7 +16,9 @@ import {
   Avatar,
   Typography,
   Row,
-  Col
+  Col,
+  Tabs,
+  Checkbox
 } from 'antd';
 import {
   PlusOutlined,
@@ -53,9 +55,11 @@ interface MemberForm {
   gender: 'male' | 'female';
   cnic?: string;
   dateOfBirth: dayjs.Dayjs;
-  phone: string;
+  phone?: string;
   address: string;
   halqa?: string;
+  isDeceased?: boolean;
+  dateOfDeath?: dayjs.Dayjs;
 }
 
 const Members: React.FC = () => {
@@ -68,6 +72,7 @@ const Members: React.FC = () => {
   const [imageUploading, setImageUploading] = useState(false);
   const [searchText, setSearchText] = useState('');
   const [selectedFamilyId, setSelectedFamilyId] = useState<string>('');
+  const [activeTab, setActiveTab] = useState<string>('active');
   const [form] = Form.useForm();
 
   useEffect(() => {
@@ -104,6 +109,7 @@ const Members: React.FC = () => {
     form.setFieldsValue({
       ...member,
       dateOfBirth: dayjs(member.dateOfBirth),
+      dateOfDeath: member.dateOfDeath ? dayjs(member.dateOfDeath) : undefined,
     });
     setModalVisible(true);
   };
@@ -133,9 +139,19 @@ const Members: React.FC = () => {
   const getFilteredAndSortedMembers = (): Member[] => {
     let filtered = members;
     
+    // Filter by deceased status based on active tab
+    filtered = filtered.filter(member => {
+      if (activeTab === 'deceased') {
+        return member.isDeceased === true;
+      } else {
+        return !member.isDeceased;
+      }
+    });
+    
     // Apply family filter
     if (selectedFamilyId) {
-      filtered = getFamilyMembers(selectedFamilyId);
+      const familyMembers = getFamilyMembers(selectedFamilyId);
+      filtered = filtered.filter(member => familyMembers.some(fm => fm.id === member.id));
     }
     
     // Apply search filter
@@ -213,12 +229,14 @@ const Members: React.FC = () => {
         cnic: formData.cnic ? formatCNIC(formData.cnic) : '',
         dateOfBirth: formData.dateOfBirth.format('YYYY-MM-DD'),
         age,
-        phone: formData.phone,
+        phone: formData.phone || '',
         address: formData.address,
         tanzeem,
         halqa: formData.halqa || '',
         profilePhoto: uploadedImage || generateAvatarFromName(formData.name),
         hasNewTanzeemTransition: false,
+        isDeceased: formData.isDeceased || false,
+        dateOfDeath: formData.dateOfDeath ? formData.dateOfDeath.format('YYYY-MM-DD') : undefined,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       };
@@ -348,14 +366,18 @@ const Members: React.FC = () => {
     },
     {
       title: 'Halqa',
-      dataIndex: 'halqa',
       key: 'halqa',
       sorter: (a: Member, b: Member) => {
-        const halqaA = a.halqa || '';
-        const halqaB = b.halqa || '';
+        const familyA = families.find(f => f.memberIds.includes(a.id));
+        const familyB = families.find(f => f.memberIds.includes(b.id));
+        const halqaA = familyA?.halqa || '';
+        const halqaB = familyB?.halqa || '';
         return halqaA.localeCompare(halqaB);
       },
-      render: (halqa: string) => halqa || '-',
+      render: (record: Member) => {
+        const family = families.find(f => f.memberIds.includes(record.id));
+        return family?.halqa || '-';
+      },
     },
     {
       title: 'Actions',
@@ -387,10 +409,18 @@ const Members: React.FC = () => {
     },
   ];
 
+  const getTabCounts = () => {
+    const activeCount = members.filter(m => !m.isDeceased).length;
+    const deceasedCount = members.filter(m => m.isDeceased).length;
+    return { activeCount, deceasedCount };
+  };
+
+  const { activeCount, deceasedCount } = getTabCounts();
+
   return (
     <div>
       <Card
-        title={`Members (${getFilteredAndSortedMembers().length} of ${members.length})`}
+        title="Members Management"
         extra={
           <Space>
             <Button
@@ -418,6 +448,15 @@ const Members: React.FC = () => {
           </Space>
         }
       >
+        <Tabs
+          activeKey={activeTab}
+          onChange={setActiveTab}
+          items={[
+            {
+              key: 'active',
+              label: `Active Members (${activeCount})`,
+              children: (
+                <div>
         {/* Search and Filter Controls */}
         <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
           <Col xs={24} sm={12} md={8}>
@@ -465,21 +504,99 @@ const Members: React.FC = () => {
           </Col>
         </Row>
 
-        <Table
-          columns={columns}
-          dataSource={getFilteredAndSortedMembers()}
-          rowKey="id"
-          loading={loading}
-          pagination={{
-            defaultPageSize: 10,
-            pageSizeOptions: [10, 20, 50, 100],
-            showSizeChanger: true,
-            showQuickJumper: true,
-            showTotal: (total, range) =>
-              `${range[0]}-${range[1]} of ${total} items`,
-            responsive: true,
-          }}
-          scroll={{ x: 1000 }}
+                  <Table
+                    columns={columns}
+                    dataSource={getFilteredAndSortedMembers()}
+                    rowKey="id"
+                    loading={loading}
+                    pagination={{
+                      defaultPageSize: 10,
+                      pageSizeOptions: [10, 20, 50, 100],
+                      showSizeChanger: true,
+                      showQuickJumper: true,
+                      showTotal: (total, range) =>
+                        `${range[0]}-${range[1]} of ${total} items`,
+                      responsive: true,
+                    }}
+                    scroll={{ x: 1000 }}
+                  />
+                </div>
+              ),
+            },
+            {
+              key: 'deceased',
+              label: `Deceased Members (${deceasedCount})`,
+              children: (
+                <div>
+                  {/* Search and Filter Controls for Deceased */}
+                  <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
+                    <Col xs={24} sm={12} md={8}>
+                      <Input
+                        placeholder="Search deceased members..."
+                        prefix={<SearchOutlined />}
+                        value={searchText}
+                        onChange={(e) => setSearchText(e.target.value)}
+                        allowClear
+                        style={{ width: '100%' }}
+                      />
+                    </Col>
+                    <Col xs={24} sm={12} md={8}>
+                      <Select
+                        placeholder="Filter by family..."
+                        value={selectedFamilyId}
+                        onChange={setSelectedFamilyId}
+                        allowClear
+                        style={{ width: '100%' }}
+                      >
+                        {families.map(family => (
+                          <Option key={family.id} value={family.id}>
+                            <Space>
+                              <TeamOutlined />
+                              {family.familyName}
+                            </Space>
+                          </Option>
+                        ))}
+                      </Select>
+                    </Col>
+                    <Col xs={24} sm={12} md={8}>
+                      <Button
+                        type="default"
+                        onClick={() => {
+                          setSearchText('');
+                          setSelectedFamilyId('');
+                        }}
+                        style={{ width: '100%' }}
+                      >
+                        Clear Filters
+                      </Button>
+                    </Col>
+                  </Row>
+
+                  <Table
+                    columns={[...columns.slice(0, -1), {
+                      title: 'Date of Death',
+                      dataIndex: 'dateOfDeath',
+                      key: 'dateOfDeath',
+                      render: (dateOfDeath: string) => dateOfDeath ? formatDate(dateOfDeath) : '-',
+                    }, columns[columns.length - 1]]}
+                    dataSource={getFilteredAndSortedMembers()}
+                    rowKey="id"
+                    loading={loading}
+                    pagination={{
+                      defaultPageSize: 10,
+                      pageSizeOptions: [10, 20, 50, 100],
+                      showSizeChanger: true,
+                      showQuickJumper: true,
+                      showTotal: (total, range) =>
+                        `${range[0]}-${range[1]} of ${total} items`,
+                      responsive: true,
+                    }}
+                    scroll={{ x: 1000 }}
+                  />
+                </div>
+              ),
+            },
+          ]}
         />
       </Card>
 
@@ -579,9 +696,8 @@ const Members: React.FC = () => {
             <Col xs={24} md={12}>
               <Form.Item
                 name="phone"
-                label="Phone"
+                label="Phone (Optional)"
                 rules={[
-                  { required: true, message: 'Please enter phone number' },
                   {
                     validator: (_, value) => {
                       if (!value || validatePhone(value)) {
@@ -636,6 +752,41 @@ const Members: React.FC = () => {
                     </div>
                   )}
                 </Upload>
+              </Form.Item>
+            </Col>
+          </Row>
+
+          <Row gutter={16}>
+            <Col xs={24} md={12}>
+              <Form.Item
+                name="isDeceased"
+                valuePropName="checked"
+              >
+                <Checkbox>Deceased</Checkbox>
+              </Form.Item>
+            </Col>
+            <Col xs={24} md={12}>
+              <Form.Item
+                name="dateOfDeath"
+                label="Date of Death"
+                dependencies={['isDeceased']}
+                rules={[
+                  ({ getFieldValue }) => ({
+                    validator(_, value) {
+                      if (getFieldValue('isDeceased') && !value) {
+                        return Promise.reject(new Error('Please select date of death'));
+                      }
+                      return Promise.resolve();
+                    },
+                  }),
+                ]}
+              >
+                <DatePicker
+                  style={{ width: '100%' }}
+                  placeholder="Select date of death"
+                  disabled={!Form.useWatch('isDeceased', form)}
+                  disabledDate={(current) => current && current > dayjs().endOf('day')}
+                />
               </Form.Item>
             </Col>
           </Row>

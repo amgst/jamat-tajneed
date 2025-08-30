@@ -62,7 +62,7 @@ const Families: React.FC = () => {
   const [viewingFamily, setViewingFamily] = useState<Family | null>(null);
   const [familyMembers, setFamilyMembers] = useState<Member[]>([]);
   const [searchText, setSearchText] = useState('');
-  const [sortField, setSortField] = useState<string>('familyName');
+  const [sortField, setSortField] = useState<string>('familyNumber');
   const [sortOrder, setSortOrder] = useState<'ascend' | 'descend'>('ascend');
   const [form] = Form.useForm();
 
@@ -135,8 +135,9 @@ const Families: React.FC = () => {
           if (!a.familyNumber && !b.familyNumber) return 0; // Both have no number
           if (!a.familyNumber) return 1; // a has no number, put it after b
           if (!b.familyNumber) return -1; // b has no number, put it after a
-          aValue = a.familyNumber;
-          bValue = b.familyNumber;
+          // Convert to numbers for proper numeric sorting
+          aValue = Number(a.familyNumber);
+          bValue = Number(b.familyNumber);
           break;
         case 'familyName':
           aValue = a.familyName;
