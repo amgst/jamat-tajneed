@@ -46,6 +46,7 @@ const { Text, Title } = Typography;
 
 interface FamilyForm {
   familyName: string;
+  familyNumber?: number;
   headId: string;
   halqa?: string;
 }
@@ -61,6 +62,8 @@ const Families: React.FC = () => {
   const [viewingFamily, setViewingFamily] = useState<Family | null>(null);
   const [familyMembers, setFamilyMembers] = useState<Member[]>([]);
   const [searchText, setSearchText] = useState('');
+  const [sortField, setSortField] = useState<string>('familyName');
+  const [sortOrder, setSortOrder] = useState<'ascend' | 'descend'>('ascend');
   const [form] = Form.useForm();
 
   useEffect(() => {
@@ -103,21 +106,75 @@ const Families: React.FC = () => {
     );
   };
 
-  const getFilteredFamilies = (): Family[] => {
-    if (!searchText.trim()) {
-      return families;
+  const getFilteredAndSortedFamilies = (): Family[] => {
+    let filtered = families;
+    
+    // Apply search filter
+    if (searchText.trim()) {
+      const searchLower = searchText.toLowerCase();
+      filtered = families.filter(family => {
+        const familyName = family.familyName.toLowerCase();
+        const headName = getMemberName(family.headId).toLowerCase();
+        const halqa = (family.halqa || '').toLowerCase();
+        const familyNumber = family.familyNumber?.toString() || '';
+        
+        return familyName.includes(searchLower) || 
+               headName.includes(searchLower) || 
+               halqa.includes(searchLower) ||
+               familyNumber.includes(searchLower);
+      });
     }
     
-    const searchLower = searchText.toLowerCase();
-    return families.filter(family => {
-      const familyName = family.familyName.toLowerCase();
-      const headName = getMemberName(family.headId).toLowerCase();
-      const halqa = (family.halqa || '').toLowerCase();
+    // Apply sorting
+    filtered.sort((a, b) => {
+      let aValue: any, bValue: any;
       
-      return familyName.includes(searchLower) || 
-             headName.includes(searchLower) || 
-             halqa.includes(searchLower);
+      switch (sortField) {
+        case 'familyNumber':
+          // Handle families without numbers - put them at the end
+          if (!a.familyNumber && !b.familyNumber) return 0; // Both have no number
+          if (!a.familyNumber) return 1; // a has no number, put it after b
+          if (!b.familyNumber) return -1; // b has no number, put it after a
+          aValue = a.familyNumber;
+          bValue = b.familyNumber;
+          break;
+        case 'familyName':
+          aValue = a.familyName;
+          bValue = b.familyName;
+          break;
+        case 'headName':
+          aValue = getMemberName(a.headId);
+          bValue = getMemberName(b.headId);
+          break;
+        case 'totalMembers':
+          aValue = getMembersByFamily(a.id).length;
+          bValue = getMembersByFamily(b.id).length;
+          break;
+        case 'halqa':
+          aValue = a.halqa || '';
+          bValue = b.halqa || '';
+          break;
+        case 'createdAt':
+          aValue = new Date(a.createdAt).getTime();
+          bValue = new Date(b.createdAt).getTime();
+          break;
+        default:
+          aValue = a.familyName;
+          bValue = b.familyName;
+      }
+      
+      if (typeof aValue === 'string' && typeof bValue === 'string') {
+        return sortOrder === 'ascend' 
+          ? aValue.localeCompare(bValue)
+          : bValue.localeCompare(aValue);
+      } else {
+        return sortOrder === 'ascend' 
+          ? aValue - bValue
+          : bValue - aValue;
+      }
     });
+    
+    return filtered;
   };
 
   const handleAddFamily = () => {
@@ -155,37 +212,39 @@ const Families: React.FC = () => {
       const values = await form.validateFields();
       const formData: FamilyForm = values;
 
-      if (editingFamily) {
-        // FIX: Fetch the existing family data first to preserve the memberIds array
-        const existingFamily = await getFamily(editingFamily.id);
-        if (existingFamily) {
-          const updatedFamily = {
-            ...existingFamily, // Retain all existing fields
-            familyName: formData.familyName,
-            headId: formData.headId,
-            halqa: formData.halqa || '',
-            updatedAt: new Date().toISOString(),
-          };
-          await updateFamily(editingFamily.id, updatedFamily);
-          message.success('Family updated successfully');
-        } else {
-          message.error('Failed to find existing family data.');
-          return;
-        }
-      } else {
-        // Original logic for adding a new family
-        const familyData = {
-          familyName: formData.familyName,
-          headId: formData.headId,
-          memberIds: [], // Will be updated when members are assigned
-          totalMembers: 0,
-          halqa: formData.halqa || '',
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        };
-        await addFamily(familyData);
-        message.success('Family added successfully');
-      }
+             if (editingFamily) {
+         // FIX: Fetch the existing family data first to preserve the memberIds array
+         const existingFamily = await getFamily(editingFamily.id);
+         if (existingFamily) {
+           const updatedFamily = {
+             ...existingFamily, // Retain all existing fields
+             familyName: formData.familyName,
+             familyNumber: formData.familyNumber || undefined,
+             headId: formData.headId,
+             halqa: formData.halqa || '',
+             updatedAt: new Date().toISOString(),
+           };
+           await updateFamily(editingFamily.id, updatedFamily);
+           message.success('Family updated successfully');
+         } else {
+           message.error('Failed to find existing family data.');
+           return;
+         }
+       } else {
+         // Original logic for adding a new family
+         const familyData = {
+           familyName: formData.familyName,
+           familyNumber: formData.familyNumber || undefined,
+           headId: formData.headId,
+           memberIds: [], // Will be updated when members are assigned
+           totalMembers: 0,
+           halqa: formData.halqa || '',
+           createdAt: new Date().toISOString(),
+           updatedAt: new Date().toISOString(),
+         };
+         await addFamily(familyData);
+         message.success('Family added successfully');
+       }
 
       setModalVisible(false);
       loadData();
@@ -203,10 +262,20 @@ const Families: React.FC = () => {
       render: (_: any, __: any, index: number) => index + 1,
     },
     {
+      title: 'Family #',
+      dataIndex: 'familyNumber',
+      key: 'familyNumber',
+      width: 100,
+      render: (familyNumber: number) => (
+        <Tag color={familyNumber ? 'blue' : 'default'}>
+          {familyNumber || 'Not Set'}
+        </Tag>
+      ),
+    },
+    {
       title: 'Family Name',
       dataIndex: 'familyName',
       key: 'familyName',
-      sorter: (a: Family, b: Family) => a.familyName.localeCompare(b.familyName),
       render: (familyName: string) => (
         <Space>
           <Avatar size="small" icon={<TeamOutlined />} />
@@ -231,8 +300,6 @@ const Families: React.FC = () => {
           </Tag>
         );
       },
-      sorter: (a: Family, b: Family) =>
-        getMembersByFamily(a.id).length - getMembersByFamily(b.id).length,
     },
     {
       title: 'Halqa',
@@ -245,8 +312,6 @@ const Families: React.FC = () => {
       dataIndex: 'createdAt',
       key: 'createdAt',
       render: (createdAt: string) => formatDate(createdAt),
-      sorter: (a: Family, b: Family) =>
-        new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
     },
     {
       title: 'Actions',
@@ -294,8 +359,8 @@ const Families: React.FC = () => {
 
   return (
     <div>
-      <Card
-        title={`Families (${getFilteredFamilies().length} of ${families.length})`}
+             <Card
+         title={`Families (${getFilteredAndSortedFamilies().length} of ${families.length})`}
         extra={
           <Space>
             <Button
@@ -316,25 +381,51 @@ const Families: React.FC = () => {
           </Space>
         }
       >
-        {/* Search Bar */}
-        <Row style={{ marginBottom: 16 }}>
-          <Col span={24}>
-            <Input
-              placeholder="Search by family name, head of family, or halqa..."
-              prefix={<SearchOutlined />}
-              value={searchText}
-              onChange={(e) => setSearchText(e.target.value)}
-              allowClear
-              style={{ maxWidth: 400 }}
-            />
-          </Col>
-        </Row>
+                 {/* Search and Sort Controls */}
+         <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
+           <Col xs={24} sm={12} md={8}>
+             <Input
+               placeholder="Search by family name, number, head, or halqa..."
+               prefix={<SearchOutlined />}
+               value={searchText}
+               onChange={(e) => setSearchText(e.target.value)}
+               allowClear
+               style={{ width: '100%' }}
+             />
+           </Col>
+           <Col xs={24} sm={12} md={8}>
+             <Select
+               placeholder="Sort by..."
+               value={sortField}
+               onChange={setSortField}
+               style={{ width: '100%' }}
+             >
+               <Option value="familyNumber">Family Number</Option>
+               <Option value="familyName">Family Name</Option>
+               <Option value="headName">Head of Family</Option>
+               <Option value="totalMembers">Total Members</Option>
+               <Option value="halqa">Halqa</Option>
+               <Option value="createdAt">Created Date</Option>
+             </Select>
+           </Col>
+           <Col xs={24} sm={12} md={8}>
+             <Select
+               placeholder="Sort order..."
+               value={sortOrder}
+               onChange={setSortOrder}
+               style={{ width: '100%' }}
+             >
+               <Option value="ascend">Ascending</Option>
+               <Option value="descend">Descending</Option>
+             </Select>
+           </Col>
+         </Row>
 
-        <Table
-          columns={columns}
-          dataSource={getFilteredFamilies()}
-          rowKey="id"
-          loading={loading}
+                 <Table
+           columns={columns}
+           dataSource={getFilteredAndSortedFamilies()}
+           rowKey="id"
+           loading={loading}
           pagination={{
             defaultPageSize: 10,
             pageSizeOptions: [10, 20, 50, 100],
@@ -361,16 +452,27 @@ const Families: React.FC = () => {
           layout="vertical"
           requiredMark={false}
         >
-          <Form.Item
-            name="familyName"
-            label="Family Name"
-            rules={[
-              { required: true, message: 'Please enter family name' },
-              { min: 2, message: 'Family name must be at least 2 characters' }
-            ]}
-          >
-            <Input placeholder="Enter family name" />
-          </Form.Item>
+                     <Form.Item
+             name="familyName"
+             label="Family Name"
+             rules={[
+               { required: true, message: 'Please enter family name' },
+               { min: 2, message: 'Family name must be at least 2 characters' }
+             ]}
+           >
+             <Input placeholder="Enter family name" />
+           </Form.Item>
+
+           <Form.Item
+             name="familyNumber"
+             label="Family Number (Optional)"
+           >
+             <Input 
+               type="number" 
+               placeholder="Enter family number" 
+               min={1}
+             />
+           </Form.Item>
 
           <Form.Item
             name="headId"
@@ -415,26 +517,29 @@ const Families: React.FC = () => {
       >
         {viewingFamily && (
           <div>
-            <Descriptions bordered column={2} style={{ marginBottom: 24 }}>
-              <Descriptions.Item label="Family Name">
-                {viewingFamily.familyName}
-              </Descriptions.Item>
-              <Descriptions.Item label="Head of Family">
-                {getMemberName(viewingFamily.headId)}
-              </Descriptions.Item>
-              <Descriptions.Item label="Total Members">
-                {familyMembers.length}
-              </Descriptions.Item>
-              <Descriptions.Item label="Halqa">
-                {viewingFamily.halqa || 'Not specified'}
-              </Descriptions.Item>
-              <Descriptions.Item label="Created">
-                {formatDate(viewingFamily.createdAt)}
-              </Descriptions.Item>
-              <Descriptions.Item label="Last Updated">
-                {formatDate(viewingFamily.updatedAt)}
-              </Descriptions.Item>
-            </Descriptions>
+                         <Descriptions bordered column={2} style={{ marginBottom: 24 }}>
+               <Descriptions.Item label="Family Name">
+                 {viewingFamily.familyName}
+               </Descriptions.Item>
+               <Descriptions.Item label="Family Number">
+                 {viewingFamily.familyNumber || 'Not assigned'}
+               </Descriptions.Item>
+               <Descriptions.Item label="Head of Family">
+                 {getMemberName(viewingFamily.headId)}
+               </Descriptions.Item>
+               <Descriptions.Item label="Total Members">
+                 {familyMembers.length}
+               </Descriptions.Item>
+               <Descriptions.Item label="Halqa">
+                 {viewingFamily.halqa || 'Not specified'}
+               </Descriptions.Item>
+               <Descriptions.Item label="Created">
+                 {formatDate(viewingFamily.createdAt)}
+               </Descriptions.Item>
+               <Descriptions.Item label="Last Updated">
+                 {formatDate(viewingFamily.updatedAt)}
+               </Descriptions.Item>
+             </Descriptions>
 
             <Title level={4}>Family Members</Title>
             <List

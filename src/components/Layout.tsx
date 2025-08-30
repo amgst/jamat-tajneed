@@ -8,7 +8,8 @@ import {
   LogoutOutlined,
   MenuFoldOutlined,
   MenuUnfoldOutlined,
-  BankOutlined
+  BankOutlined,
+  BookOutlined
 } from '@ant-design/icons';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { logout } from '../services/jsonStorage';
@@ -52,6 +53,11 @@ const AppLayout: React.FC = () => {
       key: '/tanzeem',
       icon: <BankOutlined />,
       label: 'Tanzeem View',
+    },
+    {
+      key: '/religious-activities',
+      icon: <BookOutlined />,
+      label: 'Religious Activities',
     },
     {
       key: '/settings',

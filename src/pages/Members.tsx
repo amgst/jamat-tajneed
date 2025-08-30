@@ -25,11 +25,13 @@ import {
   UploadOutlined,
   DownloadOutlined,
   UserOutlined,
-  ReloadOutlined
+  ReloadOutlined,
+  SearchOutlined,
+  TeamOutlined
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
-import { getAllMembers, addMember, updateMember, deleteMember } from '../services/firebase'; // Changed import
-import type { Member, Tanzeem } from '../types';
+import { getAllMembers, getAllFamilies, addMember, updateMember, deleteMember } from '../services/firebase'; // Changed import
+import type { Member, Tanzeem, Family } from '../types';
 import {
   calculateAge,
   determineTanzeem,
@@ -58,11 +60,14 @@ interface MemberForm {
 
 const Members: React.FC = () => {
   const [members, setMembers] = useState<Member[]>([]);
+  const [families, setFamilies] = useState<Family[]>([]);
   const [loading, setLoading] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
   const [editingMember, setEditingMember] = useState<Member | null>(null);
   const [uploadedImage, setUploadedImage] = useState<string>('');
   const [imageUploading, setImageUploading] = useState(false);
+  const [searchText, setSearchText] = useState('');
+  const [selectedFamilyId, setSelectedFamilyId] = useState<string>('');
   const [form] = Form.useForm();
 
   useEffect(() => {
@@ -72,10 +77,14 @@ const Members: React.FC = () => {
   const loadMembers = async () => {
     setLoading(true);
     try {
-      const data = await getAllMembers();
-      setMembers(data);
+      const [membersData, familiesData] = await Promise.all([
+        getAllMembers(),
+        getAllFamilies()
+      ]);
+      setMembers(membersData);
+      setFamilies(familiesData);
     } catch (error) {
-      message.error('Failed to load members');
+      message.error('Failed to load data');
       console.error(error);
     } finally {
       setLoading(false);
@@ -108,6 +117,65 @@ const Members: React.FC = () => {
       message.error('Failed to delete member');
       console.error(error);
     }
+  };
+
+  const getFamilyName = (familyId: string): string => {
+    const family = families.find(f => f.id === familyId);
+    return family ? family.familyName : 'Unknown Family';
+  };
+
+  const getFamilyMembers = (familyId: string): Member[] => {
+    const family = families.find(f => f.id === familyId);
+    if (!family) return [];
+    return members.filter(member => family.memberIds.includes(member.id));
+  };
+
+  const getFilteredAndSortedMembers = (): Member[] => {
+    let filtered = members;
+    
+    // Apply family filter
+    if (selectedFamilyId) {
+      filtered = getFamilyMembers(selectedFamilyId);
+    }
+    
+    // Apply search filter
+    if (searchText.trim()) {
+      const searchLower = searchText.toLowerCase();
+      filtered = filtered.filter(member => {
+        const name = member.name.toLowerCase();
+        const fatherName = (member.fatherName || '').toLowerCase();
+        const phone = (member.phone || '').toLowerCase();
+        const address = (member.address || '').toLowerCase();
+        const halqa = (member.halqa || '').toLowerCase();
+        
+        return name.includes(searchLower) || 
+               fatherName.includes(searchLower) || 
+               phone.includes(searchLower) ||
+               address.includes(searchLower) ||
+               halqa.includes(searchLower);
+      });
+    }
+    
+    // Sort by family role (head, wife, others) if family is selected
+    if (selectedFamilyId) {
+      const family = families.find(f => f.id === selectedFamilyId);
+      if (family) {
+        filtered.sort((a, b) => {
+          // Head of family first
+          if (a.id === family.headId) return -1;
+          if (b.id === family.headId) return 1;
+          
+          // Then by gender (wife after head)
+          if (a.gender === 'female' && b.gender === 'male') return -1;
+          if (a.gender === 'male' && b.gender === 'female') return 1;
+          
+          // Then by age (older first)
+          return b.age - a.age;
+        });
+      }
+    }
+    
+    return filtered;
   };
 
   const handleImageUpload = async (file: File): Promise<boolean> => {
@@ -210,6 +278,27 @@ const Members: React.FC = () => {
       width: 60,
     },
     {
+      title: 'Family',
+      key: 'family',
+      render: (record: Member) => {
+        const family = families.find(f => f.memberIds.includes(record.id));
+        if (!family) return <Tag color="default">No Family</Tag>;
+        
+        const isHead = family.headId === record.id;
+        const isWife = record.gender === 'female' && family.headId !== record.id;
+        
+        return (
+          <div>
+            <div style={{ fontWeight: 500 }}>{family.familyName}</div>
+            <Tag color={isHead ? 'red' : isWife ? 'pink' : 'blue'} size="small">
+              {isHead ? 'Head' : isWife ? 'Wife' : 'Member'}
+            </Tag>
+          </div>
+        );
+      },
+      width: 120,
+    },
+    {
       title: 'Name',
       dataIndex: 'name',
       key: 'name',
@@ -301,7 +390,7 @@ const Members: React.FC = () => {
   return (
     <div>
       <Card
-        title={`Members (${members.length})`}
+        title={`Members (${getFilteredAndSortedMembers().length} of ${members.length})`}
         extra={
           <Space>
             <Button
@@ -329,9 +418,56 @@ const Members: React.FC = () => {
           </Space>
         }
       >
+        {/* Search and Filter Controls */}
+        <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
+          <Col xs={24} sm={12} md={8}>
+            <Input
+              placeholder="Search by name, father, phone, address, or halqa..."
+              prefix={<SearchOutlined />}
+              value={searchText}
+              onChange={(e) => setSearchText(e.target.value)}
+              allowClear
+              style={{ width: '100%' }}
+            />
+          </Col>
+          <Col xs={24} sm={12} md={8}>
+            <Select
+              placeholder="Filter by family..."
+              value={selectedFamilyId}
+              onChange={setSelectedFamilyId}
+              allowClear
+              style={{ width: '100%' }}
+            >
+              {families.map(family => (
+                <Option key={family.id} value={family.id}>
+                  <Space>
+                    <TeamOutlined />
+                    {family.familyName}
+                    <Tag size="small" color="blue">
+                      {getFamilyMembers(family.id).length} members
+                    </Tag>
+                  </Space>
+                </Option>
+              ))}
+            </Select>
+          </Col>
+          <Col xs={24} sm={12} md={8}>
+            <Button
+              type="default"
+              onClick={() => {
+                setSearchText('');
+                setSelectedFamilyId('');
+              }}
+              style={{ width: '100%' }}
+            >
+              Clear Filters
+            </Button>
+          </Col>
+        </Row>
+
         <Table
           columns={columns}
-          dataSource={members}
+          dataSource={getFilteredAndSortedMembers()}
           rowKey="id"
           loading={loading}
           pagination={{

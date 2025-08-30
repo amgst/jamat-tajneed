@@ -10,6 +10,7 @@ import Members from './pages/Members';
 import Families from './pages/Families';
 import FamilyDetails from './pages/FamilyDetails';
 import TanzeemView from './pages/TanzeemView';
+import ReligiousActivitiesPage from './pages/ReligiousActivities';
 import Settings from './pages/Settings';
 import ImportData from './ImportAllData';
 
@@ -82,6 +83,7 @@ function App() {
               <Route path="families" element={<Families />} />
               <Route path="families/:id" element={<FamilyDetails />} />
               <Route path="tanzeem" element={<TanzeemView />} />
+              <Route path="religious-activities" element={<ReligiousActivitiesPage />} />
               <Route path="settings" element={<Settings />} />
             </Route>
           </Routes>

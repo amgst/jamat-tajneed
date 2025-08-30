@@ -1,3 +1,34 @@
+export interface ReligiousActivities {
+  // Prayer Information
+  fiveDailyPrayers: number; // پنجگانہ نماز کا قیام / کتنی نمازیں پڑھتے ہیں
+  congregationalPrayers: number; // تعداد با جماعت نمازیں
+  weeklyTahajjud: boolean; // ہفتہ وار نماز تہجد
+  dailyRecitation: boolean; // روزانہ تلاوت
+  fridayPrayer: boolean; // نماز جمعه
+  twoNaflDaily: boolean; // دو نوافل روزانہ
+  
+  // Religious Practices
+  weeklyVoluntaryFast: boolean; // ہفتہ وار نفلی روزه
+  prayerMovement: boolean; // دعائیہ تحریک
+  dailyThreePrayers: boolean; // روزانہ 3 دعائیں پڑھتے ہیں
+  sermonListening: boolean; // خطبہ حضور انور
+  listenedThisWeek: boolean; // کیا this week سنتے
+  quranRecitation: boolean; // قرآن ناظرہ آتا ہے
+  prayerWithTranslation: boolean; // نماز با ترجمہ آتی ہے
+  prayerLetterWriting: boolean; // دعائیہ خط لکھتے ہیں
+  willWritten: boolean; // وصیت
+  
+  // Media & Technology
+  mtaDish: boolean; // MTA بذریعہ ڈش
+  mtaCable: boolean; // MTA بذریعہ کیبل
+  mtaInternet: boolean; // MTA بذریعہ انٹرنیٹ
+  internetAccess: boolean; // انٹرنیٹ
+  
+  // Additional Info
+  notes?: string; // نوٹس
+  lastUpdated: string;
+}
+
 export interface Member {
   id: string;
   name: string;
@@ -15,6 +46,11 @@ export interface Member {
   halqa?: string;
   hasNewTanzeemTransition?: boolean;
   talem?: string;
+  
+  // Religious Activities (per member)
+  religiousActivities?: ReligiousActivities;
+  
+  // Legacy fields (keeping for backward compatibility)
   "پنجگانہ نماز کا قیام / کتنی نمازیں پڑھتے ہیں"?: string;
   "تعداد با جماعت نمازیں"?: string;
   "ہفتہ وار نماز تہجد"?: string;
@@ -30,6 +66,7 @@ export interface Member {
   "نماز با ترجمہ آتی ہے"?: string;
   "دعائیہ خط لکھتے ہیں"?: string;
   "وصیت"?: string;
+  
   createdAt: string;
   updatedAt: string;
 }
@@ -38,6 +75,7 @@ export interface Family {
   id: string;
   headId: string; // Member ID of family head (Father/Guardian)
   familyName: string;
+  familyNumber?: number; // Manual family number assignment
   memberIds: string[];
   totalMembers: number;
   halqa?: string;
