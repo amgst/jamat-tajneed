@@ -1,7 +1,8 @@
 export interface Member {
   id: string;
   name: string;
-  fatherName: string;
+  fatherName?: string;
+  husbandName?: string;
   gender: 'male' | 'female';
   cnic?: string;
   dateOfBirth: string;
@@ -12,9 +13,23 @@ export interface Member {
   tanzeem: Tanzeem;
   familyId?: string;
   halqa?: string;
-  specialCircumstances?: SpecialCircumstance[];
-  lastTanzeemTransition?: TanzeemTransition;
   hasNewTanzeemTransition?: boolean;
+  talem?: string;
+  "پنجگانہ نماز کا قیام / کتنی نمازیں پڑھتے ہیں"?: string;
+  "تعداد با جماعت نمازیں"?: string;
+  "ہفتہ وار نماز تہجد"?: string;
+  "روزانہ تلاوت"?: string;
+  "نماز جمعه"?: string;
+  "دو نوافل روزانہ"?: string;
+  "ہفتہ وار نفلی روزه"?: string;
+  "دعائیہ تحریک"?: string;
+  "روزانہ 3 دعائیں پڑھتے ہیں"?: string;
+  "خطبہ حضور انور"?: string;
+  "کیا this week سنتے"?: string;
+  "قرآن ناظرہ آتا ہے"?: string;
+  "نماز با ترجمہ آتی ہے"?: string;
+  "دعائیہ خط لکھتے ہیں"?: string;
+  "وصیت"?: string;
   createdAt: string;
   updatedAt: string;
 }

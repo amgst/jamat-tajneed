@@ -15,7 +15,9 @@ import {
   Avatar,
   Typography,
   Descriptions,
-  List
+  List,
+  Row,
+  Col
 } from 'antd';
 import {
   PlusOutlined,
@@ -25,7 +27,8 @@ import {
   TeamOutlined,
   UserOutlined,
   ProfileOutlined,
-  ReloadOutlined
+  ReloadOutlined,
+  SearchOutlined
 } from '@ant-design/icons';
 import { 
   getFamily, // Added to get existing family data
@@ -57,6 +60,7 @@ const Families: React.FC = () => {
   const [editingFamily, setEditingFamily] = useState<Family | null>(null);
   const [viewingFamily, setViewingFamily] = useState<Family | null>(null);
   const [familyMembers, setFamilyMembers] = useState<Member[]>([]);
+  const [searchText, setSearchText] = useState('');
   const [form] = Form.useForm();
 
   useEffect(() => {
@@ -97,6 +101,23 @@ const Families: React.FC = () => {
       member.gender === 'male' &&
       (member.tanzeem === 'khuddam' || member.tanzeem === 'ansar')
     );
+  };
+
+  const getFilteredFamilies = (): Family[] => {
+    if (!searchText.trim()) {
+      return families;
+    }
+    
+    const searchLower = searchText.toLowerCase();
+    return families.filter(family => {
+      const familyName = family.familyName.toLowerCase();
+      const headName = getMemberName(family.headId).toLowerCase();
+      const halqa = (family.halqa || '').toLowerCase();
+      
+      return familyName.includes(searchLower) || 
+             headName.includes(searchLower) || 
+             halqa.includes(searchLower);
+    });
   };
 
   const handleAddFamily = () => {
@@ -175,6 +196,12 @@ const Families: React.FC = () => {
   };
 
   const columns = [
+    {
+      title: 'S.No',
+      key: 'serial',
+      width: 80,
+      render: (_: any, __: any, index: number) => index + 1,
+    },
     {
       title: 'Family Name',
       dataIndex: 'familyName',
@@ -268,7 +295,7 @@ const Families: React.FC = () => {
   return (
     <div>
       <Card
-        title={`Families (${families.length})`}
+        title={`Families (${getFilteredFamilies().length} of ${families.length})`}
         extra={
           <Space>
             <Button
@@ -289,17 +316,33 @@ const Families: React.FC = () => {
           </Space>
         }
       >
+        {/* Search Bar */}
+        <Row style={{ marginBottom: 16 }}>
+          <Col span={24}>
+            <Input
+              placeholder="Search by family name, head of family, or halqa..."
+              prefix={<SearchOutlined />}
+              value={searchText}
+              onChange={(e) => setSearchText(e.target.value)}
+              allowClear
+              style={{ maxWidth: 400 }}
+            />
+          </Col>
+        </Row>
+
         <Table
           columns={columns}
-          dataSource={families}
+          dataSource={getFilteredFamilies()}
           rowKey="id"
           loading={loading}
           pagination={{
-            pageSize: 10,
+            defaultPageSize: 10,
+            pageSizeOptions: [10, 20, 50, 100],
             showSizeChanger: true,
             showQuickJumper: true,
             showTotal: (total, range) =>
               `${range[0]}-${range[1]} of ${total} items`,
+            responsive: true,
           }}
         />
       </Card>

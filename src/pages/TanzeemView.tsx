@@ -82,6 +82,12 @@ const TanzeemView: React.FC = () => {
 
     const columns = [
       {
+        title: 'S.No',
+        key: 'serial',
+        width: 80,
+        render: (_: any, __: any, index: number) => index + 1,
+      },
+      {
         title: 'Photo',
         key: 'photo',
         render: () => (
@@ -135,10 +141,12 @@ const TanzeemView: React.FC = () => {
         rowKey="id"
         loading={loading}
         pagination={{
-          pageSize: 10,
+          defaultPageSize: 10,
+          pageSizeOptions: [10, 20, 50, 100],
           showSizeChanger: true,
           showTotal: (total, range) =>
             `${range[0]}-${range[1]} of ${total} members`,
+          responsive: true,
         }}
       />
     );

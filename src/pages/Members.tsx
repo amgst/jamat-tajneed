@@ -192,6 +192,12 @@ const Members: React.FC = () => {
 
   const columns = [
     {
+      title: 'S.No',
+      key: 'serial',
+      width: 80,
+      render: (_: any, __: any, index: number) => index + 1,
+    },
+    {
       title: 'Photo',
       key: 'photo',
       render: (record: Member) => (
@@ -329,11 +335,13 @@ const Members: React.FC = () => {
           rowKey="id"
           loading={loading}
           pagination={{
-            pageSize: 10,
+            defaultPageSize: 10,
+            pageSizeOptions: [10, 20, 50, 100],
             showSizeChanger: true,
             showQuickJumper: true,
             showTotal: (total, range) =>
               `${range[0]}-${range[1]} of ${total} items`,
+            responsive: true,
           }}
           scroll={{ x: 1000 }}
         />
