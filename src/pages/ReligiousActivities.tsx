@@ -164,7 +164,7 @@ const ReligiousActivitiesPage: React.FC = () => {
         'والد کا نام': member.fatherName || '',
         'عمر': member.age,
         'تنظیم': getTanzeemDisplayName(member.tanzeem),
-        'ہلکہ': member.halqa || '',
+        'حلقہ': member.halqa || '',
         'پنجگانہ نماز': member.religiousActivities?.fiveDailyPrayers || 0,
         'با جماعت نمازیں': member.religiousActivities?.congregationalPrayers || 0,
         'ہفتہ وار تہجد': member.religiousActivities?.weeklyTahajjud ? 'ہاں' : 'نہیں',
@@ -227,7 +227,7 @@ const ReligiousActivitiesPage: React.FC = () => {
       ),
     },
     {
-      title: 'ہلکہ',
+      title: 'حلقہ',
       dataIndex: 'halqa',
       key: 'halqa',
       render: (halqa: string) => halqa || '-',
@@ -379,7 +379,7 @@ const ReligiousActivitiesPage: React.FC = () => {
         <Row style={{ marginBottom: 16 }}>
           <Col span={24}>
             <Input
-              placeholder="نام، والد کا نام، یا ہلکہ سے تلاش کریں..."
+              placeholder="نام، والد کا نام، یا حلقہ سے تلاش کریں..."
               prefix={<SearchOutlined />}
               value={searchText}
               onChange={(e) => setSearchText(e.target.value)}
@@ -434,7 +434,7 @@ const ReligiousActivitiesPage: React.FC = () => {
              </Col>
           </Row>
 
-          <Divider>نماز کی معلومات</Divider>
+          <Divider>Daily tasks</Divider>
           
           <Row gutter={16}>
             <Col span={8}>
@@ -477,17 +477,8 @@ const ReligiousActivitiesPage: React.FC = () => {
           <Row gutter={16}>
             <Col span={6}>
               <Form.Item
-                name="weeklyTahajjud"
-                label="ہفتہ وار تہجد"
-                valuePropName="checked"
-              >
-                <Checkbox>ہاں</Checkbox>
-              </Form.Item>
-            </Col>
-            <Col span={6}>
-              <Form.Item
-                name="dailyRecitation"
-                label="روزانہ تلاوت"
+                name="weeklyVoluntaryFast"
+                label="نفلی روزہ"
                 valuePropName="checked"
               >
                 <Checkbox>ہاں</Checkbox>
@@ -496,7 +487,7 @@ const ReligiousActivitiesPage: React.FC = () => {
             <Col span={6}>
               <Form.Item
                 name="twoNaflDaily"
-                label="دو نوافل روزانہ"
+                label="دو نوافل"
                 valuePropName="checked"
               >
                 <Checkbox>ہاں</Checkbox>
@@ -504,22 +495,8 @@ const ReligiousActivitiesPage: React.FC = () => {
             </Col>
             <Col span={6}>
               <Form.Item
-                name="weeklyVoluntaryFast"
-                label="ہفتہ وار نفلی روزہ"
-                valuePropName="checked"
-              >
-                <Checkbox>ہاں</Checkbox>
-              </Form.Item>
-            </Col>
-          </Row>
-
-          <Divider>مذہبی سرگرمیاں</Divider>
-
-          <Row gutter={16}>
-            <Col span={6}>
-              <Form.Item
-                name="prayerMovement"
-                label="دعائیہ تحریک"
+                name="dailyRecitation"
+                label="تلاوت"
                 valuePropName="checked"
               >
                 <Checkbox>ہاں</Checkbox>
@@ -534,7 +511,21 @@ const ReligiousActivitiesPage: React.FC = () => {
                 <Checkbox>ہاں</Checkbox>
               </Form.Item>
             </Col>
-            <Col span={6}>
+          </Row>
+
+          <Divider>Weekly tasks</Divider>
+
+          <Row gutter={16}>
+            <Col span={8}>
+              <Form.Item
+                name="weeklyTahajjud"
+                label="تہجد"
+                valuePropName="checked"
+              >
+                <Checkbox>ہاں</Checkbox>
+              </Form.Item>
+            </Col>
+            <Col span={8}>
               <Form.Item
                 name="sermonListening"
                 label="خطبہ حضور انور"
@@ -543,10 +534,10 @@ const ReligiousActivitiesPage: React.FC = () => {
                 <Checkbox>ہاں</Checkbox>
               </Form.Item>
             </Col>
-            <Col span={6}>
+            <Col span={8}>
               <Form.Item
-                name="listenedThisWeek"
-                label="اس ہفتے سنا"
+                name="prayerLetterWriting"
+                label="دعائیہ خط"
                 valuePropName="checked"
               >
                 <Checkbox>ہاں</Checkbox>
@@ -554,20 +545,13 @@ const ReligiousActivitiesPage: React.FC = () => {
             </Col>
           </Row>
 
+          <Divider>Others info</Divider>
+
           <Row gutter={16}>
             <Col span={6}>
               <Form.Item
-                name="quranRecitation"
-                label="قرآن ناظرہ آتا ہے"
-                valuePropName="checked"
-              >
-                <Checkbox>ہاں</Checkbox>
-              </Form.Item>
-            </Col>
-            <Col span={6}>
-              <Form.Item
                 name="prayerWithTranslation"
-                label="نماز با ترجمہ آتی ہے"
+                label="نماز با ترجمہ"
                 valuePropName="checked"
               >
                 <Checkbox>ہاں</Checkbox>
@@ -575,8 +559,8 @@ const ReligiousActivitiesPage: React.FC = () => {
             </Col>
             <Col span={6}>
               <Form.Item
-                name="prayerLetterWriting"
-                label="دعائیہ خط لکھتے ہیں"
+                name="quranRecitation"
+                label="قرآن ناظرہ"
                 valuePropName="checked"
               >
                 <Checkbox>ہاں</Checkbox>
@@ -591,9 +575,12 @@ const ReligiousActivitiesPage: React.FC = () => {
                 <Checkbox>ہاں</Checkbox>
               </Form.Item>
             </Col>
+
           </Row>
 
-          <Divider>میڈیا اور ٹیکنالوجی</Divider>
+
+
+          <Divider>MTA</Divider>
 
           <Row gutter={16}>
             <Col span={6}>
@@ -614,15 +601,7 @@ const ReligiousActivitiesPage: React.FC = () => {
                 <Checkbox>ہاں</Checkbox>
               </Form.Item>
             </Col>
-            <Col span={6}>
-              <Form.Item
-                name="mtaInternet"
-                label="MTA انٹرنیٹ"
-                valuePropName="checked"
-              >
-                <Checkbox>ہاں</Checkbox>
-              </Form.Item>
-            </Col>
+
             <Col span={6}>
               <Form.Item
                 name="internetAccess"
