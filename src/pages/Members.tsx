@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Card,
   Table,
@@ -32,7 +33,7 @@ import {
   TeamOutlined
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
-import { getAllMembers, getAllFamilies, addMember, updateMember, deleteMember } from '../services/firebase'; // Changed import
+import { getAllMembers, getAllFamilies, addMember, updateMember, deleteMember } from '../services/firebase';
 import type { Member, Tanzeem, Family } from '../types';
 import {
   calculateAge,
@@ -52,17 +53,19 @@ const { Text } = Typography;
 interface MemberForm {
   name: string;
   fatherName: string;
+  husbandName?: string;
   gender: 'male' | 'female';
   cnic?: string;
   dateOfBirth: dayjs.Dayjs;
   phone?: string;
   address: string;
-  halqa?: string;
+
   isDeceased?: boolean;
   dateOfDeath?: dayjs.Dayjs;
 }
 
 const Members: React.FC = () => {
+  const navigate = useNavigate();
   const [members, setMembers] = useState<Member[]>([]);
   const [families, setFamilies] = useState<Family[]>([]);
   const [loading, setLoading] = useState(false);
@@ -73,6 +76,8 @@ const Members: React.FC = () => {
   const [searchText, setSearchText] = useState('');
   const [selectedFamilyId, setSelectedFamilyId] = useState<string>('');
   const [activeTab, setActiveTab] = useState<string>('active');
+  const [religiousModalVisible, setReligiousModalVisible] = useState(false);
+  const [selectedMemberForReligious, setSelectedMemberForReligious] = useState<Member | null>(null);
   const [form] = Form.useForm();
 
   useEffect(() => {
@@ -172,24 +177,30 @@ const Members: React.FC = () => {
       });
     }
     
-    // Sort by family role (head, wife, others) if family is selected
-    if (selectedFamilyId) {
-      const family = families.find(f => f.id === selectedFamilyId);
-      if (family) {
-        filtered.sort((a, b) => {
-          // Head of family first
-          if (a.id === family.headId) return -1;
-          if (b.id === family.headId) return 1;
-          
-          // Then by gender (wife after head)
-          if (a.gender === 'female' && b.gender === 'male') return -1;
-          if (a.gender === 'male' && b.gender === 'female') return 1;
-          
-          // Then by age (older first)
-          return b.age - a.age;
-        });
+    // Sort by family number, then by family role
+    filtered.sort((a, b) => {
+      const familyA = families.find(f => f.memberIds.includes(a.id));
+      const familyB = families.find(f => f.memberIds.includes(b.id));
+      
+      // First sort by family number
+      const familyNumA = familyA?.familyNumber || 999999; // Put members without family number at end
+      const familyNumB = familyB?.familyNumber || 999999;
+      
+      if (familyNumA !== familyNumB) {
+        return familyNumA - familyNumB;
       }
-    }
+      
+      // Within same family, sort by role
+      if (familyA && a.id === familyA.headId) return -1;
+      if (familyB && b.id === familyB.headId) return 1;
+      
+      // Then by gender (wife after head)
+      if (a.gender === 'female' && b.gender === 'male') return -1;
+      if (a.gender === 'male' && b.gender === 'female') return 1;
+      
+      // Finally by age (older first)
+      return b.age - a.age;
+    });
     
     return filtered;
   };
@@ -222,9 +233,10 @@ const Members: React.FC = () => {
       const age = calculateAge(formData.dateOfBirth.format('YYYY-MM-DD'));
       const tanzeem = determineTanzeem(age, formData.gender);
 
-      const memberData = {
+      const memberData: any = {
         name: formData.name,
-        fatherName: formData.fatherName,
+        fatherName: formData.fatherName || '',
+        husbandName: formData.husbandName || '',
         gender: formData.gender,
         cnic: formData.cnic ? formatCNIC(formData.cnic) : '',
         dateOfBirth: formData.dateOfBirth.format('YYYY-MM-DD'),
@@ -232,14 +244,18 @@ const Members: React.FC = () => {
         phone: formData.phone || '',
         address: formData.address,
         tanzeem,
-        halqa: formData.halqa || '',
+        halqa: '',
         profilePhoto: uploadedImage || generateAvatarFromName(formData.name),
         hasNewTanzeemTransition: false,
         isDeceased: formData.isDeceased || false,
-        dateOfDeath: formData.dateOfDeath ? formData.dateOfDeath.format('YYYY-MM-DD') : undefined,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       };
+
+      // Only add dateOfDeath if it has a value (Firebase doesn't accept undefined)
+      if (formData.dateOfDeath) {
+        memberData.dateOfDeath = formData.dateOfDeath.format('YYYY-MM-DD');
+      }
 
       if (editingMember) {
         await updateMember(editingMember.id, memberData);
@@ -307,10 +323,17 @@ const Members: React.FC = () => {
         
         return (
           <div>
-            <div style={{ fontWeight: 500 }}>{family.familyName}</div>
-            <Tag color={isHead ? 'red' : isWife ? 'pink' : 'blue'} size="small">
-              {isHead ? 'Head' : isWife ? 'Wife' : 'Member'}
-            </Tag>
+            <div 
+              style={{ fontWeight: 500, color: '#1890ff', cursor: 'pointer' }}
+              onClick={() => navigate(`/families/${family.id}`)}
+            >
+              {family.familyName}
+            </div>
+            {isHead && (
+              <Tag color="red" size="small">
+                Head
+              </Tag>
+            )}
           </div>
         );
       },
@@ -325,7 +348,7 @@ const Members: React.FC = () => {
         <div>
           <div style={{ fontWeight: 500 }}>{name}</div>
           <Text type="secondary" style={{ fontSize: '12px' }}>
-            {record.fatherName}
+            {record.husbandName ? `Husband: ${record.husbandName}` : record.fatherName}
           </Text>
         </div>
       ),
@@ -378,6 +401,30 @@ const Members: React.FC = () => {
         const family = families.find(f => f.memberIds.includes(record.id));
         return family?.halqa || '-';
       },
+    },
+    {
+      title: 'Religious Data',
+      key: 'religious',
+      render: (record: Member) => {
+        const hasData = record.religiousActivities;
+        return (
+          <Button
+            type={hasData ? 'primary' : 'default'}
+            size="small"
+            onClick={() => {
+              setSelectedMemberForReligious(record);
+              setReligiousModalVisible(true);
+            }}
+            style={{ 
+              backgroundColor: hasData ? '#52c41a' : undefined,
+              borderColor: hasData ? '#52c41a' : undefined
+            }}
+          >
+            View
+          </Button>
+        );
+      },
+      width: 100,
     },
     {
       title: 'Actions',
@@ -629,13 +676,43 @@ const Members: React.FC = () => {
             <Col xs={24} md={12}>
               <Form.Item
                 name="fatherName"
-                label="Father Name"
-                rules={[
-                  { required: true, message: 'Please enter father name' }
-                ]}
+                label="Father Name (Optional)"
               >
                 <Input placeholder="Enter father name" />
               </Form.Item>
+            </Col>
+          </Row>
+
+          <Row gutter={16}>
+            <Col xs={24} md={12}>
+              <Form.Item
+                name="husbandName"
+                label="Husband Name (Optional)"
+              >
+                <Input placeholder="Enter husband name" />
+              </Form.Item>
+            </Col>
+            <Col xs={24} md={12}>
+              <div style={{ marginTop: 30 }}>
+                <Space direction="vertical">
+                  <Checkbox
+                    onChange={(e) => {
+                      if (e.target.checked) {
+                        // Find the family head name
+                        const memberFamily = families.find(f => f.memberIds.includes(editingMember?.id || ''));
+                        if (memberFamily) {
+                          const headMember = members.find(m => m.id === memberFamily.headId);
+                          if (headMember) {
+                            form.setFieldsValue({ fatherName: headMember.name });
+                          }
+                        }
+                      }
+                    }}
+                  >
+                    Set Head as Father
+                  </Checkbox>
+                </Space>
+              </div>
             </Col>
           </Row>
 
@@ -697,16 +774,6 @@ const Members: React.FC = () => {
               <Form.Item
                 name="phone"
                 label="Phone (Optional)"
-                rules={[
-                  {
-                    validator: (_, value) => {
-                      if (!value || validatePhone(value)) {
-                        return Promise.resolve();
-                      }
-                      return Promise.reject(new Error('Please enter a valid phone number'));
-                    }
-                  }
-                ]}
               >
                 <Input placeholder="Enter phone number" />
               </Form.Item>
@@ -716,10 +783,19 @@ const Members: React.FC = () => {
           <Row gutter={16}>
             <Col xs={24} md={12}>
               <Form.Item
-                name="halqa"
-                label="Halqa (Optional)"
+                label="Halqa"
               >
-                <Input placeholder="Enter halqa name" />
+                <Input 
+                  disabled 
+                  value={(() => {
+                    if (editingMember) {
+                      const family = families.find(f => f.memberIds.includes(editingMember.id));
+                      return family?.halqa || 'Not assigned to family';
+                    }
+                    return 'Will be set by family assignment';
+                  })()} 
+                  placeholder="Halqa is managed at family level" 
+                />
               </Form.Item>
             </Col>
             <Col xs={24} md={12}>
@@ -808,6 +884,119 @@ const Members: React.FC = () => {
             </Col>
           </Row>
         </Form>
+      </Modal>
+
+      {/* Religious Data Modal */}
+      <Modal
+        title={`Religious Activities: ${selectedMemberForReligious?.name}`}
+        open={religiousModalVisible}
+        onCancel={() => setReligiousModalVisible(false)}
+        footer={[
+          <Button key="close" onClick={() => setReligiousModalVisible(false)}>
+            Close
+          </Button>
+        ]}
+        width={700}
+      >
+        {selectedMemberForReligious && (
+          <div>
+            {selectedMemberForReligious.religiousActivities ? (
+              <div>
+                <Row gutter={[16, 16]}>
+                  <Col span={24}>
+                    <h4>Daily Tasks</h4>
+                    <Space wrap>
+                      <Tag color={selectedMemberForReligious.religiousActivities.weeklyVoluntaryFast ? 'green' : 'red'}>
+                        نفلی روزہ: {selectedMemberForReligious.religiousActivities.weeklyVoluntaryFast ? 'Yes' : 'No'}
+                      </Tag>
+                      <Tag color={selectedMemberForReligious.religiousActivities.twoNaflDaily ? 'green' : 'red'}>
+                        دو نوافل: {selectedMemberForReligious.religiousActivities.twoNaflDaily ? 'Yes' : 'No'}
+                      </Tag>
+                      <Tag color={selectedMemberForReligious.religiousActivities.dailyRecitation ? 'green' : 'red'}>
+                        تلاوت: {selectedMemberForReligious.religiousActivities.dailyRecitation ? 'Yes' : 'No'}
+                      </Tag>
+                      <Tag color={selectedMemberForReligious.religiousActivities.dailyThreePrayers ? 'green' : 'red'}>
+                        روزانہ 3 دعائیں: {selectedMemberForReligious.religiousActivities.dailyThreePrayers ? 'Yes' : 'No'}
+                      </Tag>
+                    </Space>
+                  </Col>
+                </Row>
+                
+                <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
+                  <Col span={24}>
+                    <h4>Weekly Tasks</h4>
+                    <Space wrap>
+                      <Tag color={selectedMemberForReligious.religiousActivities.weeklyTahajjud ? 'green' : 'red'}>
+                        تہجد: {selectedMemberForReligious.religiousActivities.weeklyTahajjud ? 'Yes' : 'No'}
+                      </Tag>
+                      <Tag color={selectedMemberForReligious.religiousActivities.sermonListening ? 'green' : 'red'}>
+                        خطبہ حضور انور: {selectedMemberForReligious.religiousActivities.sermonListening ? 'Yes' : 'No'}
+                      </Tag>
+                      <Tag color={selectedMemberForReligious.religiousActivities.prayerLetterWriting ? 'green' : 'red'}>
+                        دعائیہ خط: {selectedMemberForReligious.religiousActivities.prayerLetterWriting ? 'Yes' : 'No'}
+                      </Tag>
+                    </Space>
+                  </Col>
+                </Row>
+                
+                <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
+                  <Col span={24}>
+                    <h4>Others Info</h4>
+                    <Space wrap>
+                      <Tag color={selectedMemberForReligious.religiousActivities.prayerWithTranslation ? 'green' : 'red'}>
+                        نماز با ترجمہ: {selectedMemberForReligious.religiousActivities.prayerWithTranslation ? 'Yes' : 'No'}
+                      </Tag>
+                      <Tag color={selectedMemberForReligious.religiousActivities.quranRecitation ? 'green' : 'red'}>
+                        قرآن ناظرہ: {selectedMemberForReligious.religiousActivities.quranRecitation ? 'Yes' : 'No'}
+                      </Tag>
+                      <Tag color={selectedMemberForReligious.religiousActivities.willWritten ? 'green' : 'red'}>
+                        وصیت: {selectedMemberForReligious.religiousActivities.willWritten ? 'Yes' : 'No'}
+                      </Tag>
+                    </Space>
+                  </Col>
+                </Row>
+                
+                <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
+                  <Col span={24}>
+                    <h4>MTA ba zaria Dish, internet</h4>
+                    <Space wrap>
+                      <Tag color={selectedMemberForReligious.religiousActivities.mtaDish ? 'green' : 'red'}>
+                        MTA ڈش: {selectedMemberForReligious.religiousActivities.mtaDish ? 'Yes' : 'No'}
+                      </Tag>
+                      <Tag color={selectedMemberForReligious.religiousActivities.mtaCable ? 'green' : 'red'}>
+                        MTA کیبل: {selectedMemberForReligious.religiousActivities.mtaCable ? 'Yes' : 'No'}
+                      </Tag>
+                      <Tag color={selectedMemberForReligious.religiousActivities.internetAccess ? 'green' : 'red'}>
+                        انٹرنیٹ: {selectedMemberForReligious.religiousActivities.internetAccess ? 'Yes' : 'No'}
+                      </Tag>
+                    </Space>
+                  </Col>
+                </Row>
+                
+                <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
+                  <Col span={24}>
+                    <h4>Prayer Information</h4>
+                    <Space wrap>
+                      <Tag color="blue">
+                        پنجگانہ نماز: {selectedMemberForReligious.religiousActivities.fiveDailyPrayers}/5
+                      </Tag>
+                      <Tag color="blue">
+                        با جماعت نمازیں: {selectedMemberForReligious.religiousActivities.congregationalPrayers}/5
+                      </Tag>
+                      <Tag color={selectedMemberForReligious.religiousActivities.fridayPrayer ? 'green' : 'red'}>
+                        نماز جمعہ: {selectedMemberForReligious.religiousActivities.fridayPrayer ? 'Yes' : 'No'}
+                      </Tag>
+                    </Space>
+                  </Col>
+                </Row>
+              </div>
+            ) : (
+              <div style={{ textAlign: 'center', padding: '40px' }}>
+                <Text type="secondary">No religious activities data available for this member.</Text>
+              </div>
+            )}
+          </div>
+        )}
       </Modal>
     </div>
   );

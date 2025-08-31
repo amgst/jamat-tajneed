@@ -18,6 +18,10 @@ import {
   Modal,
   Select,
   Form,
+  Input,
+  DatePicker,
+  Upload,
+  Checkbox,
 } from 'antd';
 import {
   ArrowLeftOutlined,
@@ -25,9 +29,12 @@ import {
   DownloadOutlined,
   PlusOutlined,
   DeleteOutlined,
+  UploadOutlined,
 } from '@ant-design/icons';
-import { getAllMembers, getAllFamilies, updateFamily } from '../services/firebase'; // Changed import
-import { getTanzeemDisplayName, formatDate } from '../utils/helpers';
+import { getAllMembers, getAllFamilies, updateFamily, updateMember } from '../services/firebase';
+import { getTanzeemDisplayName, formatDate, calculateAge, determineTanzeem, formatCNIC, validateCNIC, validatePhone } from '../utils/helpers';
+import { processImageFile, generateAvatarFromName } from '../utils/imageUtils';
+import dayjs from 'dayjs';
 import type { Family, Member } from '../types';
 const { Title, Text } = Typography;
 const { Option } = Select;
@@ -40,7 +47,12 @@ const FamilyDetails: React.FC = () => {
   const [allMembers, setAllMembers] = useState<Member[]>([]);
   const [loading, setLoading] = useState(true);
   const [addMemberModalVisible, setAddMemberModalVisible] = useState(false);
+  const [memberDetailModalVisible, setMemberDetailModalVisible] = useState(false);
+  const [selectedMember, setSelectedMember] = useState<Member | null>(null);
+  const [uploadedImage, setUploadedImage] = useState<string>('');
+  const [imageUploading, setImageUploading] = useState(false);
   const [form] = Form.useForm();
+  const [memberForm] = Form.useForm();
 
   const loadFamilyData = useCallback(async () => {
     if (!id) return;
@@ -57,11 +69,37 @@ const FamilyDetails: React.FC = () => {
       if (familyData) {
         setFamily(familyData);
         setAllMembers(allMembersData);
-        // Get family members
+        // Get family members and sort them
         const members = allMembersData.filter((member: Member) =>
           familyData.memberIds.includes(member.id)
         );
-        setFamilyMembers(members);
+        
+        // Sort members: head, wife, ansar, lajna, khuddam, atfal, nasirat
+        const sortedMembers = members.sort((a, b) => {
+          // Head of family first
+          if (a.id === familyData.headId) return -1;
+          if (b.id === familyData.headId) return 1;
+          
+          // Wife second (female who is not head)
+          const aIsWife = a.gender === 'female' && a.id !== familyData.headId;
+          const bIsWife = b.gender === 'female' && b.id !== familyData.headId;
+          if (aIsWife && !bIsWife) return -1;
+          if (!aIsWife && bIsWife) return 1;
+          
+          // Then by tanzeem order
+          const tanzeemOrder = ['ansar', 'lajna', 'khuddam', 'atfal', 'nasirat', 'saf-e-awal', 'saf-e-awal-girls'];
+          const aIndex = tanzeemOrder.indexOf(a.tanzeem);
+          const bIndex = tanzeemOrder.indexOf(b.tanzeem);
+          
+          if (aIndex !== bIndex) {
+            return aIndex - bIndex;
+          }
+          
+          // Finally by age (older first)
+          return b.age - a.age;
+        });
+        
+        setFamilyMembers(sortedMembers);
       } else {
         message.error('Family not found');
         navigate('/families');
@@ -116,6 +154,66 @@ const FamilyDetails: React.FC = () => {
   const handleAddMember = () => {
     setAddMemberModalVisible(true);
     form.resetFields();
+  };
+
+  const handleImageUpload = async (file: File): Promise<boolean> => {
+    setImageUploading(true);
+    try {
+      const result = await processImageFile(file);
+      if (result.success && result.data) {
+        setUploadedImage(result.data);
+        message.success('Image uploaded successfully');
+        return false;
+      } else {
+        message.error(result.error || 'Failed to upload image');
+        return false;
+      }
+    } catch {
+      message.error('Failed to process image');
+      return false;
+    } finally {
+      setImageUploading(false);
+    }
+  };
+
+  const handleMemberUpdate = async () => {
+    if (!selectedMember) return;
+
+    try {
+      const values = await memberForm.validateFields();
+      const age = calculateAge(values.dateOfBirth.format('YYYY-MM-DD'));
+      const tanzeem = determineTanzeem(age, values.gender);
+
+      const memberData: any = {
+        name: values.name,
+        fatherName: values.fatherName || '',
+        husbandName: values.husbandName || '',
+        gender: values.gender,
+        cnic: values.cnic ? formatCNIC(values.cnic) : '',
+        dateOfBirth: values.dateOfBirth.format('YYYY-MM-DD'),
+        age,
+        phone: values.phone || '',
+        address: values.address,
+        tanzeem,
+        halqa: '',
+        profilePhoto: uploadedImage || generateAvatarFromName(values.name),
+        hasNewTanzeemTransition: false,
+        isDeceased: values.isDeceased || false,
+        updatedAt: new Date().toISOString(),
+      };
+
+      if (values.dateOfDeath) {
+        memberData.dateOfDeath = values.dateOfDeath.format('YYYY-MM-DD');
+      }
+
+      await updateMember(selectedMember.id, memberData);
+      message.success('Member updated successfully');
+      setMemberDetailModalVisible(false);
+      loadFamilyData();
+    } catch (error) {
+      message.error('Failed to update member');
+      console.error(error);
+    }
   };
 
   const handleAddMemberSubmit = async () => {
@@ -196,13 +294,27 @@ const FamilyDetails: React.FC = () => {
       render: (name: string, record: Member) => (
         <div>
           <div style={{ fontWeight: 500 }}>
-            {name}
+            <span 
+              style={{ color: '#1890ff', cursor: 'pointer' }}
+              onClick={() => {
+                setSelectedMember(record);
+                setUploadedImage(record.profilePhoto || '');
+                memberForm.setFieldsValue({
+                  ...record,
+                  dateOfBirth: dayjs(record.dateOfBirth),
+                  dateOfDeath: record.dateOfDeath ? dayjs(record.dateOfDeath) : undefined,
+                });
+                setMemberDetailModalVisible(true);
+              }}
+            >
+              {name}
+            </span>
             {record.id === family?.headId && (
               <Tag color="gold" style={{ marginLeft: 8 }}>Head</Tag>
             )}
           </div>
           <Text type="secondary" style={{ fontSize: '12px' }}>
-            Father: {record.fatherName}
+            {record.husbandName ? `Husband: ${record.husbandName}` : `Father: ${record.fatherName}`}
           </Text>
         </div>
       ),
@@ -482,6 +594,238 @@ const FamilyDetails: React.FC = () => {
               </Text>
             </div>
           )}
+        </Form>
+      </Modal>
+
+      {/* Member Edit Modal */}
+      <Modal
+        title={`Edit Member: ${selectedMember?.name}`}
+        open={memberDetailModalVisible}
+        onOk={handleMemberUpdate}
+        onCancel={() => setMemberDetailModalVisible(false)}
+        width={600}
+        destroyOnHidden
+      >
+        <Form
+          form={memberForm}
+          layout="vertical"
+          requiredMark={false}
+        >
+          <Row gutter={16}>
+            <Col xs={24} md={12}>
+              <Form.Item
+                name="name"
+                label="Full Name"
+                rules={[
+                  { required: true, message: 'Please enter full name' },
+                  { min: 2, message: 'Name must be at least 2 characters' }
+                ]}
+              >
+                <Input placeholder="Enter full name" />
+              </Form.Item>
+            </Col>
+            <Col xs={24} md={12}>
+              <Form.Item
+                name="fatherName"
+                label="Father Name (Optional)"
+              >
+                <Input placeholder="Enter father name" />
+              </Form.Item>
+            </Col>
+          </Row>
+
+          <Row gutter={16}>
+            <Col xs={24} md={12}>
+              <Form.Item
+                name="husbandName"
+                label="Husband Name (Optional)"
+              >
+                <Input placeholder="Enter husband name" />
+              </Form.Item>
+            </Col>
+            <Col xs={24} md={12}>
+              <div style={{ marginTop: 30 }}>
+                <Space direction="vertical">
+                  <Checkbox
+                    onChange={(e) => {
+                      if (e.target.checked) {
+                        // Find the family head name
+                        if (family) {
+                          const headMember = familyMembers.find(m => m.id === family.headId);
+                          if (headMember) {
+                            memberForm.setFieldsValue({ fatherName: headMember.name });
+                          }
+                        }
+                      }
+                    }}
+                  >
+                    Set Head as Father
+                  </Checkbox>
+                </Space>
+              </div>
+            </Col>
+          </Row>
+
+          <Row gutter={16}>
+            <Col xs={24} md={12}>
+              <Form.Item
+                name="gender"
+                label="Gender"
+                rules={[
+                  { required: true, message: 'Please select gender' }
+                ]}
+              >
+                <Select placeholder="Select gender">
+                  <Option value="male">Male</Option>
+                  <Option value="female">Female</Option>
+                </Select>
+              </Form.Item>
+            </Col>
+            <Col xs={24} md={12}>
+              <Form.Item
+                name="dateOfBirth"
+                label="Date of Birth"
+                rules={[
+                  { required: true, message: 'Please select date of birth' }
+                ]}
+              >
+                <DatePicker
+                  style={{ width: '100%' }}
+                  placeholder="Select date of birth"
+                  disabledDate={(current) => current && current > dayjs().endOf('day')}
+                />
+              </Form.Item>
+            </Col>
+          </Row>
+
+          <Row gutter={16}>
+            <Col xs={24} md={12}>
+              <Form.Item
+                name="cnic"
+                label="CNIC (Optional)"
+                rules={[
+                  {
+                    validator: (_, value) => {
+                      if (!value || validateCNIC(value)) {
+                        return Promise.resolve();
+                      }
+                      return Promise.reject(new Error('Please enter a valid CNIC (13 digits)'));
+                    }
+                  }
+                ]}
+              >
+                <Input
+                  placeholder="Enter CNIC (without dashes)"
+                  maxLength={15}
+                />
+              </Form.Item>
+            </Col>
+            <Col xs={24} md={12}>
+              <Form.Item
+                name="phone"
+                label="Phone (Optional)"
+              >
+                <Input placeholder="Enter phone number" />
+              </Form.Item>
+            </Col>
+          </Row>
+
+          <Row gutter={16}>
+            <Col xs={24} md={12}>
+              <Form.Item
+                label="Halqa"
+              >
+                <Input 
+                  disabled 
+                  value={family?.halqa || 'Not assigned to family'} 
+                  placeholder="Halqa is managed at family level" 
+                />
+              </Form.Item>
+            </Col>
+            <Col xs={24} md={12}>
+              <Form.Item
+                name="profilePhoto"
+                label="Profile Photo (Optional)"
+              >
+                <Upload
+                  listType="picture-card"
+                  maxCount={1}
+                  beforeUpload={handleImageUpload}
+                  fileList={uploadedImage ? [{
+                    uid: '-1',
+                    name: 'profile.jpg',
+                    status: 'done',
+                    url: uploadedImage,
+                  }] : []}
+                  onRemove={() => {
+                    setUploadedImage('');
+                    return true;
+                  }}
+                  disabled={imageUploading}
+                >
+                  {!uploadedImage && (
+                    <div>
+                      <UploadOutlined />
+                      <div style={{ marginTop: 8 }}>
+                        {imageUploading ? 'Uploading...' : 'Upload'}
+                      </div>
+                    </div>
+                  )}
+                </Upload>
+              </Form.Item>
+            </Col>
+          </Row>
+
+          <Row gutter={16}>
+            <Col xs={24} md={12}>
+              <Form.Item
+                name="isDeceased"
+                valuePropName="checked"
+              >
+                <Checkbox>Deceased</Checkbox>
+              </Form.Item>
+            </Col>
+            <Col xs={24} md={12}>
+              <Form.Item
+                name="dateOfDeath"
+                label="Date of Death"
+                dependencies={['isDeceased']}
+                rules={[
+                  ({ getFieldValue }) => ({
+                    validator(_, value) {
+                      if (getFieldValue('isDeceased') && !value) {
+                        return Promise.reject(new Error('Please select date of death'));
+                      }
+                      return Promise.resolve();
+                    },
+                  }),
+                ]}
+              >
+                <DatePicker
+                  style={{ width: '100%' }}
+                  placeholder="Select date of death"
+                  disabledDate={(current) => current && current > dayjs().endOf('day')}
+                />
+              </Form.Item>
+            </Col>
+          </Row>
+
+          <Row>
+            <Col xs={24}>
+              <Form.Item
+                name="address"
+                label="Address"
+                rules={[
+                  { required: true, message: 'Please enter address' }
+                ]}
+              >
+                <Input.TextArea
+                  rows={3}
+                  placeholder="Enter complete address"
+                />
+              </Form.Item>
+            </Col>
+          </Row>
         </Form>
       </Modal>
     </div>
