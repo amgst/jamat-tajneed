@@ -14,11 +14,9 @@ import {
   where,
   orderBy,
   QuerySnapshot,
-  // Removed DocumentData from direct import as it's a type, not a runtime export
-  // DocumentData,
-  // Import onSnapshot for real-time updates if needed in the future
-  // onSnapshot
+  connectFirestoreEmulator
 } from 'firebase/firestore';
+import { getAuth, connectAuthEmulator } from 'firebase/auth';
 import type { Member, Family, AuthUser } from '../types';
 
 // Your web app's Firebase configuration
@@ -36,8 +34,22 @@ const firebaseConfig = {
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
 const analytics = getAnalytics(app);
-// Removed Firebase Auth export as it's no longer used for login
+export const auth = getAuth(app);
 export const db = getFirestore(app);
+
+// Connect to emulators in development
+const USE_EMULATOR = import.meta.env.VITE_USE_EMULATOR === 'true';
+
+if (USE_EMULATOR) {
+  try {
+    connectFirestoreEmulator(db, 'localhost', 8080);
+    console.log('Connected to Firestore emulator');
+  } catch (error) {
+    console.log('Firestore emulator already connected or not available');
+  }
+} else {
+  console.log('Using production Firestore');
+}
 
 // Collection names in Firestore
 const MEMBERS_COLLECTION = 'members';

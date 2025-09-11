@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Export Firebase Data</title>
+</head>
+<body>
+    <h1>Export Firebase Data</h1>
+    <button onclick="exportData()">Export All Data</button>
+    <pre id="output"></pre>
+
+    <script type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js';
+        import { getFirestore, collection, getDocs } from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js';
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyAa6zRE_7TKpT5nVq3VmO8Kr5-h12PpfGM",
+            authDomain: "jamat-tajneed-44f6d.firebaseapp.com",
+            projectId: "jamat-tajneed-44f6d",
+            storageBucket: "jamat-tajneed-44f6d.firebasestorage.app",
+            messagingSenderId: "794157972693",
+            appId: "1:794157972693:web:2f012a4f481c5dbc38f65c"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        window.exportData = async function() {
+            try {
+                const members = await getDocs(collection(db, 'members'));
+                const families = await getDocs(collection(db, 'families'));
+                
+                const exportData = {
+                    members: {},
+                    families: {}
+                };
+
+                members.forEach(doc => {
+                    exportData.members[doc.id] = doc.data();
+                });
+
+                families.forEach(doc => {
+                    exportData.families[doc.id] = doc.data();
+                });
+
+                document.getElementById('output').textContent = JSON.stringify(exportData, null, 2);
+                
+                // Download as file
+                const blob = new Blob([JSON.stringify(exportData, null, 2)], {type: 'application/json'});
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'firebase-export.json';
+                a.click();
+                
+            } catch (error) {
+                console.error('Export failed:', error);
+                document.getElementById('output').textContent = 'Export failed: ' + error.message;
+            }
+        }
+    </script>
+</body>
+</html>

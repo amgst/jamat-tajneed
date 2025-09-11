@@ -81,6 +81,7 @@ export interface Family {
   memberIds: string[];
   totalMembers: number;
   halqa?: string;
+  familyHistory?: string; // Family history and background notes
   createdAt: string;
   updatedAt: string;
 }

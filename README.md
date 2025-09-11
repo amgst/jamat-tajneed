@@ -1,41 +1,61 @@
-# React + TypeScript + Vite
-
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
-
-Currently, two official plugins are available:
-
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
-
 # Tajneed Admin Dashboard - Jamaat Ahmadiyya Muridke
 
 A comprehensive membership management system for Jamaat Ahmadiyya Muridke built with React TypeScript and Firebase.
 
-## Features
+## 🚀 Quick Start
 
-### 🧍 Member Registration & Listing
-- Complete member registration form with all required fields
-- Auto-calculation of age from date of birth
-- Auto-assignment to appropriate Tanzeem based on age and gender
+```bash
+# Install dependencies
+npm install
+
+# Start development server
+npm run dev
+
+# Start Firebase emulator
+npm run emulator
+
+# Import data to emulator
+npm run import-data
+```
+
+## 📚 Documentation
+
+- **[Firebase Emulator Guide](./FIREBASE_EMULATOR_GUIDE.md)** - Complete guide for local development and data sync
+- **[Login Credentials](./LOGIN_CREDENTIALS.md)** - Development login information
+- **[Firebase Setup](./FIREBASE_SETUP.md)** - Firebase configuration guide
+
+## 🔧 Available Scripts
+
+| Script | Command | Description |
+|--------|---------|-------------|
+| Development | `npm run dev` | Start React development server |
+| Build | `npm run build` | Build for production |
+| Emulator | `npm run emulator` | Start Firebase emulator |
+| Import Data | `npm run import-data` | Import JSON data to emulator |
+| Sync Production | `npm run sync-to-prod` | Sync local data to production |
+
+## 🏗️ Features
+
+### 🧍 Member Management
+- Complete member registration with auto-age calculation
+- Auto-assignment to appropriate Tanzeem
 - Profile photo upload support
-- Searchable and filterable member listing
+- Advanced search and filtering
 
 ### 👪 Family Grouping
 - Create and manage family groups
-- Assign family head (Father/Guardian)
-- View family members and statistics
-- Family-wise reporting
+- Assign family heads
+- Family-wise reporting and statistics
 
-### 📊 Dashboard Summary
-- Real-time statistics and analytics
-- Member distribution charts
-- Tanzeem-wise breakdown
+### 📊 Dashboard Analytics
+- Real-time statistics and charts
+- Member distribution by Tanzeem
 - Progress tracking and metrics
 
-### 🏛️ Tanzeem Management
+### 🏛️ Tanzeem Classification
 **Boys:**
 - Under 7: Saf-e-Awal
-- 7-15: Atfal
+- 7-15: Atfal  
 - 15-40: Khuddam
 - 40+: Ansar
 
@@ -43,167 +63,108 @@ A comprehensive membership management system for Jamaat Ahmadiyya Muridke built 
 - 7-15: Nasirat
 - 15+: Lajna
 
-### 🔍 Advanced Search & Filtering
-- Search by name, phone, CNIC, or any field
-- Filter by gender, age, Tanzeem, Halqa
-- Real-time search results
-
-### 📥 Import/Export Features
-- CSV import with data validation
-- Export member lists and reports
-- Sample CSV format download
+### 📥 Import/Export
+- CSV import with validation
+- Export reports and member lists
 - Bulk data operations
 
-### 🛡️ Authentication & Security
-- Admin-only access with email/password
-- Firebase Authentication integration
-- Protected routes and sessions
-
-## Tech Stack
+## 🛠️ Tech Stack
 
 - **Frontend:** React 18 + TypeScript + Vite
-- **UI Library:** Ant Design (complete component library)
-- **Backend:** Firebase (Authentication + Firestore)
+- **UI Library:** Ant Design
+- **Backend:** Firebase (Auth + Firestore)
 - **Charts:** @ant-design/charts
 - **Routing:** React Router DOM
-- **Date Handling:** Day.js
-- **CSV Processing:** PapaParse
+- **Internationalization:** i18next
 
-## Project Structure
+## 🔧 Development Setup
 
-```
-src/
-├── components/          # Reusable UI components
-│   └── Layout.tsx      # Main app layout with sidebar
-├── pages/              # Page components
-│   ├── Dashboard.tsx   # Analytics dashboard
-│   ├── Members.tsx     # Member management
-│   ├── Families.tsx    # Family management
-│   ├── TanzeemView.tsx # Tanzeem-wise views
-│   ├── Settings.tsx    # System settings
-│   └── Login.tsx       # Authentication
-├── contexts/           # React contexts
-│   ├── AuthContext.tsx # Authentication context
-│   └── useAuth.ts      # Auth hook
-├── services/           # API services
-│   └── firebase.ts     # Firebase configuration
-├── types/              # TypeScript type definitions
-│   └── index.ts        # All interfaces and types
-├── utils/              # Utility functions
-│   └── helpers.ts      # Helper functions
-└── App.tsx             # Main app component
-```
-
-## Installation & Setup
-
-1. **Clone and install dependencies:**
+1. **Clone and install:**
    ```bash
+   git clone <repository-url>
+   cd jamat-tajneed
    npm install
    ```
 
 2. **Configure Firebase:**
-   - Create a new Firebase project
-   - Enable Authentication (Email/Password)
-   - Create a Firestore database
    - Update `src/services/firebase.ts` with your Firebase config
+   - See [Firebase Setup Guide](./FIREBASE_SETUP.md)
 
-3. **Run the development server:**
+3. **Start development:**
    ```bash
-   npm run dev
+   npm run emulator    # Start Firebase emulator
+   npm run import-data # Import sample data
+   npm run dev         # Start React app
    ```
 
-4. **Build for production:**
+## 🌐 Environment Configuration
+
+Create `.env` file:
+```bash
+# Set to 'true' for emulator, 'false' for production
+VITE_USE_EMULATOR=true
+```
+
+## 📁 Project Structure
+
+```
+src/
+├── components/          # Reusable UI components
+├── pages/              # Page components
+├── contexts/           # React contexts
+├── services/           # API services
+├── types/              # TypeScript definitions
+├── utils/              # Utility functions
+└── App.tsx             # Main app component
+```
+
+## 🔒 Authentication
+
+Currently using mock authentication for development. See [Login Credentials](./LOGIN_CREDENTIALS.md) for access details.
+
+## 🚀 Deployment
+
+1. **Build for production:**
    ```bash
    npm run build
    ```
 
-## Firebase Configuration
+2. **Deploy to Firebase:**
+   ```bash
+   firebase deploy
+   ```
 
-Update the Firebase configuration in `src/services/firebase.ts`:
+3. **Sync data to production:**
+   ```bash
+   npm run sync-to-prod
+   ```
 
-```typescript
-const firebaseConfig = {
-  apiKey: "your-api-key",
-  authDomain: "your-auth-domain",
-  projectId: "your-project-id",
-  storageBucket: "your-storage-bucket",
-  messagingSenderId: "your-messaging-sender-id",
-  appId: "your-app-id"
-};
-```
+## 📊 Data Management
 
-## Usage
+- **Local Development:** Use Firebase emulator
+- **Data Import:** JSON to emulator via `npm run import-data`
+- **Production Sync:** Local to production via `npm run sync-to-prod`
+- **Backup:** Export emulator data via Firebase CLI
 
-1. **Login:** Use admin credentials to access the system
-2. **Add Members:** Use the Members page to register new members
-3. **Manage Families:** Group members into families
-4. **View Analytics:** Check dashboard for statistics and charts
-5. **Import Data:** Use CSV import for bulk member registration
-6. **Export Reports:** Generate CSV reports for external use
-
-## Tanzeem Classification Rules
-
-The system automatically assigns members to appropriate Tanzeem based on:
-
-- **Boys:**
-  - Under 7 years: Saf-e-Awal
-  - 7-15 years: Atfal
-  - 15-40 years: Khuddam
-  - 40+ years: Ansar
-
-- **Girls:**
-  - Under 7 years: Not Applicable
-  - 7-15 years: Nasirat
-  - 15+ years: Lajna
-
-## Data Validation
-
-- **CNIC:** Must be 13 digits
-- **Phone:** 10-15 digits
-- **Age:** Auto-calculated from date of birth
-- **Required Fields:** Name, Father Name, Gender, CNIC, DOB, Phone, Address
-
-## Contributing
+## 🤝 Contributing
 
 1. Fork the repository
-2. Create a feature branch
-3. Make your changes
+2. Create feature branch
+3. Make changes with emulator
 4. Test thoroughly
-5. Submit a pull request
+5. Submit pull request
 
-## License
+## 📄 License
 
-This project is licensed under the MIT License.
+MIT License - see LICENSE file for details.
 
-## Support
+## 🆘 Support
 
-For support and questions, contact the development team.
+For issues and questions:
+1. Check [Firebase Emulator Guide](./FIREBASE_EMULATOR_GUIDE.md)
+2. Review [troubleshooting section](./FIREBASE_EMULATOR_GUIDE.md#-troubleshooting)
+3. Contact development team
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+---
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default tseslint.config([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+**Last Updated:** January 2025

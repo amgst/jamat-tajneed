@@ -12,6 +12,30 @@ dist
 dist-ssr
 *.local
 
+# Firebase
+.firebase/
+firebase-debug.log
+firestore-debug.log
+ui-debug.log
+auth-debug.log
+dataconnect-debug.log
+
+# Firebase Emulator data
+backup/
+live-backup/
+sample-data.json
+firebase-export-*/
+firebase-export/
+production-export/
+production-backup/
+*.log
+
+# Environment variables
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
@@ -22,3 +46,14 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# OS generated files
+Thumbs.db
+ehthumbs.db
+
+# Build files
+build/
+coverage/
+
+
+.dataconnect/

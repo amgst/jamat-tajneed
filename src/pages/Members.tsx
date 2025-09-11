@@ -32,6 +32,7 @@ import {
   SearchOutlined,
   TeamOutlined
 } from '@ant-design/icons';
+import ReligiousActivitiesModal from '../components/ReligiousActivitiesModal';
 import dayjs from 'dayjs';
 import { getAllMembers, getAllFamilies, addMember, updateMember, deleteMember } from '../services/firebase';
 import type { Member, Tanzeem, Family } from '../types';
@@ -292,6 +293,38 @@ const Members: React.FC = () => {
     message.success('Data exported successfully');
   };
 
+  const handleFirebaseExport = () => {
+    const firebaseData = {
+      members: {},
+      families: {}
+    };
+
+    members.forEach(member => {
+      (firebaseData.members as Record<string, any>)[member.id] = {
+        ...member,
+        id: undefined // Remove id from data
+      };
+      delete firebaseData.members[member.id].id;
+    });
+
+    families.forEach(family => {
+      firebaseData.families[family.id] = {
+        ...family,
+        id: undefined // Remove id from data
+      };
+      delete firebaseData.families[family.id].id;
+    });
+
+    const blob = new Blob([JSON.stringify(firebaseData, null, 2)], {type: 'application/json'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'firebase-export.json';
+    a.click();
+    URL.revokeObjectURL(url);
+    message.success('Firebase data exported successfully');
+  };
+
   const columns = [
     {
       title: 'S.No',
@@ -411,6 +444,7 @@ const Members: React.FC = () => {
           <Button
             type={hasData ? 'primary' : 'default'}
             size="small"
+            icon={<EditOutlined />}
             onClick={() => {
               setSelectedMemberForReligious(record);
               setReligiousModalVisible(true);
@@ -420,7 +454,7 @@ const Members: React.FC = () => {
               borderColor: hasData ? '#52c41a' : undefined
             }}
           >
-            View
+            Edit
           </Button>
         );
       },
@@ -476,6 +510,13 @@ const Members: React.FC = () => {
               onClick={handleExport}
             >
               Export CSV
+            </Button>
+            <Button
+              type="default"
+              icon={<DownloadOutlined />}
+              onClick={handleFirebaseExport}
+            >
+              Export Firebase Data
             </Button>
             <Button
               type="default"
@@ -886,118 +927,15 @@ const Members: React.FC = () => {
         </Form>
       </Modal>
 
-      {/* Religious Data Modal */}
-      <Modal
-        title={`Religious Activities: ${selectedMemberForReligious?.name}`}
-        open={religiousModalVisible}
-        onCancel={() => setReligiousModalVisible(false)}
-        footer={[
-          <Button key="close" onClick={() => setReligiousModalVisible(false)}>
-            Close
-          </Button>
-        ]}
-        width={700}
-      >
-        {selectedMemberForReligious && (
-          <div>
-            {selectedMemberForReligious.religiousActivities ? (
-              <div>
-                <Row gutter={[16, 16]}>
-                  <Col span={24}>
-                    <h4>Daily Tasks</h4>
-                    <Space wrap>
-                      <Tag color={selectedMemberForReligious.religiousActivities.weeklyVoluntaryFast ? 'green' : 'red'}>
-                        نفلی روزہ: {selectedMemberForReligious.religiousActivities.weeklyVoluntaryFast ? 'Yes' : 'No'}
-                      </Tag>
-                      <Tag color={selectedMemberForReligious.religiousActivities.twoNaflDaily ? 'green' : 'red'}>
-                        دو نوافل: {selectedMemberForReligious.religiousActivities.twoNaflDaily ? 'Yes' : 'No'}
-                      </Tag>
-                      <Tag color={selectedMemberForReligious.religiousActivities.dailyRecitation ? 'green' : 'red'}>
-                        تلاوت: {selectedMemberForReligious.religiousActivities.dailyRecitation ? 'Yes' : 'No'}
-                      </Tag>
-                      <Tag color={selectedMemberForReligious.religiousActivities.dailyThreePrayers ? 'green' : 'red'}>
-                        روزانہ 3 دعائیں: {selectedMemberForReligious.religiousActivities.dailyThreePrayers ? 'Yes' : 'No'}
-                      </Tag>
-                    </Space>
-                  </Col>
-                </Row>
-                
-                <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
-                  <Col span={24}>
-                    <h4>Weekly Tasks</h4>
-                    <Space wrap>
-                      <Tag color={selectedMemberForReligious.religiousActivities.weeklyTahajjud ? 'green' : 'red'}>
-                        تہجد: {selectedMemberForReligious.religiousActivities.weeklyTahajjud ? 'Yes' : 'No'}
-                      </Tag>
-                      <Tag color={selectedMemberForReligious.religiousActivities.sermonListening ? 'green' : 'red'}>
-                        خطبہ حضور انور: {selectedMemberForReligious.religiousActivities.sermonListening ? 'Yes' : 'No'}
-                      </Tag>
-                      <Tag color={selectedMemberForReligious.religiousActivities.prayerLetterWriting ? 'green' : 'red'}>
-                        دعائیہ خط: {selectedMemberForReligious.religiousActivities.prayerLetterWriting ? 'Yes' : 'No'}
-                      </Tag>
-                    </Space>
-                  </Col>
-                </Row>
-                
-                <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
-                  <Col span={24}>
-                    <h4>Others Info</h4>
-                    <Space wrap>
-                      <Tag color={selectedMemberForReligious.religiousActivities.prayerWithTranslation ? 'green' : 'red'}>
-                        نماز با ترجمہ: {selectedMemberForReligious.religiousActivities.prayerWithTranslation ? 'Yes' : 'No'}
-                      </Tag>
-                      <Tag color={selectedMemberForReligious.religiousActivities.quranRecitation ? 'green' : 'red'}>
-                        قرآن ناظرہ: {selectedMemberForReligious.religiousActivities.quranRecitation ? 'Yes' : 'No'}
-                      </Tag>
-                      <Tag color={selectedMemberForReligious.religiousActivities.willWritten ? 'green' : 'red'}>
-                        وصیت: {selectedMemberForReligious.religiousActivities.willWritten ? 'Yes' : 'No'}
-                      </Tag>
-                    </Space>
-                  </Col>
-                </Row>
-                
-                <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
-                  <Col span={24}>
-                    <h4>MTA ba zaria Dish, internet</h4>
-                    <Space wrap>
-                      <Tag color={selectedMemberForReligious.religiousActivities.mtaDish ? 'green' : 'red'}>
-                        MTA ڈش: {selectedMemberForReligious.religiousActivities.mtaDish ? 'Yes' : 'No'}
-                      </Tag>
-                      <Tag color={selectedMemberForReligious.religiousActivities.mtaCable ? 'green' : 'red'}>
-                        MTA کیبل: {selectedMemberForReligious.religiousActivities.mtaCable ? 'Yes' : 'No'}
-                      </Tag>
-                      <Tag color={selectedMemberForReligious.religiousActivities.internetAccess ? 'green' : 'red'}>
-                        انٹرنیٹ: {selectedMemberForReligious.religiousActivities.internetAccess ? 'Yes' : 'No'}
-                      </Tag>
-                    </Space>
-                  </Col>
-                </Row>
-                
-                <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
-                  <Col span={24}>
-                    <h4>Prayer Information</h4>
-                    <Space wrap>
-                      <Tag color="blue">
-                        پنجگانہ نماز: {selectedMemberForReligious.religiousActivities.fiveDailyPrayers}/5
-                      </Tag>
-                      <Tag color="blue">
-                        با جماعت نمازیں: {selectedMemberForReligious.religiousActivities.congregationalPrayers}/5
-                      </Tag>
-                      <Tag color={selectedMemberForReligious.religiousActivities.fridayPrayer ? 'green' : 'red'}>
-                        نماز جمعہ: {selectedMemberForReligious.religiousActivities.fridayPrayer ? 'Yes' : 'No'}
-                      </Tag>
-                    </Space>
-                  </Col>
-                </Row>
-              </div>
-            ) : (
-              <div style={{ textAlign: 'center', padding: '40px' }}>
-                <Text type="secondary">No religious activities data available for this member.</Text>
-              </div>
-            )}
-          </div>
-        )}
-      </Modal>
+      {/* Religious Activities Modal */}
+       <ReligiousActivitiesModal
+         visible={religiousModalVisible}
+         member={selectedMemberForReligious}
+         onClose={() => setReligiousModalVisible(false)}
+         onSuccess={() => {
+           loadMembers(); // Refresh the members list
+         }}
+       />
     </div>
   );
 };

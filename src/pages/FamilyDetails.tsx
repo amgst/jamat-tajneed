@@ -30,8 +30,10 @@ import {
   PlusOutlined,
   DeleteOutlined,
   UploadOutlined,
+  EditOutlined,
 } from '@ant-design/icons';
 import { getAllMembers, getAllFamilies, updateFamily, updateMember } from '../services/firebase';
+import ReligiousActivitiesModal from '../components/ReligiousActivitiesModal';
 import { getTanzeemDisplayName, formatDate, calculateAge, determineTanzeem, formatCNIC, validateCNIC, validatePhone } from '../utils/helpers';
 import { processImageFile, generateAvatarFromName } from '../utils/imageUtils';
 import dayjs from 'dayjs';
@@ -51,6 +53,8 @@ const FamilyDetails: React.FC = () => {
   const [selectedMember, setSelectedMember] = useState<Member | null>(null);
   const [uploadedImage, setUploadedImage] = useState<string>('');
   const [imageUploading, setImageUploading] = useState(false);
+  const [religiousModalVisible, setReligiousModalVisible] = useState(false);
+  const [selectedMemberForReligious, setSelectedMemberForReligious] = useState<Member | null>(null);
   const [form] = Form.useForm();
   const [memberForm] = Form.useForm();
 
@@ -361,6 +365,18 @@ const FamilyDetails: React.FC = () => {
       key: 'actions',
       render: (record: Member) => (
         <Space>
+          <Button
+            type={record.religiousActivities ? 'primary' : 'default'}
+            size="small"
+            icon={<EditOutlined />}
+            onClick={() => {
+              setSelectedMemberForReligious(record);
+              setReligiousModalVisible(true);
+            }}
+            title="Update Religious Activities"
+          >
+            Religious
+          </Button>
           {record.id !== family?.headId && (
             <Popconfirm
               title="Remove member from family?"
@@ -387,7 +403,7 @@ const FamilyDetails: React.FC = () => {
           )}
         </Space>
       ),
-      width: 120,
+      width: 180,
     },
   ];
 
@@ -457,6 +473,31 @@ const FamilyDetails: React.FC = () => {
                 {formatDate(family.updatedAt)}
               </Descriptions.Item>
             </Descriptions>
+            
+            {/* Family History Section */}
+            <div style={{ marginTop: 24 }}>
+              <Title level={4}>Family History</Title>
+              <Input.TextArea
+                rows={4}
+                placeholder="Write family history, background, or any important notes..."
+                value={family.familyHistory || ''}
+                onChange={(e) => {
+                  const updatedFamily = { ...family, familyHistory: e.target.value };
+                  setFamily(updatedFamily);
+                }}
+                onBlur={async () => {
+                  try {
+                    await updateFamily(family.id, { 
+                      familyHistory: family.familyHistory || '',
+                      updatedAt: new Date().toISOString()
+                    });
+                    message.success('Family history updated');
+                  } catch (error) {
+                    message.error('Failed to update family history');
+                  }
+                }}
+              />
+            </div>
           </Card>
         </Col>
         <Col xs={24} lg={8}>
@@ -828,6 +869,16 @@ const FamilyDetails: React.FC = () => {
           </Row>
         </Form>
       </Modal>
+
+      {/* Religious Activities Modal */}
+      <ReligiousActivitiesModal
+        visible={religiousModalVisible}
+        member={selectedMemberForReligious}
+        onClose={() => setReligiousModalVisible(false)}
+        onSuccess={() => {
+          loadFamilyData(); // Refresh the family data
+        }}
+      />
     </div>
   );
 };
