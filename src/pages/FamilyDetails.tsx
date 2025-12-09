@@ -32,7 +32,7 @@ import {
   UploadOutlined,
   EditOutlined,
 } from '@ant-design/icons';
-import { getAllMembers, getAllFamilies, updateFamily, updateMember } from '../services/firebase';
+import { ApiService } from '../services/apiService';
 import ReligiousActivitiesModal from '../components/ReligiousActivitiesModal';
 import { getTanzeemDisplayName, formatDate, calculateAge, determineTanzeem, formatCNIC, validateCNIC, validatePhone } from '../utils/helpers';
 import { processImageFile, generateAvatarFromName } from '../utils/imageUtils';
@@ -64,8 +64,8 @@ const FamilyDetails: React.FC = () => {
     setLoading(true);
     try {
       const [familiesData, allMembersData] = await Promise.all([
-        getAllFamilies(),
-        getAllMembers()
+        ApiService.getAllFamilies(),
+        ApiService.getAllMembers()
       ]);
 
       const familyData = familiesData.find(f => f.id === id);
@@ -144,7 +144,7 @@ const FamilyDetails: React.FC = () => {
         updatedAt: new Date().toISOString(),
       };
 
-      await updateFamily(family.id, updatedFamily);
+      await ApiService.updateFamily(family.id, updatedFamily);
       message.success('Member removed from family successfully');
 
       // Reload family data
@@ -210,7 +210,7 @@ const FamilyDetails: React.FC = () => {
         memberData.dateOfDeath = values.dateOfDeath.format('YYYY-MM-DD');
       }
 
-      await updateMember(selectedMember.id, memberData);
+      await ApiService.updateMember(selectedMember.id, memberData);
       message.success('Member updated successfully');
       setMemberDetailModalVisible(false);
       loadFamilyData();
@@ -248,7 +248,7 @@ const FamilyDetails: React.FC = () => {
         updatedAt: new Date().toISOString(),
       };
 
-      await updateFamily(family.id, updatedFamily);
+      await ApiService.updateFamily(family.id, updatedFamily);
       message.success(`${selectedMemberIds.length} member(s) added to family successfully`);
 
       setAddMemberModalVisible(false);
@@ -487,7 +487,7 @@ const FamilyDetails: React.FC = () => {
                 }}
                 onBlur={async () => {
                   try {
-                    await updateFamily(family.id, { 
+                    await ApiService.updateFamily(family.id, { 
                       familyHistory: family.familyHistory || '',
                       updatedAt: new Date().toISOString()
                     });

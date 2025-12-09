@@ -30,14 +30,7 @@ import {
   ReloadOutlined,
   SearchOutlined
 } from '@ant-design/icons';
-import { 
-  getFamily, // Added to get existing family data
-  getAllFamilies, 
-  getAllMembers, 
-  addFamily, 
-  updateFamily, 
-  deleteFamily 
-} from '../services/firebase';
+import { ApiService } from '../services/apiService';
 import type { Family, Member } from '../types';
 import { getTanzeemDisplayName, formatDate } from '../utils/helpers';
 
@@ -74,8 +67,8 @@ const Families: React.FC = () => {
     setLoading(true);
     try {
       const [familiesData, membersData] = await Promise.all([
-        getAllFamilies(),
-        getAllMembers()
+        ApiService.getAllFamilies(),
+        ApiService.getAllMembers()
       ]);
       setFamilies(familiesData);
       setMembers(membersData);
@@ -214,11 +207,10 @@ const Families: React.FC = () => {
       const formData: FamilyForm = values;
 
              if (editingFamily) {
-         // FIX: Fetch the existing family data first to preserve the memberIds array
          const existingFamily = await getFamily(editingFamily.id);
          if (existingFamily) {
            const updatedFamily = {
-             ...existingFamily, // Retain all existing fields
+             ...existingFamily,
              familyName: formData.familyName,
              familyNumber: formData.familyNumber || undefined,
              headId: formData.headId,

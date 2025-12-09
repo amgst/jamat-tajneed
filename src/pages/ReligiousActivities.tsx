@@ -29,7 +29,7 @@ import {
   SearchOutlined,
   DownloadOutlined
 } from '@ant-design/icons';
-import { getAllMembers, updateMember } from '../services/firebase';
+import { ApiService } from '../services/apiService';
 import type { Member, ReligiousActivities, Tanzeem } from '../types';
 import { getTanzeemDisplayName, formatDate, exportToCSV } from '../utils/helpers';
 
@@ -51,7 +51,7 @@ const ReligiousActivitiesPage: React.FC = () => {
   const loadMembers = async () => {
     setLoading(true);
     try {
-      const data = await getAllMembers();
+      const data = await ApiService.getAllMembers();
       setMembers(data);
     } catch (error) {
       message.error('Failed to load members');
@@ -140,7 +140,7 @@ const ReligiousActivitiesPage: React.FC = () => {
       };
 
       if (editingMember) {
-        await updateMember(editingMember.id, {
+        await ApiService.updateMember(editingMember.id, {
           ...editingMember,
           religiousActivities: religiousData,
           updatedAt: new Date().toISOString(),
@@ -420,6 +420,7 @@ const ReligiousActivitiesPage: React.FC = () => {
           form={form}
           layout="vertical"
           requiredMark={false}
+          preserve={false}
         >
           <Row gutter={16}>
             <Col span={12}>

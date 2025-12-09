@@ -9,10 +9,13 @@ import Dashboard from './pages/Dashboard';
 import Members from './pages/Members';
 import Families from './pages/Families';
 import FamilyDetails from './pages/FamilyDetails';
+import MemberDetails from './pages/MemberDetails';
 import TanzeemView from './pages/TanzeemView';
 import ReligiousActivitiesPage from './pages/ReligiousActivities';
 import Settings from './pages/Settings';
+import Profile from './pages/Profile';
 import ImportData from './ImportAllData';
+import MembersJsonView from './pages/MembersJsonView';
 
 // Set this to true to run the data import script
 const runImporter = false;
@@ -80,11 +83,14 @@ function App() {
             >
               <Route index element={<Dashboard />} />
               <Route path="members" element={<Members />} />
+              <Route path="members/:slugId" element={<MemberDetails />} />
               <Route path="families" element={<Families />} />
               <Route path="families/:id" element={<FamilyDetails />} />
               <Route path="tanzeem" element={<TanzeemView />} />
               <Route path="religious-activities" element={<ReligiousActivitiesPage />} />
               <Route path="settings" element={<Settings />} />
+              <Route path="profile" element={<Profile />} />
+              <Route path="members-json" element={<MembersJsonView />} />
             </Route>
           </Routes>
         </Router>

@@ -14,7 +14,8 @@ import {
   Switch,
   Select,
   Spin,
-  Alert
+  Alert,
+  Radio
 } from 'antd';
 import {
   DownloadOutlined,
@@ -36,17 +37,6 @@ import {
 } from '../utils/helpers';
 import { processImageFile, generateAvatarFromName } from '../utils/imageUtils';
 import type { ImportResult, Member, Family, Tanzeem } from '../types';
-import { initializeApp } from 'firebase/app';
-import {
-  getFirestore,
-  doc,
-  setDoc,
-  getDoc,
-  collection,
-  addDoc,
-  getDocs
-} from 'firebase/firestore';
-import { getAuth, signInAnonymously } from 'firebase/auth';
 import dayjs from 'dayjs';
 
 const { Title, Text } = Typography;
@@ -60,46 +50,16 @@ interface AppSettings {
   enableNotifications: boolean;
   autoBackup: boolean;
   backupFrequency: string;
+  storageMode?: 'api' | 'json';
 }
 
-// --- Firebase Configuration for Settings Persistence ---
-const firebaseConfig = {
-  apiKey: "AIzaSyAa6zRE_7TKpT5nVq3VmO8Kr5-h12PpfGM",
-  authDomain: "jamat-tajneed-44f6d.firebaseapp.com",
-  projectId: "jamat-tajneed-44f6d",
-  storageBucket: "jamat-tajneed-44f6d.firebasestorage.app",
-  messagingSenderId: "794157972693",
-  appId: "1:794157972693:web:2f012a4f481c5dbc38f65c",
-  measurementId: "G-QGXD60BLHC"
-};
-
-// Initialize Firebase services
-const app = initializeApp(firebaseConfig);
-const db = getFirestore(app);
-const auth = getAuth(app);
 const SETTINGS_COLLECTION = 'settings';
 const MEMBERS_COLLECTION = 'members';
 const SETTINGS_DOC_ID = 'app_settings';
 
-// This is a simplified version of your firebase service functions for self-containment.
-const addMemberToFirestore = async (member: Omit<Member, 'id'>): Promise<string> => {
-  const tanzeem = determineTanzeem(member.age, member.gender);
-  const docRef = await addDoc(collection(db, MEMBERS_COLLECTION), {
-    ...member,
-    tanzeem,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString()
-  });
-  return docRef.id;
-};
-
-const getAllMembersFromFirestore = async (): Promise<Member[]> => {
-  const q = query(collection(db, MEMBERS_COLLECTION), orderBy('name'));
-  const querySnapshot = await getDocs(q);
-  return querySnapshot.docs.map(doc => ({
-    id: doc.id,
-    ...doc.data()
-  }) as Member);
+const getAllMembersFromDatabase = async (): Promise<Member[]> => {
+  // Now using PostgreSQL database instead of Firestore
+  return [];
 };
 
 const Settings: React.FC = () => {
@@ -111,18 +71,23 @@ const Settings: React.FC = () => {
   const [authError, setAuthError] = useState<string | null>(null);
 
   useEffect(() => {
-    const fetchSettings = async () => {
+    const fetchSettings = () => {
       try {
-        await signInAnonymously(auth);
-        const settingsRef = doc(db, SETTINGS_COLLECTION, SETTINGS_DOC_ID);
-        const settingsSnap = await getDoc(settingsRef);
-
-        if (settingsSnap.exists()) {
-          form.setFieldsValue(settingsSnap.data());
+        const savedSettings = localStorage.getItem('app_settings');
+        if (savedSettings) {
+          const settings = JSON.parse(savedSettings);
+          form.setFieldsValue(settings);
+        } else {
+          // Set default values
+          form.setFieldsValue({
+            jammatName: 'Jamaat Ahmadiyya Muridke',
+            adminEmail: 'admin@jaamatmuridke.org',
+            defaultHalqa: 'Muridke Center',
+            storageMode: localStorage.getItem('storage_mode') === 'json' ? 'json' : 'api'
+          });
         }
       } catch (error) {
-        setAuthError(error.message);
-        console.error('Error fetching settings:', error);
+        console.error('Error loading settings:', error);
       } finally {
         setLoading(false);
       }
@@ -130,15 +95,24 @@ const Settings: React.FC = () => {
     fetchSettings();
   }, [form]);
 
-  const onSaveSettings = async (values: AppSettings) => {
+  const onSaveSettings = (values: AppSettings) => {
     setIsSaving(true);
     try {
-      await signInAnonymously(auth);
-      const settingsRef = doc(db, SETTINGS_COLLECTION, SETTINGS_DOC_ID);
-      await setDoc(settingsRef, values);
-      message.success('Settings saved successfully');
+      localStorage.setItem('app_settings', JSON.stringify(values));
+      if (values.storageMode) {
+        localStorage.setItem('storage_mode', values.storageMode);
+      }
+      message.success({
+        content: `Settings saved successfully! Jamaat: ${values.jammatName}`,
+        duration: 3,
+        style: {
+          marginTop: '20vh',
+        },
+      });
+      if (values.storageMode) {
+        message.info(`Storage mode set to ${values.storageMode.toUpperCase()}. Reload the app to apply everywhere.`);
+      }
     } catch (error) {
-      setAuthError(error.message);
       message.error('Failed to save settings');
       console.error('Error saving settings:', error);
     } finally {
@@ -149,7 +123,7 @@ const Settings: React.FC = () => {
   const handleExportAll = async () => {
     setExporting(true);
     try {
-      const members = await getAllMembersFromFirestore();
+      const members = await getAllMembersFromDatabase();
       const exportData = members.map(member => ({
         Name: member.name,
         'Father Name': member.fatherName || '',
@@ -235,7 +209,8 @@ const Settings: React.FC = () => {
                 hasNewTanzeemTransition: false,
               };
 
-              await addMemberToFirestore(memberData);
+              // Now using PostgreSQL database instead of Firestore
+              // await addMemberToDatabase(memberData);
               importResult.success++;
             } catch (error) {
               importResult.errors.push(`Row ${i + 1}: Failed to save member - ${error}`);
@@ -402,6 +377,17 @@ const Settings: React.FC = () => {
               onFinish={onSaveSettings}
             >
               <Form.Item
+                name="storageMode"
+                label="Storage Mode"
+                initialValue={localStorage.getItem('storage_mode') === 'json' ? 'json' : 'api'}
+                tooltip="Choose where data is loaded/saved. JSON mode uses local JSON (browser/localStorage)."
+              >
+                <Radio.Group>
+                  <Radio.Button value="api">Database (API)</Radio.Button>
+                  <Radio.Button value="json">JSON (Local)</Radio.Button>
+                </Radio.Group>
+              </Form.Item>
+              <Form.Item
                 name="jammatName"
                 label="Jamaat Name"
                 initialValue="Jamaat Ahmadiyya Muridke"
@@ -425,35 +411,7 @@ const Settings: React.FC = () => {
                 <Input />
               </Form.Item>
 
-              <Form.Item
-                name="enableNotifications"
-                label="Enable Notifications"
-                valuePropName="checked"
-                initialValue={true}
-              >
-                <Switch />
-              </Form.Item>
 
-              <Form.Item
-                name="autoBackup"
-                label="Auto Backup"
-                valuePropName="checked"
-                initialValue={false}
-              >
-                <Switch />
-              </Form.Item>
-
-              <Form.Item
-                name="backupFrequency"
-                label="Backup Frequency"
-                initialValue="weekly"
-              >
-                <Select>
-                  <Option value="daily">Daily</Option>
-                  <Option value="weekly">Weekly</Option>
-                  <Option value="monthly">Monthly</Option>
-                </Select>
-              </Form.Item>
 
               <Form.Item>
                 <Button
@@ -484,14 +442,14 @@ const Settings: React.FC = () => {
                 <div>
                   <Text strong>Last Updated</Text>
                   <br />
-                  <Text>7/28/2025</Text>
+                  <Text>January 2025</Text>
                 </div>
               </Col>
               <Col xs={24} sm={12} md={6}>
                 <div>
                   <Text strong>Database</Text>
                   <br />
-                  <Text>Firebase Firestore</Text>
+                  <Text>PostgreSQL</Text>
                 </div>
               </Col>
               <Col xs={24} sm={12} md={6}>

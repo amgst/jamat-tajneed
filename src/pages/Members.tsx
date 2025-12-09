@@ -34,7 +34,7 @@ import {
 } from '@ant-design/icons';
 import ReligiousActivitiesModal from '../components/ReligiousActivitiesModal';
 import dayjs from 'dayjs';
-import { getAllMembers, getAllFamilies, addMember, updateMember, deleteMember } from '../services/firebase';
+import { ApiService } from '../services/apiService';
 import type { Member, Tanzeem, Family } from '../types';
 import {
   calculateAge,
@@ -81,6 +81,12 @@ const Members: React.FC = () => {
   const [selectedMemberForReligious, setSelectedMemberForReligious] = useState<Member | null>(null);
   const [form] = Form.useForm();
 
+  const mapMemberToFormValues = (member: Member) => ({
+    ...member,
+    dateOfBirth: dayjs(member.dateOfBirth),
+    dateOfDeath: member.dateOfDeath ? dayjs(member.dateOfDeath) : undefined,
+  });
+
   useEffect(() => {
     loadMembers();
   }, []);
@@ -89,8 +95,8 @@ const Members: React.FC = () => {
     setLoading(true);
     try {
       const [membersData, familiesData] = await Promise.all([
-        getAllMembers(),
-        getAllFamilies()
+        ApiService.getAllMembers(),
+        ApiService.getAllFamilies()
       ]);
       setMembers(membersData);
       setFamilies(familiesData);
@@ -112,17 +118,26 @@ const Members: React.FC = () => {
   const handleEditMember = (member: Member) => {
     setEditingMember(member);
     setUploadedImage(member.profilePhoto || '');
-    form.setFieldsValue({
-      ...member,
-      dateOfBirth: dayjs(member.dateOfBirth),
-      dateOfDeath: member.dateOfDeath ? dayjs(member.dateOfDeath) : undefined,
-    });
     setModalVisible(true);
   };
 
+  useEffect(() => {
+    if (modalVisible) {
+      if (editingMember) {
+        form.setFieldsValue({
+          ...editingMember,
+          dateOfBirth: dayjs(editingMember.dateOfBirth),
+          dateOfDeath: editingMember.dateOfDeath ? dayjs(editingMember.dateOfDeath) : undefined,
+        });
+      } else {
+        form.resetFields();
+      }
+    }
+  }, [modalVisible, editingMember, form]);
+
   const handleDeleteMember = async (id: string) => {
     try {
-      await deleteMember(id);
+      await ApiService.deleteMember(id);
       message.success('Member deleted successfully');
       loadMembers();
     } catch (error) {
@@ -259,18 +274,23 @@ const Members: React.FC = () => {
       }
 
       if (editingMember) {
-        await updateMember(editingMember.id, memberData);
+        await ApiService.updateMember(editingMember.id, memberData);
         message.success('Member updated successfully');
       } else {
-        await addMember(memberData);
+        await ApiService.createMember(memberData);
         message.success('Member added successfully');
       }
 
       setModalVisible(false);
       loadMembers();
     } catch (error) {
-      message.error('Failed to save member');
-      console.error(error);
+      if (error.errorFields) {
+        console.log('Validation errors:', error.errorFields);
+        message.error('Please fix form validation errors');
+      } else {
+        message.error('Failed to save member');
+        console.error(error);
+      }
     }
   };
 
@@ -377,14 +397,27 @@ const Members: React.FC = () => {
       dataIndex: 'name',
       key: 'name',
       sorter: (a: Member, b: Member) => a.name.localeCompare(b.name),
-      render: (name: string, record: Member) => (
-        <div>
-          <div style={{ fontWeight: 500 }}>{name}</div>
-          <Text type="secondary" style={{ fontSize: '12px' }}>
-            {record.husbandName ? `Husband: ${record.husbandName}` : record.fatherName}
-          </Text>
-        </div>
-      ),
+      render: (name: string, record: Member) => {
+        const slug = name
+          .toLowerCase()
+          .replace(/[^a-z0-9\s-]/g, '')
+          .trim()
+          .replace(/\s+/g, '-');
+        const slugId = `${slug}-${record.id}`;
+        return (
+          <div>
+            <div
+              style={{ fontWeight: 500, color: '#1890ff', cursor: 'pointer' }}
+              onClick={() => navigate(`/members/${slugId}`)}
+            >
+              {name}
+            </div>
+            <Text type="secondary" style={{ fontSize: '12px' }}>
+              {record.husbandName ? `Husband: ${record.husbandName}` : record.fatherName}
+            </Text>
+          </div>
+        );
+      },
     },
     {
       title: 'Gender',
@@ -694,12 +727,19 @@ const Members: React.FC = () => {
         onOk={handleModalOk}
         onCancel={() => setModalVisible(false)}
         width={600}
-        destroyOnHidden
+        destroyOnClose
+        afterOpenChange={(open) => {
+          if (open && editingMember) {
+            form.setFieldsValue(mapMemberToFormValues(editingMember));
+          }
+        }}
       >
         <Form
           form={form}
           layout="vertical"
           requiredMark={false}
+          preserve={false}
+          initialValues={editingMember ? mapMemberToFormValues(editingMember) : undefined}
         >
           <Row gutter={16}>
             <Col xs={24} md={12}>

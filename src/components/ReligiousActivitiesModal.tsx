@@ -10,7 +10,7 @@ import {
   Divider,
   message
 } from 'antd';
-import { updateMember } from '../services/firebase';
+import { ApiService } from '../services/apiService';
 import type { Member, ReligiousActivities, Tanzeem } from '../types';
 import { getTanzeemDisplayName } from '../utils/helpers';
 
@@ -74,7 +74,7 @@ const ReligiousActivitiesModal: React.FC<ReligiousActivitiesModalProps> = ({
       };
 
       if (member) {
-        await updateMember(member.id, {
+        await ApiService.updateMember(member.id, {
           ...member,
           religiousActivities: religiousData,
           updatedAt: new Date().toISOString(),
@@ -104,7 +104,7 @@ const ReligiousActivitiesModal: React.FC<ReligiousActivitiesModalProps> = ({
       onOk={handleModalOk}
       onCancel={handleCancel}
       width={800}
-      destroyOnClose
+      destroyOnHidden
       okText={readOnly ? 'Close' : 'Save'}
       cancelText="Cancel"
     >
@@ -113,6 +113,7 @@ const ReligiousActivitiesModal: React.FC<ReligiousActivitiesModalProps> = ({
         layout="vertical"
         requiredMark={false}
         disabled={readOnly}
+        preserve={false}
       >
         <Row gutter={16}>
           <Col span={12}>

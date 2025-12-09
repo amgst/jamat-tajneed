@@ -1,52 +1,74 @@
-# Example schema for simple movie review app
+# Tajneed Admin Dashboard Schema
 
-# User table is keyed by Firebase Auth UID.
+# User table for authentication
 type User @table {
-  # `@default(expr: "auth.uid")` sets it to Firebase Auth UID during insert and upsert.
   id: String! @default(expr: "auth.uid")
-  username: String! @col(dataType: "varchar(50)")
-  # The `user: User!` field in the Review table generates the following one-to-many query field.
-  #  reviews_on_user: [Review!]!
-  # The `Review` join table the following many-to-many query field.
-  #  movies_via_Review: [Movie!]!
+  email: String! @col(dataType: "varchar(255)")
+  displayName: String @col(dataType: "varchar(100)")
+  createdAt: Timestamp! @default(expr: "request.time")
+  updatedAt: Timestamp! @default(expr: "request.time")
 }
 
-# Movie is keyed by a randomly generated UUID.
-type Movie @table {
-  # If you do not pass a 'key' to `@table`, Data Connect automatically adds the following 'id' column.
-  # Feel free to uncomment and customize it.
-  #  id: UUID! @default(expr: "uuidV4()")
-  title: String!
-  imageUrl: String!
-  genre: String
+# Family table
+type Family @table {
+  id: String! @default(expr: "uuidV4()")
+  headId: String! @col(dataType: "varchar(255)")
+  familyName: String! @col(dataType: "varchar(255)")
+  familyNumber: Int
+  totalMembers: Int! @default(expr: "0")
+  halqa: String @col(dataType: "varchar(100)")
+  familyHistory: String @col(dataType: "text")
+  createdAt: Timestamp! @default(expr: "request.time")
+  updatedAt: Timestamp! @default(expr: "request.time")
 }
 
-# MovieMetadata is a metadata attached to a Movie.
-# Movie <-> MovieMetadata is a one-to-one relationship
-type MovieMetadata @table {
-  # @unique ensures each Movie can only one MovieMetadata.
-  movie: Movie! @unique
-  # The movie field adds the following foreign key field. Feel free to uncomment and customize it.
-  #  movieId: UUID!
-  rating: Float
-  releaseYear: Int
-  description: String
+# Member table
+type Member @table {
+  id: String! @default(expr: "uuidV4()")
+  name: String! @col(dataType: "varchar(255)")
+  fatherName: String @col(dataType: "varchar(255)")
+  husbandName: String @col(dataType: "varchar(255)")
+  gender: String! @col(dataType: "varchar(10)")
+  cnic: String @col(dataType: "varchar(20)")
+  dateOfBirth: Date!
+  age: Int!
+  phone: String @col(dataType: "varchar(20)")
+  address: String! @col(dataType: "text")
+  profilePhoto: String @col(dataType: "text")
+  tanzeem: String! @col(dataType: "varchar(50)")
+  familyId: String @col(dataType: "varchar(255)")
+  halqa: String @col(dataType: "varchar(100)")
+  hasNewTanzeemTransition: Boolean @default(expr: "false")
+  talem: String @col(dataType: "varchar(100)")
+  isDeceased: Boolean @default(expr: "false")
+  dateOfDeath: Date
+  createdAt: Timestamp! @default(expr: "request.time")
+  updatedAt: Timestamp! @default(expr: "request.time")
 }
 
-# Reviews is a join table between User and Movie.
-# It has a composite primary keys `userUid` and `movieId`.
-# A user can leave reviews for many movies. A movie can have reviews from many users.
-# User  <-> Review is a one-to-many relationship
-# Movie <-> Review is a one-to-many relationship
-# Movie <-> User is a many-to-many relationship
-type Review @table(name: "Reviews", key: ["movie", "user"]) {
-  user: User!
-  # The user field adds the following foreign key field. Feel free to uncomment and customize it.
-  #  userUid: String!
-  movie: Movie!
-  # The movie field adds the following foreign key field. Feel free to uncomment and customize it.
-  #  movieId: UUID!
-  rating: Int
-  reviewText: String
-  reviewDate: Date! @default(expr: "request.time")
+# Religious Activities table
+type ReligiousActivity @table {
+  id: String! @default(expr: "uuidV4()")
+  memberId: String! @col(dataType: "varchar(255)")
+  fiveDailyPrayers: Int @default(expr: "0")
+  congregationalPrayers: Int @default(expr: "0")
+  weeklyTahajjud: Boolean @default(expr: "false")
+  dailyRecitation: Boolean @default(expr: "false")
+  fridayPrayer: Boolean @default(expr: "false")
+  twoNaflDaily: Boolean @default(expr: "false")
+  weeklyVoluntaryFast: Boolean @default(expr: "false")
+  prayerMovement: Boolean @default(expr: "false")
+  dailyThreePrayers: Boolean @default(expr: "false")
+  sermonListening: Boolean @default(expr: "false")
+  listenedThisWeek: Boolean @default(expr: "false")
+  quranRecitation: Boolean @default(expr: "false")
+  prayerWithTranslation: Boolean @default(expr: "false")
+  prayerLetterWriting: Boolean @default(expr: "false")
+  willWritten: Boolean @default(expr: "false")
+  mtaDish: Boolean @default(expr: "false")
+  mtaCable: Boolean @default(expr: "false")
+  mtaInternet: Boolean @default(expr: "false")
+  internetAccess: Boolean @default(expr: "false")
+  notes: String @col(dataType: "text")
+  lastUpdated: Timestamp! @default(expr: "request.time")
 }

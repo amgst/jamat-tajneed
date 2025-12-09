@@ -256,8 +256,23 @@ const initializeSampleData = () => {
   }
 };
 
-// Initialize sample data on module load
-initializeSampleData();
+// Initialize sample data on module load (only if no data exists)
+// Check if we should force re-initialization
+const shouldForceInit = localStorage.getItem('tajneed_force_init') === 'true';
+const hasImportedData = localStorage.getItem('tajneed_data_imported') === 'true';
+
+if (shouldForceInit) {
+  // When force_init is true, just remove the flag - don't initialize sample data
+  // This allows imported data to remain without being overwritten
+  localStorage.removeItem('tajneed_force_init');
+  localStorage.setItem('tajneed_data_imported', 'true');
+} else if (!hasImportedData) {
+  // Only initialize sample data if no members exist AND no data has been imported
+  const existingMembers = getFromStorage<Member>(STORAGE_KEYS.MEMBERS);
+  if (existingMembers.length === 0) {
+    initializeSampleData();
+  }
+}
 
 // Auth Services
 export const signIn = async (email: string, password: string): Promise<AuthUser> => {

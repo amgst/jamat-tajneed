@@ -4,28 +4,29 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "concurrently \"node api.cjs\" \"vite\"",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "emulator": "firebase emulators:start --import=./firebase-export --export-on-exit",
-    "emulator:import": "firebase emulators:start --import=./firebase-export",
-    "import-data": "node import-data.js",
-    "sync-to-prod": "node sync-to-production.js",
-    "create-export": "node create-export.js",
-    "save-data": "firebase emulators:export ./firebase-export",
-    "export-to-json": "node export-to-json.js"
+    "dataconnect": "firebase dataconnect:sql:diff --local",
+    "dataconnect:deploy": "firebase dataconnect:sql:migrate --local",
+    "postgres:start": "firebase dataconnect:sql:shell --local"
   },
   "dependencies": {
     "@ant-design/charts": "^2.6.1",
     "@ant-design/icons": "^6.0.0",
     "@dataconnect/generated": "file:src/dataconnect-generated",
+    "@types/pg": "^8.15.5",
     "antd": "^5.26.6",
+    "cors": "^2.8.5",
     "dayjs": "^1.11.13",
+    "dotenv": "^17.2.2",
+    "express": "^5.1.0",
     "firebase": "^12.0.0",
     "i18next": "^25.3.2",
     "i18next-browser-languagedetector": "^8.2.0",
     "papaparse": "^5.5.3",
+    "pg": "^8.16.3",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "react-i18next": "^15.6.1",
@@ -45,6 +46,7 @@
     "globals": "^16.3.0",
     "typescript": "~5.8.3",
     "typescript-eslint": "^8.35.1",
-    "vite": "^7.0.4"
+    "vite": "^7.0.4",
+    "vite-plugin-node-polyfills": "^0.24.0"
   }
 }

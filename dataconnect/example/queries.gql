@@ -1,78 +1,144 @@
-# Example queries for a simple movie app.
-
-# @auth() directives control who can call each operation.
-# Anyone should be able to list all movies, so the auth level is set to PUBLIC
-query ListMovies @auth(level: PUBLIC, insecureReason: "Anyone can list all movies.") {
-  movies {
+# Member Queries
+query GetAllMembers {
+  members {
     id
-    title
-    imageUrl
-    genre
+    name
+    fatherName
+    husbandName
+    gender
+    cnic
+    dateOfBirth
+    age
+    phone
+    address
+    profilePhoto
+    tanzeem
+    familyId
+    halqa
+    hasNewTanzeemTransition
+    talem
+    isDeceased
+    dateOfDeath
+    createdAt
+    updatedAt
   }
 }
 
-# List all users, only admins should be able to list all users, so we use NO_ACCESS
-query ListUsers @auth(level: NO_ACCESS) {
-  users {
+query GetMemberById($id: String!) {
+  member(id: $id) {
     id
-    username
+    name
+    fatherName
+    husbandName
+    gender
+    cnic
+    dateOfBirth
+    age
+    phone
+    address
+    profilePhoto
+    tanzeem
+    familyId
+    halqa
+    hasNewTanzeemTransition
+    talem
+    isDeceased
+    dateOfDeath
+    createdAt
+    updatedAt
   }
 }
 
-# Logged in users can list all their reviews and movie titles associated with the review
-# Since the query uses the uid of the current authenticated user, we set auth level to USER
-query ListUserReviews @auth(level: USER) {
-  user(key: { id_expr: "auth.uid" }) {
+query GetMembersByTanzeem($tanzeem: String!) {
+  members(where: { tanzeem: { eq: $tanzeem } }) {
     id
-    username
-    # <field>_on_<foreign_key_field> makes it easy to grab info from another table
-    # Here, we use it to grab all the reviews written by the user.
-    reviews: reviews_on_user {
-      rating
-      reviewDate
-      reviewText
-      movie {
-        id
-        title
-      }
-    }
+    name
+    gender
+    age
+    tanzeem
+    familyId
+    halqa
   }
 }
 
-# Get movie by id
-query GetMovieById($id: UUID!) @auth(level: PUBLIC, insecureReason: "Anyone can get a movie by id.") {
-  movie(id: $id) {
+query GetMembersByFamily($familyId: String!) {
+  members(where: { familyId: { eq: $familyId } }) {
     id
-    title
-    imageUrl
-    genre
-    metadata: movieMetadata_on_movie {
-      rating
-      releaseYear
-      description
-    }
-    reviews: reviews_on_movie {
-      reviewText
-      reviewDate
-      rating
-      user {
-        id
-        username
-      }
-    }
+    name
+    gender
+    age
+    tanzeem
+    phone
+    address
   }
 }
 
-# Search for movies, actors, and reviews
-query SearchMovie($titleInput: String, $genre: String) @auth(level: PUBLIC, insecureReason: "Anyone can search for movies.") {
-  movies(
-    where: {
-      _and: [{ genre: { eq: $genre } }, { title: { contains: $titleInput } }]
-    }
-  ) {
+# Family Queries
+query GetAllFamilies {
+  families {
     id
-    title
-    genre
-    imageUrl
+    headId
+    familyName
+    familyNumber
+    totalMembers
+    halqa
+    familyHistory
+    createdAt
+    updatedAt
+  }
+}
+
+query GetFamilyById($id: String!) {
+  family(id: $id) {
+    id
+    headId
+    familyName
+    familyNumber
+    totalMembers
+    halqa
+    familyHistory
+    createdAt
+    updatedAt
+  }
+}
+
+# Religious Activities Queries
+query GetReligiousActivitiesByMember($memberId: String!) {
+  religiousActivities(where: { memberId: { eq: $memberId } }) {
+    id
+    memberId
+    fiveDailyPrayers
+    congregationalPrayers
+    weeklyTahajjud
+    dailyRecitation
+    fridayPrayer
+    twoNaflDaily
+    weeklyVoluntaryFast
+    prayerMovement
+    dailyThreePrayers
+    sermonListening
+    listenedThisWeek
+    quranRecitation
+    prayerWithTranslation
+    prayerLetterWriting
+    willWritten
+    mtaDish
+    mtaCable
+    mtaInternet
+    internetAccess
+    notes
+    lastUpdated
+  }
+}
+
+# Dashboard Statistics
+query GetDashboardStats {
+  members {
+    gender
+    tanzeem
+    isDeceased
+  }
+  families {
+    id
   }
 }

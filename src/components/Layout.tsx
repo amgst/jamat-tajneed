@@ -9,10 +9,11 @@ import {
   MenuFoldOutlined,
   MenuUnfoldOutlined,
   BankOutlined,
-  BookOutlined
+  BookOutlined,
+  DatabaseOutlined
 } from '@ant-design/icons';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
-import { logout } from '../services/jsonStorage';
+// import { logout } from '../services/storage'; // Using mock logout
 import { useAuth } from '../contexts/useAuth';
 
 const { Header, Sider, Content } = Layout;
@@ -22,7 +23,7 @@ const AppLayout: React.FC = () => {
   const [collapsed, setCollapsed] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
 
   const handleLogout = async () => {
     try {
@@ -64,7 +65,20 @@ const AppLayout: React.FC = () => {
       icon: <SettingOutlined />,
       label: 'Settings',
     },
+    {
+      key: '/members-json',
+      icon: <DatabaseOutlined />,
+      label: 'Members (JSON)',
+    },
   ];
+
+  const handleUserMenuClick = ({ key }: { key: string }) => {
+    if (key === 'profile') {
+      navigate('/profile');
+    } else if (key === 'logout') {
+      handleLogout();
+    }
+  };
 
   const userMenuItems = [
     {
@@ -76,7 +90,6 @@ const AppLayout: React.FC = () => {
       key: 'logout',
       icon: <LogoutOutlined />,
       label: 'Logout',
-      onClick: handleLogout,
     },
   ];
 
@@ -140,7 +153,7 @@ const AppLayout: React.FC = () => {
               Welcome back!
             </Text>
             <Dropdown
-              menu={{ items: userMenuItems }}
+              menu={{ items: userMenuItems, onClick: handleUserMenuClick }}
               placement="bottomRight"
               trigger={['click']}
             >

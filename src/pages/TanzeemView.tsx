@@ -18,7 +18,7 @@ import {
   DownloadOutlined
 } from '@ant-design/icons';
 import { Pie } from '@ant-design/charts';
-import { getAllMembers } from '../services/firebase'; // Changed import
+import { ApiService } from '../services/apiService';
 import type { Member, Tanzeem } from '../types';
 import { getTanzeemDisplayName, formatDate, exportToCSV } from '../utils/helpers';
 
@@ -36,7 +36,7 @@ const TanzeemView: React.FC = () => {
   const loadMembers = async () => {
     setLoading(true);
     try {
-      const data = await getAllMembers();
+      const data = await ApiService.getAllMembers();
       setMembers(data);
     } catch (error) {
       console.error('Error loading members:', error);
