@@ -17,7 +17,10 @@ import {
     Statistic,
     message,
     Tabs,
-    Collapse
+    Collapse,
+    Modal,
+    Radio,
+    Checkbox
 } from 'antd';
 import {
     UserOutlined,
@@ -30,7 +33,7 @@ import {
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { ApiService } from '../services/apiService';
-import type { Member, WaqfJadeedRecord, Family, Payment } from '../types';
+import type { Member, WaqfJadeedRecord, Family, Payment, WaqfJadeedSpecialRecord } from '../types';
 
 const { Text, Title } = Typography;
 const { Option } = Select;
@@ -41,8 +44,8 @@ const WaqfJadeed: React.FC = () => {
     const [members, setMembers] = useState<Member[]>([]);
     const [families, setFamilies] = useState<Family[]>([]);
     const [records, setRecords] = useState<WaqfJadeedRecord[]>([]);
+    const [specialRecords, setSpecialRecords] = useState<WaqfJadeedSpecialRecord[]>([]);
     const [selectedYear, setSelectedYear] = useState<number>(dayjs().year());
-    const [searchTerm, setSearchTerm] = useState('');
     const [searchTerm, setSearchTerm] = useState('');
     const [activeTab, setActiveTab] = useState('families');
 
@@ -53,6 +56,11 @@ const WaqfJadeed: React.FC = () => {
 
     const [form] = Form.useForm();
     const [paymentForm] = Form.useForm(); // New form for adding payments
+    const [specialForm] = Form.useForm();
+
+    // Special Member State
+    const [specialModalVisible, setSpecialModalVisible] = useState(false);
+    const [activeFamilyId, setActiveFamilyId] = useState<string | null>(null);
 
     useEffect(() => {
         loadData();
@@ -61,14 +69,16 @@ const WaqfJadeed: React.FC = () => {
     const loadData = async () => {
         setLoading(true);
         try {
-            const [membersData, familiesData, recordsData] = await Promise.all([
+            const [membersData, familiesData, recordsData, specialData] = await Promise.all([
                 ApiService.getAllMembers(),
                 ApiService.getAllFamilies(),
-                ApiService.getWaqfJadeedRecords(selectedYear)
+                ApiService.getWaqfJadeedRecords(selectedYear),
+                ApiService.getWaqfJadeedSpecialRecords(selectedYear)
             ]);
             setMembers(membersData);
             setFamilies(familiesData);
             setRecords(recordsData);
+            setSpecialRecords(Array.isArray(specialData) ? specialData : []);
         } catch (error) {
             message.error('Failed to load data');
         } finally {
@@ -81,6 +91,7 @@ const WaqfJadeed: React.FC = () => {
         const record = records.find(r => r.memberId === member.id);
         form.setFieldsValue({
             promiseAmount: record?.promiseAmount || 0,
+            nagarparAmount: record?.nagarparAmount || 0,
         });
         // If no promise exists, default to editing mode. If it exists, view mode.
         setIsEditingPromise(!record?.promiseAmount);
@@ -98,6 +109,7 @@ const WaqfJadeed: React.FC = () => {
                 memberId: editingMember.id,
                 year: selectedYear,
                 promiseAmount: values.promiseAmount,
+                nagarparAmount: values.nagarparAmount,
                 // notes: values.notes 
             };
 
@@ -111,16 +123,15 @@ const WaqfJadeed: React.FC = () => {
         }
     };
 
-    const handleAddPayment = async () => {
+    const handleAddPayment = async (values: any) => {
         try {
-            const values = await paymentForm.validateFields();
             if (!editingMember) return;
 
             const payload = {
                 memberId: editingMember.id,
                 year: selectedYear,
                 amount: values.amount,
-                date: values.date.toISOString(),
+                date: dayjs().toISOString(), // Default to now since no date picker
                 notes: values.notes
             };
 
@@ -130,6 +141,7 @@ const WaqfJadeed: React.FC = () => {
             paymentForm.resetFields();
             message.success('Payment added');
         } catch (error) {
+            console.error('Add payment error:', error);
             message.error('Failed to add payment');
         }
     };
@@ -168,6 +180,63 @@ const WaqfJadeed: React.FC = () => {
         });
     };
 
+    // Special Member Handlers
+    const handleSaveSpecial = async () => {
+        try {
+            const values = await specialForm.validateFields();
+            const payload = {
+                id: values.id,
+                familyId: activeFamilyId,
+                year: selectedYear,
+                name: values.name,
+                gender: values.gender,
+                isDeceased: values.isDeceased,
+                promiseAmount: values.promiseAmount,
+                nagarparAmount: values.nagarparAmount,
+            };
+            const saved = await ApiService.saveWaqfJadeedSpecialRecord(payload);
+
+            setSpecialRecords(prev => {
+                const idx = prev.findIndex(r => r.id === saved.id);
+                if (idx >= 0) {
+                    const newRecs = [...prev];
+                    newRecs[idx] = { ...saved, isDeceased: !!saved.isDeceased };
+                    return newRecs;
+                }
+                return [...prev, { ...saved, isDeceased: !!saved.isDeceased }];
+            });
+
+            message.success('Special record saved');
+            setSpecialModalVisible(false);
+            specialForm.resetFields();
+        } catch (error) {
+            message.error('Failed to save');
+        }
+    };
+
+    const handleDeleteSpecial = async (id: string) => {
+        try {
+            await ApiService.deleteWaqfJadeedSpecialRecord(id);
+            setSpecialRecords(prev => prev.filter(r => r.id !== id));
+            message.success('Record deleted');
+        } catch (error) {
+            message.error('Failed to delete');
+        }
+    };
+
+    const openSpecialEdit = (record: WaqfJadeedSpecialRecord) => {
+        setActiveFamilyId(record.familyId);
+        specialForm.setFieldsValue({
+            id: record.id,
+            name: record.name,
+            gender: record.gender,
+            isDeceased: record.isDeceased,
+            promiseAmount: record.promiseAmount,
+            nagarparAmount: record.nagarparAmount,
+        });
+        setSpecialModalVisible(true);
+    };
+
     // Merge Data
     const getMemberData = (memberId: string) => {
         const member = members.find(m => m.id === memberId);
@@ -176,8 +245,10 @@ const WaqfJadeed: React.FC = () => {
         return {
             member,
             record,
-            promise: record?.promiseAmount || 0,
-            paid: record?.paidAmount || 0
+            promise: (record?.promiseAmount || 0) + (record?.nagarparAmount || 0),
+            paid: record?.paidAmount || 0,
+            originalPromise: record?.promiseAmount || 0,
+            nagarpar: record?.nagarparAmount || 0
         };
     };
 
@@ -187,8 +258,10 @@ const WaqfJadeed: React.FC = () => {
             return {
                 member,
                 record,
-                promise: record?.promiseAmount || 0,
-                paid: record?.paidAmount || 0
+                promise: (record?.promiseAmount || 0) + (record?.nagarparAmount || 0),
+                paid: record?.paidAmount || 0,
+                originalPromise: record?.promiseAmount || 0,
+                nagarpar: record?.nagarparAmount || 0
             };
         });
 
@@ -212,17 +285,49 @@ const WaqfJadeed: React.FC = () => {
                 (f.halqa || '').toLowerCase().includes(lower)
             );
         }
-        return data;
+        // numeric sort by familyNumber
+        return data.sort((a, b) => {
+            const numA = a.familyNumber || 999999;
+            const numB = b.familyNumber || 999999;
+            return numA - numB;
+        });
     }, [families, searchTerm]);
 
 
     // Stats
     const stats = useMemo(() => {
-        const totalPromise = records.reduce((sum, r) => sum + (r.promiseAmount || 0), 0);
-        const totalPaid = records.reduce((sum, r) => sum + (r.paidAmount || 0), 0);
+        const specialPromise = Array.isArray(specialRecords) ? specialRecords.reduce((sum, r) => sum + (r.promiseAmount || 0) + (r.nagarparAmount || 0), 0) : 0;
+        const specialPaid = Array.isArray(specialRecords) ? specialRecords.reduce((sum, r) => sum + (r.paidAmount || 0), 0) : 0;
+
+        const totalPromise = records.reduce((sum, r) => sum + (r.promiseAmount || 0) + (r.nagarparAmount || 0), 0) + specialPromise;
+        const totalPaid = records.reduce((sum, r) => sum + (r.paidAmount || 0), 0) + specialPaid;
         const percent = totalPromise > 0 ? (totalPaid / totalPromise) * 100 : 0;
         return { totalPromise, totalPaid, percent };
-    }, [records]);
+    }, [records, specialRecords]);
+
+    // Tanzeem Stats Aggregation
+    const tanzeemStats = useMemo(() => {
+        const statsMap: Record<string, { promise: number; paid: number; count: number }> = {};
+
+        members.forEach(member => {
+            const tanzeem = member.tanzeem || 'Unknown';
+            if (!statsMap[tanzeem]) {
+                statsMap[tanzeem] = { promise: 0, paid: 0, count: 0 };
+            }
+            const record = records.find(r => r.memberId === member.id);
+            if (record) {
+                statsMap[tanzeem].promise += (record.promiseAmount || 0) + (record.nagarparAmount || 0);
+                statsMap[tanzeem].paid += record.paidAmount || 0;
+            }
+            statsMap[tanzeem].count += 1;
+        });
+
+        return Object.entries(statsMap).map(([name, data]) => ({
+            name,
+            ...data,
+            percent: data.promise > 0 ? (data.paid / data.promise) * 100 : 0
+        })).sort((a, b) => b.promise - a.promise); // Sort by highest promise
+    }, [members, records]);
 
     const renderMemberCard = (item: any) => (
         <Card
@@ -294,6 +399,7 @@ const WaqfJadeed: React.FC = () => {
                 <Tabs activeKey={activeTab} onChange={setActiveTab} style={{ marginTop: 12 }}>
                     <Tabs.TabPane tab="Members" key="members" />
                     <Tabs.TabPane tab="Family Wise" key="families" />
+                    <Tabs.TabPane tab="Dashboard" key="dashboard" />
                 </Tabs>
             </Card>
 
@@ -345,14 +451,22 @@ const WaqfJadeed: React.FC = () => {
                         showSizeChanger: false
                     }}
                 />
-            ) : (
+            ) : activeTab === 'families' ? (
                 <div className="family-list">
                     {loading ? <p>Loading...</p> : (
                         <Collapse defaultActiveKey={[]} ghost>
                             {filteredFamilyData.map(family => {
                                 const familyMembersCtx = family.memberIds.map(mid => getMemberData(mid)).filter(Boolean);
-                                const familyTotalPromise = familyMembersCtx.reduce((sum, m) => sum + (m?.promise || 0), 0);
-                                const familyTotalPaid = familyMembersCtx.reduce((sum, m) => sum + (m?.paid || 0), 0);
+                                const familySpecialRecords = specialRecords.filter(r => r.familyId === family.id);
+
+                                const membersPromise = familyMembersCtx.reduce((sum, m) => sum + (m?.promise || 0), 0);
+                                const specialPromise = familySpecialRecords.reduce((sum, r) => sum + (r.promiseAmount || 0) + (r.nagarparAmount || 0), 0);
+                                const familyTotalPromise = membersPromise + specialPromise;
+
+                                const membersPaid = familyMembersCtx.reduce((sum, m) => sum + (m?.paid || 0), 0);
+                                const specialPaid = familySpecialRecords.reduce((sum, r) => sum + (r.paidAmount || 0), 0);
+                                const familyTotalPaid = membersPaid + specialPaid;
+
                                 const familyPercent = familyTotalPromise > 0 ? Math.round((familyTotalPaid / familyTotalPromise) * 100) : 0;
 
                                 return (
@@ -365,7 +479,7 @@ const WaqfJadeed: React.FC = () => {
                                                     <br />
                                                     <Text type="secondary" style={{ fontSize: 12 }}>
                                                         {family.familyNumber ? <span>#{family.familyNumber} • </span> : ''}
-                                                        Head: {getMemberData(family.headId)?.member.name || 'Unknown'} • {familyMembersCtx.length} Members
+                                                        Head: {getMemberData(family.headId)?.member.name || 'Unknown'} • {familyMembersCtx.length + familySpecialRecords.length} Cards
                                                     </Text>
                                                 </Col>
                                                 <Col style={{ textAlign: 'right' }}>
@@ -387,11 +501,94 @@ const WaqfJadeed: React.FC = () => {
                                                 </List.Item>
                                             )}
                                         />
+
+                                        {/* Special Members Section */}
+                                        <div style={{ marginTop: 16, borderTop: '1px dashed #d9d9d9', paddingTop: 16 }}>
+                                            <Row justify="space-between" align="middle" style={{ marginBottom: 12 }}>
+                                                <Text type="secondary"><strong style={{ color: '#1890ff' }}>Special / Deceased Pledges</strong></Text>
+                                                <Button
+                                                    size="small"
+                                                    type="dashed"
+                                                    icon={<PlusOutlined />}
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        setActiveFamilyId(family.id);
+                                                        specialForm.resetFields();
+                                                        setSpecialModalVisible(true);
+                                                    }}
+                                                >
+                                                    Add Special
+                                                </Button>
+                                            </Row>
+                                            <List
+                                                grid={{ gutter: 16, xs: 1, sm: 2, lg: 3 }}
+                                                dataSource={familySpecialRecords}
+                                                renderItem={(record) => (
+                                                    <List.Item>
+                                                        <Card
+                                                            size="small"
+                                                            hoverable
+                                                            actions={[
+                                                                <EditOutlined key="edit" onClick={() => openSpecialEdit(record)} />,
+                                                                <DeleteOutlined key="delete" onClick={() => handleDeleteSpecial(record.id)} />
+                                                            ]}
+                                                        >
+                                                            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                                                <Text strong>{record.name}</Text>
+                                                                {record.isDeceased && <Text type="secondary" style={{ fontSize: 10 }}>(Deceased)</Text>}
+                                                            </div>
+                                                            <div style={{ marginTop: 8 }}>
+                                                                <Row justify="space-between">
+                                                                    <Text type="secondary">Promise:</Text>
+                                                                    <Text>{((record.promiseAmount || 0) + (record.nagarparAmount || 0)).toLocaleString()}</Text>
+                                                                </Row>
+                                                                {/* Show breakdown if nagarpar exists */}
+                                                                {(record.nagarparAmount || 0) > 0 && (
+                                                                    <Text type="secondary" style={{ fontSize: 10 }}>
+                                                                        (P: {record.promiseAmount}, N: {record.nagarparAmount})
+                                                                    </Text>
+                                                                )}
+                                                            </div>
+                                                        </Card>
+                                                    </List.Item>
+                                                )}
+                                            />
+                                        </div>
                                     </Panel>
                                 );
                             })}
                         </Collapse>
                     )}
+                </div>
+            ) : (
+                // Dashboard Tab (Tanzeem Wise)
+                <div className="dashboard-view">
+                    <List
+                        grid={{ gutter: 16, xs: 1, sm: 2, md: 3 }}
+                        dataSource={tanzeemStats}
+                        renderItem={(item) => (
+                            <List.Item>
+                                <Card title={item.name} hoverable>
+                                    <Statistic
+                                        title="Paid / Promise"
+                                        value={item.paid}
+                                        suffix={`/ ${item.promise.toLocaleString()}`}
+                                        precision={0}
+                                        valueStyle={{ color: item.percent >= 100 ? '#3f8600' : '#1890ff', fontSize: '1.2rem' }}
+                                    />
+                                    <Progress
+                                        percent={Math.round(item.percent)}
+                                        status={item.percent >= 100 ? 'success' : 'active'}
+                                        strokeColor={item.percent >= 100 ? '#52c41a' : '#1890ff'}
+                                    />
+                                    <div style={{ marginTop: 12, display: 'flex', justifyContent: 'space-between' }}>
+                                        <Text type="secondary">Members: {item.count}</Text>
+                                        <Text type="secondary">{item.percent.toFixed(1)}%</Text>
+                                    </div>
+                                </Card>
+                            </List.Item>
+                        )}
+                    />
                 </div>
             )}
 
@@ -410,7 +607,7 @@ const WaqfJadeed: React.FC = () => {
             >
                 <Form form={form} layout="vertical">
                     <Row gutter={16}>
-                        <Col span={12}>
+                        <Col span={6}>
                             <Form.Item label="Promised Amount">
                                 {isEditingPromise ? (
                                     <div style={{ display: 'flex', gap: 8 }}>
@@ -443,7 +640,33 @@ const WaqfJadeed: React.FC = () => {
                                 )}
                             </Form.Item>
                         </Col>
-                        <Col span={12}>
+                        <Col span={6}>
+                            <Form.Item label="Nagarpar Amount">
+                                {isEditingPromise ? (
+                                    <Form.Item name="nagarparAmount" noStyle>
+                                        <InputNumber
+                                            style={{ width: '100%' }}
+                                            formatter={value => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
+                                            parser={value => value!.replace(/\$\s?|(,*)/g, '')}
+                                            size="large"
+                                        />
+                                    </Form.Item>
+                                ) : (
+                                    <Title level={4} style={{ margin: 0 }}>
+                                        {(records.find(r => r.memberId === editingMember?.id)?.nagarparAmount || 0).toLocaleString()}
+                                    </Title>
+                                )}
+                            </Form.Item>
+                        </Col>
+                        <Col span={6}>
+                            <Form.Item label="Total Promised">
+                                <Title level={4} style={{ margin: 0, marginTop: 4 }}>
+                                    {((records.find(r => r.memberId === editingMember?.id)?.promiseAmount || 0) +
+                                        (records.find(r => r.memberId === editingMember?.id)?.nagarparAmount || 0)).toLocaleString()}
+                                </Title>
+                            </Form.Item>
+                        </Col>
+                        <Col span={6}>
                             <Form.Item label="Total Paid">
                                 <Title level={4} style={{ margin: 0, marginTop: 4 }}>
                                     {records.find(r => r.memberId === editingMember?.id)?.paidAmount?.toLocaleString() || 0}
@@ -503,6 +726,73 @@ const WaqfJadeed: React.FC = () => {
                     <Text type="secondary">Year: {selectedYear}</Text>
                 </div>
             </Drawer>
+
+            {/* Special Member Modal */}
+            <Modal
+                title="Add/Edit Special Pledge"
+                open={specialModalVisible}
+                onOk={handleSaveSpecial}
+                onCancel={() => setSpecialModalVisible(false)}
+                okText="Save"
+            >
+                <Form form={specialForm} layout="vertical">
+                    <Form.Item name="id" hidden><Input /></Form.Item>
+
+                    <Form.Item label="Quick Select">
+                        <Radio.Group
+                            buttonStyle="solid"
+                            onChange={(e) => {
+                                const val = e.target.value;
+                                if (val) specialForm.setFieldsValue({ name: val });
+                            }}
+                        >
+                            <Radio.Button value="Hazrat Muhammad (pbuh)">Hazrat Muhammad (pbuh)</Radio.Button>
+                            <Radio.Button value="Hazrat Messiah Maoud (as)">Hazrat Messiah Maoud (as)</Radio.Button>
+                        </Radio.Group>
+                    </Form.Item>
+
+                    <Form.Item name="name" label="Name / Title" rules={[{ required: true, message: 'Please enter name' }]}>
+                        <Input placeholder="Enter Name" />
+                    </Form.Item>
+
+                    <Row gutter={16}>
+                        <Col span={12}>
+                            <Form.Item name="gender" label="Gender" initialValue="male">
+                                <Radio.Group>
+                                    <Radio value="male">Male</Radio>
+                                    <Radio value="female">Female</Radio>
+                                </Radio.Group>
+                            </Form.Item>
+                        </Col>
+                        <Col span={12}>
+                            <Form.Item name="isDeceased" valuePropName="checked">
+                                <Checkbox>Is Deceased?</Checkbox>
+                            </Form.Item>
+                        </Col>
+                    </Row>
+
+                    <Row gutter={16}>
+                        <Col span={12}>
+                            <Form.Item name="promiseAmount" label="Promised Amount" initialValue={0}>
+                                <InputNumber
+                                    style={{ width: '100%' }}
+                                    formatter={value => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
+                                    parser={value => value!.replace(/\$\s?|(,*)/g, '')}
+                                />
+                            </Form.Item>
+                        </Col>
+                        <Col span={12}>
+                            <Form.Item name="nagarparAmount" label="Nagarpar Amount" initialValue={0}>
+                                <InputNumber
+                                    style={{ width: '100%' }}
+                                    formatter={value => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
+                                    parser={value => value!.replace(/\$\s?|(,*)/g, '')}
+                                />
+                            </Form.Item>
+                        </Col>
+                    </Row>
+                </Form>
+            </Modal>
         </div>
     );
 };

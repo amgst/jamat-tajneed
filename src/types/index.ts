@@ -160,8 +160,23 @@ export interface WaqfJadeedRecord {
   memberId: string;
   year: number;
   promiseAmount: number;
+  nagarparAmount?: number;
   paidAmount: number;
   notes?: string;
   updatedAt: string;
   payments?: Payment[];
+}
+
+export interface WaqfJadeedSpecialRecord {
+  id: string;
+  familyId: string;
+  year: number;
+  name: string;
+  gender: 'male' | 'female';
+  isDeceased: boolean;
+  promiseAmount: number;
+  nagarparAmount?: number;
+  paidAmount: number;
+  notes?: string;
+  updatedAt: string;
 }

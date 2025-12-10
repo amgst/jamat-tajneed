@@ -12,6 +12,28 @@ const DB_PATH = path.join(__dirname, 'jamat.db');
 const db = new Database(DB_PATH);
 db.pragma('foreign_keys = ON');
 
+// Ensure tables exist
+const tableCheck = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='WaqfJadeedSpecial'");
+if (!tableCheck.get()) {
+  db.prepare(`
+        CREATE TABLE IF NOT EXISTS "WaqfJadeedSpecial" (
+            "id" TEXT PRIMARY KEY,
+            "familyId" TEXT,
+            "year" INTEGER,
+            "name" TEXT,
+            "gender" TEXT,
+            "isDeceased" INTEGER,
+            "promiseAmount" INTEGER,
+            "nagarparAmount" INTEGER,
+            "paidAmount" INTEGER,
+            "notes" TEXT,
+            "createdAt" TEXT,
+            "updatedAt" TEXT,
+            FOREIGN KEY("familyId") REFERENCES "Families"("id") ON DELETE CASCADE
+        )
+    `).run();
+}
+
 // --- Helpers ---
 const parseActivities = (jsonStr) => {
   try {
@@ -387,17 +409,18 @@ app.get('/api/waqf-jadeed', (req, res) => {
 // Save (Upsert) Waqf-e-Jadeed record
 app.post('/api/waqf-jadeed', (req, res) => {
   try {
-    const { memberId, year, promiseAmount, paidAmount, notes } = req.body;
+    const { memberId, year, promiseAmount, nagarparAmount, paidAmount, notes } = req.body;
 
     if (!memberId || !year) {
       return res.status(400).json({ error: 'memberId and year are required' });
     }
 
     const stmt = db.prepare(`
-            INSERT INTO "WaqfJadeed" (id, "memberId", year, "promiseAmount", "paidAmount", notes, "updatedAt")
-            VALUES (@id, @memberId, @year, @promiseAmount, @paidAmount, @notes, @updatedAt)
+            INSERT INTO "WaqfJadeed" (id, "memberId", year, "promiseAmount", "nagarparAmount", "paidAmount", notes, "updatedAt")
+            VALUES (@id, @memberId, @year, @promiseAmount, @nagarparAmount, @paidAmount, @notes, @updatedAt)
             ON CONFLICT("memberId", year) DO UPDATE SET
                 "promiseAmount" = excluded."promiseAmount",
+                "nagarparAmount" = excluded."nagarparAmount",
                 notes = excluded.notes,
                 "updatedAt" = excluded."updatedAt"
         `);
@@ -410,6 +433,7 @@ app.post('/api/waqf-jadeed', (req, res) => {
       memberId,
       year,
       promiseAmount: promiseAmount || 0,
+      nagarparAmount: nagarparAmount || 0,
       paidAmount: paidAmount || 0, // Initial value for new records, but ignored on update
       notes: notes || '',
       updatedAt: new Date().toISOString()
@@ -517,6 +541,118 @@ app.delete('/api/waqf-jadeed/payment/:id', (req, res) => {
 
   } catch (error) {
     console.error('Error deleting payment:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// --- Waqf-e-Jadeed Special Members Endpoints ---
+
+// Get Special Records
+app.get('/api/waqf-jadeed/special', (req, res) => {
+  try {
+    const { year, familyId } = req.query;
+    let query = 'SELECT * FROM "WaqfJadeedSpecial"';
+    const params = [];
+    const conditions = [];
+
+    if (year) {
+      conditions.push('year = ?');
+      params.push(year);
+    }
+    if (familyId) {
+      conditions.push('"familyId" = ?');
+      params.push(familyId);
+    }
+
+    if (conditions.length > 0) {
+      query += ' WHERE ' + conditions.join(' AND ');
+    }
+
+    const stmt = db.prepare(query);
+    const rows = stmt.all(...params);
+    res.json(rows);
+  } catch (error) {
+    console.error('Error fetching special records:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Create/Update Special Record
+app.post('/api/waqf-jadeed/special', (req, res) => {
+  try {
+    const { id, familyId, year, name, gender, isDeceased, promiseAmount, nagarparAmount, paidAmount, notes } = req.body;
+
+    if (!familyId || !year || !name) {
+      return res.status(400).json({ error: 'familyId, year, and name are required' });
+    }
+
+    const recordId = id || require('crypto').randomUUID();
+    const now = new Date().toISOString();
+
+    if (id) {
+      // Update
+      const stmt = db.prepare(`
+                UPDATE "WaqfJadeedSpecial" SET
+                    "name" = @name,
+                    "gender" = @gender,
+                    "isDeceased" = @isDeceased,
+                    "promiseAmount" = @promiseAmount,
+                    "nagarparAmount" = @nagarparAmount,
+                    "notes" = @notes,
+                    "updatedAt" = @updatedAt
+                WHERE id = @id
+            `);
+      stmt.run({
+        id,
+        name,
+        gender: gender || 'male',
+        isDeceased: isDeceased ? 1 : 0,
+        promiseAmount: promiseAmount || 0,
+        nagarparAmount: nagarparAmount || 0,
+        notes: notes || '',
+        updatedAt: now
+      });
+    } else {
+      // Insert
+      const stmt = db.prepare(`
+                INSERT INTO "WaqfJadeedSpecial" (id, "familyId", year, name, gender, "isDeceased", "promiseAmount", "nagarparAmount", "paidAmount", notes, "createdAt", "updatedAt")
+                VALUES (@id, @familyId, @year, @name, @gender, @isDeceased, @promiseAmount, @nagarparAmount, @paidAmount, @notes, @createdAt, @updatedAt)
+            `);
+      stmt.run({
+        id: recordId,
+        familyId,
+        year,
+        name,
+        gender: gender || 'male',
+        isDeceased: isDeceased ? 1 : 0,
+        promiseAmount: promiseAmount || 0,
+        nagarparAmount: nagarparAmount || 0,
+        paidAmount: paidAmount || 0,
+        notes: notes || '',
+        createdAt: now,
+        updatedAt: now
+      });
+    }
+
+    const getStmt = db.prepare('SELECT * FROM "WaqfJadeedSpecial" WHERE id = ?');
+    const row = getStmt.get(recordId);
+    res.json({ ...row, isDeceased: !!row.isDeceased });
+
+  } catch (error) {
+    console.error('Error saving special record:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Delete Special Record
+app.delete('/api/waqf-jadeed/special/:id', (req, res) => {
+  try {
+    const { id } = req.params;
+    const stmt = db.prepare('DELETE FROM "WaqfJadeedSpecial" WHERE id = ?');
+    stmt.run(id);
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error deleting special record:', error);
     res.status(500).json({ error: error.message });
   }
 });

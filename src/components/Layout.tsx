@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Layout, Menu, Button, Avatar, Dropdown, Space, Typography } from 'antd';
+import { Layout, Menu, Button, Avatar, Dropdown, Space, Typography, Drawer, Grid } from 'antd';
 import {
   DashboardOutlined,
   UserOutlined,
@@ -10,7 +10,9 @@ import {
   MenuUnfoldOutlined,
   BankOutlined,
   BookOutlined,
-  DatabaseOutlined
+
+  DatabaseOutlined,
+  MenuOutlined
 } from '@ant-design/icons';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 // import { logout } from '../services/storage'; // Using mock logout
@@ -18,12 +20,20 @@ import { useAuth } from '../contexts/useAuth';
 
 const { Header, Sider, Content } = Layout;
 const { Text } = Typography;
+const { useBreakpoint } = Grid;
 
 const AppLayout: React.FC = () => {
   const [collapsed, setCollapsed] = useState(false);
+  const [drawerVisible, setDrawerVisible] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
   const { user, logout } = useAuth();
+  const screens = useBreakpoint();
+
+  // If screens.xs is undefined (initial render), assume desktop or wait. 
+  // Ideally, use a default, but AntD handles this well.
+  // We consider 'mobile' if screens.md is false (meaning xs or sm).
+  const isMobile = !screens.md;
 
   const handleLogout = async () => {
     try {
@@ -100,34 +110,56 @@ const AppLayout: React.FC = () => {
 
   const handleMenuClick = ({ key }: { key: string }) => {
     navigate(key);
+    if (isMobile) setDrawerVisible(false);
   };
 
   return (
     <Layout style={{ minHeight: '100vh' }}>
-      <Sider trigger={null} collapsible collapsed={collapsed}>
-        <div style={{
-          height: 32,
-          margin: 16,
-          background: 'rgba(255, 255, 255, 0.3)',
-          borderRadius: 6,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          color: 'white',
-          fontWeight: 'bold',
-          fontSize: collapsed ? '12px' : '14px'
-        }}>
-          {collapsed ? 'Tajneed' : 'Tajneed Dashboard'}
-        </div>
+      {!isMobile && (
+        <Sider trigger={null} collapsible collapsed={collapsed}>
+          <div style={{
+            height: 32,
+            margin: 16,
+            background: 'rgba(255, 255, 255, 0.3)',
+            borderRadius: 6,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            color: 'white',
+            fontWeight: 'bold',
+            fontSize: collapsed ? '12px' : '14px'
+          }}>
+            {collapsed ? 'Tajneed' : 'Tajneed Dashboard'}
+          </div>
 
+          <Menu
+            theme="dark"
+            mode="inline"
+            selectedKeys={[location.pathname]}
+            items={menuItems}
+            onClick={handleMenuClick}
+            style={{ height: 'calc(100vh - 64px)', borderRight: 0, overflowY: 'auto' }}
+          />
+        </Sider>
+      )}
+
+      {/* Mobile Drawer */}
+      <Drawer
+        title="Tajneed Dashboard"
+        placement="left"
+        onClose={() => setDrawerVisible(false)}
+        open={drawerVisible}
+        bodyStyle={{ padding: 0 }}
+        width={250}
+      >
         <Menu
-          theme="dark"
           mode="inline"
           selectedKeys={[location.pathname]}
           items={menuItems}
           onClick={handleMenuClick}
+          style={{ height: '100%', borderRight: 0 }}
         />
-      </Sider>
+      </Drawer>
 
       <Layout>
         <Header style={{
@@ -139,24 +171,34 @@ const AppLayout: React.FC = () => {
           borderBottom: '1px solid #f0f0f0'
         }}>
           <Space>
-            <Button
-              type="text"
-              icon={collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
-              onClick={() => setCollapsed(!collapsed)}
-              style={{ fontSize: '16px', width: 64, height: 64 }}
-            />
+            {isMobile ? (
+              <Button
+                type="text"
+                icon={<MenuOutlined />}
+                onClick={() => setDrawerVisible(true)}
+                style={{ fontSize: '16px', width: 64, height: 64 }}
+              />
+            ) : (
+              <Button
+                type="text"
+                icon={collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
+                onClick={() => setCollapsed(!collapsed)}
+                style={{ fontSize: '16px', width: 64, height: 64 }}
+              />
+            )}
             <div>
               <Text strong style={{ fontSize: '16px' }}>
                 Jamaat Ahmadiyya Muridke
               </Text>
-
             </div>
           </Space>
 
           <Space>
-            <Text type="secondary">
-              Welcome back!
-            </Text>
+            {!isMobile && (
+              <Text type="secondary">
+                Welcome back!
+              </Text>
+            )}
             <Dropdown
               menu={{ items: userMenuItems, onClick: handleUserMenuClick }}
               placement="bottomRight"
@@ -164,7 +206,7 @@ const AppLayout: React.FC = () => {
             >
               <Space style={{ cursor: 'pointer' }}>
                 <Avatar size="small" icon={<UserOutlined />} />
-                <Text>{user?.email}</Text>
+                {!isMobile && <Text>{user?.email}</Text>}
               </Space>
             </Dropdown>
           </Space>

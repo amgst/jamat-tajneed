@@ -56,11 +56,24 @@ const createSchema = () => {
       "memberId" TEXT,
       "year" INTEGER,
       "promiseAmount" INTEGER,
+      "nagarparAmount" INTEGER DEFAULT 0,
       "paidAmount" INTEGER,
       "notes" TEXT,
       "updatedAt" TEXT,
       FOREIGN KEY ("memberId") REFERENCES "Members" ("id") ON DELETE CASCADE
     );
+
+    // Migration: Add nagarparAmount if missing
+    try {
+        const tableInfo = db.prepare('PRAGMA table_info("WaqfJadeed")').all();
+        const hasNagarpar = tableInfo.some(col => col.name === 'nagarparAmount');
+        if (!hasNagarpar) {
+            db.prepare('ALTER TABLE "WaqfJadeed" ADD COLUMN "nagarparAmount" INTEGER DEFAULT 0').run();
+            console.log('Added nagarparAmount column to WaqfJadeed');
+        }
+    } catch (error) {
+        console.error('Migration error:', error);
+    }
 
     CREATE TABLE IF NOT EXISTS "WaqfJadeedPayments" (
       "id" TEXT PRIMARY KEY,

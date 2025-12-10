@@ -158,4 +158,34 @@ export class ApiService {
     });
     return response.json();
   }
+
+  // --- Special Members ---
+
+  static async getWaqfJadeedSpecialRecords(year?: number, familyId?: string) {
+    if (getStorageMode() === 'json') return [];
+    const params = new URLSearchParams();
+    if (year) params.append('year', year.toString());
+    if (familyId) params.append('familyId', familyId);
+
+    const response = await fetch(`${API_BASE}/waqf-jadeed/special?${params.toString()}`);
+    return response.json();
+  }
+
+  static async saveWaqfJadeedSpecialRecord(data: any) {
+    if (getStorageMode() === 'json') return null;
+    const response = await fetch(`${API_BASE}/waqf-jadeed/special`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    });
+    return response.json();
+  }
+
+  static async deleteWaqfJadeedSpecialRecord(id: string) {
+    if (getStorageMode() === 'json') return { success: false };
+    const response = await fetch(`${API_BASE}/waqf-jadeed/special/${id}`, {
+      method: 'DELETE'
+    });
+    return response.json();
+  }
 }
