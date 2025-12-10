@@ -114,4 +114,48 @@ export class ApiService {
     });
     return response.json();
   }
+
+  static async getWaqfJadeedRecords(year?: number, memberId?: string) {
+    if (getStorageMode() === 'json') {
+      // Not implementing JSON for this new feature
+      return [];
+    }
+    const params = new URLSearchParams();
+    if (year) params.append('year', year.toString());
+    if (memberId) params.append('memberId', memberId);
+
+    const response = await fetch(`${API_BASE}/waqf-jadeed?${params.toString()}`);
+    return response.json();
+  }
+
+  static async saveWaqfJadeedRecord(data: any) {
+    if (getStorageMode() === 'json') {
+      // Not implementing JSON for this new feature
+      return null;
+    }
+    const response = await fetch(`${API_BASE}/waqf-jadeed`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    });
+    return response.json();
+  }
+
+  static async addWaqfJadeedPayment(data: { memberId: string; year: number; amount: number; date: string; notes?: string }) {
+    if (getStorageMode() === 'json') return null;
+    const response = await fetch(`${API_BASE}/waqf-jadeed/payment`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    });
+    return response.json();
+  }
+
+  static async deleteWaqfJadeedPayment(id: string) {
+    if (getStorageMode() === 'json') return { success: false };
+    const response = await fetch(`${API_BASE}/waqf-jadeed/payment/${id}`, {
+      method: 'DELETE'
+    });
+    return response.json();
+  }
 }

@@ -6,7 +6,7 @@ export interface ReligiousActivities {
   dailyRecitation: boolean; // روزانہ تلاوت
   fridayPrayer: boolean; // نماز جمعه
   twoNaflDaily: boolean; // دو نوافل روزانہ
-  
+
   // Religious Practices
   weeklyVoluntaryFast: boolean; // ہفتہ وار نفلی روزه
   prayerMovement: boolean; // دعائیہ تحریک
@@ -17,13 +17,13 @@ export interface ReligiousActivities {
   prayerWithTranslation: boolean; // نماز با ترجمہ آتی ہے
   prayerLetterWriting: boolean; // دعائیہ خط لکھتے ہیں
   willWritten: boolean; // وصیت
-  
+
   // Media & Technology
   mtaDish: boolean; // MTA بذریعہ ڈش
   mtaCable: boolean; // MTA بذریعہ کیبل
   mtaInternet: boolean; // MTA بذریعہ انٹرنیٹ
   internetAccess: boolean; // انٹرنیٹ
-  
+
   // Additional Info
   notes?: string; // نوٹس
   lastUpdated: string;
@@ -48,10 +48,10 @@ export interface Member {
   talem?: string;
   isDeceased?: boolean;
   dateOfDeath?: string;
-  
+
   // Religious Activities (per member)
   religiousActivities?: ReligiousActivities;
-  
+
   // Legacy fields (keeping for backward compatibility)
   "پنجگانہ نماز کا قیام / کتنی نمازیں پڑھتے ہیں"?: string;
   "تعداد با جماعت نمازیں"?: string;
@@ -68,7 +68,7 @@ export interface Member {
   "نماز با ترجمہ آتی ہے"?: string;
   "دعائیہ خط لکھتے ہیں"?: string;
   "وصیت"?: string;
-  
+
   createdAt: string;
   updatedAt: string;
 }
@@ -86,7 +86,7 @@ export interface Family {
   updatedAt: string;
 }
 
-export type Tanzeem = 
+export type Tanzeem =
   | 'saf-e-awal'         // Boys under 7
   | 'saf-e-awal-girls'   // Girls under 7
   | 'atfal'              // Boys 7-15
@@ -145,4 +145,23 @@ export interface SearchFilters {
   ageMin?: number;
   ageMax?: number;
   familyId?: string;
+}
+
+export interface Payment {
+  id: string;
+  waqfJadeedId: string;
+  amount: number;
+  date: string;
+  notes?: string;
+}
+
+export interface WaqfJadeedRecord {
+  id: string;
+  memberId: string;
+  year: number;
+  promiseAmount: number;
+  paidAmount: number;
+  notes?: string;
+  updatedAt: string;
+  payments?: Payment[];
 }

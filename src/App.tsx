@@ -16,6 +16,7 @@ import Settings from './pages/Settings';
 import Profile from './pages/Profile';
 import ImportData from './ImportAllData';
 import MembersJsonView from './pages/MembersJsonView';
+import WaqfJadeed from './pages/WaqfJadeed';
 
 // Set this to true to run the data import script
 const runImporter = false;
@@ -65,16 +66,16 @@ function App() {
       <AuthProvider>
         <Router>
           <Routes>
-            <Route 
-              path="/login" 
+            <Route
+              path="/login"
               element={
                 <PublicRoute>
                   <Login />
                 </PublicRoute>
-              } 
+              }
             />
-            <Route 
-              path="/" 
+            <Route
+              path="/"
               element={
                 <ProtectedRoute>
                   <AppLayout />
@@ -91,6 +92,7 @@ function App() {
               <Route path="settings" element={<Settings />} />
               <Route path="profile" element={<Profile />} />
               <Route path="members-json" element={<MembersJsonView />} />
+              <Route path="waqf-jadeed" element={<WaqfJadeed />} />
             </Route>
           </Routes>
         </Router>

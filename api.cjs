@@ -341,6 +341,187 @@ app.get('/api/stats', (req, res) => {
   }
 });
 
+// --- Waqf-e-Jadeed Endpoints ---
+
+// Get Waqf-e-Jadeed records
+app.get('/api/waqf-jadeed', (req, res) => {
+  try {
+    const { year, memberId } = req.query;
+    let query = 'SELECT * FROM "WaqfJadeed"';
+    const params = [];
+    const conditions = [];
+
+    if (year) {
+      conditions.push('year = ?');
+      params.push(year);
+    }
+    if (memberId) {
+      conditions.push('"memberId" = ?');
+      params.push(memberId);
+    }
+
+    if (conditions.length > 0) {
+      query += ' WHERE ' + conditions.join(' AND ');
+    }
+
+    // Join with members to get names for easy display if needed, but for now just raw records
+    // If we want sorting by member name, we'd join. keeping it simple.
+
+    const stmt = db.prepare(query);
+    const rows = stmt.all(...params);
+
+    // Attach payments
+    const paymentsStmt = db.prepare('SELECT * FROM "WaqfJadeedPayments" WHERE "waqfJadeedId" = ? ORDER BY date DESC');
+    const records = rows.map(row => ({
+      ...row,
+      payments: paymentsStmt.all(row.id)
+    }));
+
+    res.json(records);
+  } catch (error) {
+    console.error('Error fetching WaqfJadeed records:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Save (Upsert) Waqf-e-Jadeed record
+app.post('/api/waqf-jadeed', (req, res) => {
+  try {
+    const { memberId, year, promiseAmount, paidAmount, notes } = req.body;
+
+    if (!memberId || !year) {
+      return res.status(400).json({ error: 'memberId and year are required' });
+    }
+
+    const stmt = db.prepare(`
+            INSERT INTO "WaqfJadeed" (id, "memberId", year, "promiseAmount", "paidAmount", notes, "updatedAt")
+            VALUES (@id, @memberId, @year, @promiseAmount, @paidAmount, @notes, @updatedAt)
+            ON CONFLICT("memberId", year) DO UPDATE SET
+                "promiseAmount" = excluded."promiseAmount",
+                notes = excluded.notes,
+                "updatedAt" = excluded."updatedAt"
+        `);
+    // Removed "paidAmount" = excluded."paidAmount" from UPDATE to prevent overwriting calculation
+
+    const id = require('crypto').randomUUID();
+
+    const params = {
+      id, // Only used if inserting new
+      memberId,
+      year,
+      promiseAmount: promiseAmount || 0,
+      paidAmount: paidAmount || 0, // Initial value for new records, but ignored on update
+      notes: notes || '',
+      updatedAt: new Date().toISOString()
+    };
+
+    stmt.run(params);
+
+    // Return the updated record
+    const getStmt = db.prepare('SELECT * FROM "WaqfJadeed" WHERE "memberId" = ? AND year = ?');
+    const row = getStmt.get(memberId, year);
+
+    // Attach payments
+    const paymentsStmt = db.prepare('SELECT * FROM "WaqfJadeedPayments" WHERE "waqfJadeedId" = ? ORDER BY date DESC');
+    const payments = paymentsStmt.all(row.id);
+
+    res.json({ ...row, payments });
+
+  } catch (error) {
+    console.error('Error saving WaqfJadeed record:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Add Payment
+app.post('/api/waqf-jadeed/payment', (req, res) => {
+  try {
+    const { memberId, year, amount, date, notes } = req.body;
+
+    if (!memberId || !year || amount === undefined) {
+      return res.status(400).json({ error: 'memberId, year, and amount are required' });
+    }
+
+    // 1. Ensure WaqfJadeed record exists
+    const findStmt = db.prepare('SELECT * FROM "WaqfJadeed" WHERE "memberId" = ? AND year = ?');
+    let waqfRecord = findStmt.get(memberId, year);
+
+    if (!waqfRecord) {
+      const id = require('crypto').randomUUID();
+      const insertStmt = db.prepare(`
+            INSERT INTO "WaqfJadeed" (id, "memberId", year, "promiseAmount", "paidAmount", notes, "updatedAt")
+            VALUES (?, ?, ?, 0, 0, '', ?)
+        `);
+      insertStmt.run(id, memberId, year, new Date().toISOString());
+      waqfRecord = { id, memberId, year, promiseAmount: 0, paidAmount: 0, notes: '' };
+    }
+
+    // 2. Insert Payment
+    const paymentId = require('crypto').randomUUID();
+    const insertPayment = db.prepare(`
+        INSERT INTO "WaqfJadeedPayments" (id, "waqfJadeedId", amount, date, notes)
+        VALUES (?, ?, ?, ?, ?)
+    `);
+
+    const paymentDate = date || new Date().toISOString();
+    insertPayment.run(paymentId, waqfRecord.id, amount, paymentDate, notes || '');
+
+    // 3. Recalculate Total Paid
+    const sumStmt = db.prepare('SELECT SUM(amount) as total FROM "WaqfJadeedPayments" WHERE "waqfJadeedId" = ?');
+    const totalPaid = sumStmt.get(waqfRecord.id).total || 0;
+
+    const updateWaqf = db.prepare('UPDATE "WaqfJadeed" SET "paidAmount" = ?, "updatedAt" = ? WHERE id = ?');
+    updateWaqf.run(totalPaid, new Date().toISOString(), waqfRecord.id);
+
+    // 4. Return updated record with payments
+    const getStmt = db.prepare('SELECT * FROM "WaqfJadeed" WHERE id = ?');
+    const updatedRow = getStmt.get(waqfRecord.id);
+    const paymentsStmt = db.prepare('SELECT * FROM "WaqfJadeedPayments" WHERE "waqfJadeedId" = ? ORDER BY date DESC');
+
+    res.json({
+      ...updatedRow,
+      payments: paymentsStmt.all(waqfRecord.id)
+    });
+
+  } catch (error) {
+    console.error('Error adding payment:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Delete Payment
+app.delete('/api/waqf-jadeed/payment/:id', (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Get payment to find parent waqfId
+    const getPayment = db.prepare('SELECT * FROM "WaqfJadeedPayments" WHERE id = ?');
+    const payment = getPayment.get(id);
+
+    if (!payment) {
+      return res.status(404).json({ error: 'Payment not found' });
+    }
+
+    const deleteStmt = db.prepare('DELETE FROM "WaqfJadeedPayments" WHERE id = ?');
+    deleteStmt.run(id);
+
+    // Recalculate Total Paid
+    const waqfId = payment.waqfJadeedId;
+    const sumStmt = db.prepare('SELECT SUM(amount) as total FROM "WaqfJadeedPayments" WHERE "waqfJadeedId" = ?');
+    const totalPaid = sumStmt.get(waqfId).total || 0;
+
+    const updateWaqf = db.prepare('UPDATE "WaqfJadeed" SET "paidAmount" = ?, "updatedAt" = ? WHERE id = ?');
+    updateWaqf.run(totalPaid, new Date().toISOString(), waqfId);
+
+    res.json({ success: true, waqfJadeedId: waqfId, newTotal: totalPaid });
+
+  } catch (error) {
+    console.error('Error deleting payment:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+
 // JSON data Save/Load endpoints (kept if needed for manual file backup, unrelated to core DB)
 app.post('/api/save-data', (req, res) => {
   // This looks like a file system utility you might still want.

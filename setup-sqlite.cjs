@@ -50,9 +50,55 @@ const createSchema = () => {
       "updatedAt" TEXT,
       FOREIGN KEY ("familyId") REFERENCES "Families" ("id") ON DELETE SET NULL
     );
+
+    CREATE TABLE IF NOT EXISTS "WaqfJadeed" (
+      "id" TEXT PRIMARY KEY,
+      "memberId" TEXT,
+      "year" INTEGER,
+      "promiseAmount" INTEGER,
+      "paidAmount" INTEGER,
+      "notes" TEXT,
+      "updatedAt" TEXT,
+      FOREIGN KEY ("memberId") REFERENCES "Members" ("id") ON DELETE CASCADE
+    );
+
+    CREATE TABLE IF NOT EXISTS "WaqfJadeedPayments" (
+      "id" TEXT PRIMARY KEY,
+      "waqfJadeedId" TEXT,
+      "amount" INTEGER,
+      "date" TEXT,
+      "notes" TEXT,
+      FOREIGN KEY ("waqfJadeedId") REFERENCES "WaqfJadeed" ("id") ON DELETE CASCADE
+    );
   `);
 
     console.log('Schema created.');
+
+    // Migration for Payments
+    const migratePayments = () => {
+        const rows = db.prepare('SELECT * FROM "WaqfJadeed" WHERE "paidAmount" > 0').all();
+        const checkPayment = db.prepare('SELECT count(*) as count FROM "WaqfJadeedPayments" WHERE "waqfJadeedId" = ?');
+        const insertPayment = db.prepare('INSERT INTO "WaqfJadeedPayments" (id, "waqfJadeedId", amount, date, notes) VALUES (@id, @waqfJadeedId, @amount, @date, @notes)');
+
+        let migratedCount = 0;
+        for (const row of rows) {
+            const hasPayments = checkPayment.get(row.id).count > 0;
+            if (!hasPayments) {
+                insertPayment.run({
+                    id: require('crypto').randomUUID(),
+                    waqfJadeedId: row.id,
+                    amount: row.paidAmount,
+                    date: row.updatedAt || new Date().toISOString(),
+                    notes: 'Legacy Payment (Migrated)'
+                });
+                migratedCount++;
+            }
+        }
+        if (migratedCount > 0) {
+            console.log(`Migrated ${migratedCount} legacy payments.`);
+        }
+    };
+    migratePayments();
 };
 
 const migrateData = () => {

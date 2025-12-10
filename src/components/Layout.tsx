@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import { Layout, Menu, Button, Avatar, Dropdown, Space, Typography } from 'antd';
-import { 
-  DashboardOutlined, 
-  UserOutlined, 
-  TeamOutlined, 
+import {
+  DashboardOutlined,
+  UserOutlined,
+  TeamOutlined,
   SettingOutlined,
   LogoutOutlined,
   MenuFoldOutlined,
@@ -66,6 +66,11 @@ const AppLayout: React.FC = () => {
       label: 'Settings',
     },
     {
+      key: '/waqf-jadeed',
+      icon: <BankOutlined />,
+      label: 'Waqf-e-Jadeed',
+    },
+    {
       key: '/members-json',
       icon: <DatabaseOutlined />,
       label: 'Members (JSON)',
@@ -100,9 +105,9 @@ const AppLayout: React.FC = () => {
   return (
     <Layout style={{ minHeight: '100vh' }}>
       <Sider trigger={null} collapsible collapsed={collapsed}>
-        <div style={{ 
-          height: 32, 
-          margin: 16, 
+        <div style={{
+          height: 32,
+          margin: 16,
           background: 'rgba(255, 255, 255, 0.3)',
           borderRadius: 6,
           display: 'flex',
@@ -114,7 +119,7 @@ const AppLayout: React.FC = () => {
         }}>
           {collapsed ? 'Tajneed' : 'Tajneed Dashboard'}
         </div>
-        
+
         <Menu
           theme="dark"
           mode="inline"
@@ -123,13 +128,13 @@ const AppLayout: React.FC = () => {
           onClick={handleMenuClick}
         />
       </Sider>
-      
+
       <Layout>
-        <Header style={{ 
-          padding: '0 16px', 
-          background: '#fff', 
-          display: 'flex', 
-          alignItems: 'center', 
+        <Header style={{
+          padding: '0 16px',
+          background: '#fff',
+          display: 'flex',
+          alignItems: 'center',
           justifyContent: 'space-between',
           borderBottom: '1px solid #f0f0f0'
         }}>
@@ -144,7 +149,7 @@ const AppLayout: React.FC = () => {
               <Text strong style={{ fontSize: '16px' }}>
                 Jamaat Ahmadiyya Muridke
               </Text>
-             
+
             </div>
           </Space>
 
@@ -164,10 +169,10 @@ const AppLayout: React.FC = () => {
             </Dropdown>
           </Space>
         </Header>
-        
-        <Content style={{ 
-          margin: '24px 16px', 
-          padding: 24, 
+
+        <Content style={{
+          margin: '24px 16px',
+          padding: 24,
           minHeight: 280,
           background: '#fff',
           borderRadius: 6
