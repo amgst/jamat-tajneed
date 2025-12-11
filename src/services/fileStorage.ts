@@ -41,7 +41,7 @@ const readFromFile = async <T>(filePath: string): Promise<T[]> => {
       return [];
     }
   }
-  
+
   return [];
 };
 
@@ -50,48 +50,12 @@ const saveToFile = async <T>(filePath: string, data: T[]): Promise<void> => {
     // Save to localStorage for persistence
     const key = filePath.replace('/data/', '').replace('.json', '');
     localStorage.setItem(`file_${key}`, JSON.stringify(data));
-    
-    // Try to save to actual JSON file via API
-    const filename = filePath.replace('/data/', '');
-    try {
-      const response = await fetch('http://localhost:3001/api/save-data', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          filename,
-          data
-        })
-      });
-      
-      if (response.ok) {
-        console.log(`Data saved to localStorage and ${filename} file updated`);
-      } else {
-        throw new Error(`API save failed: ${response.statusText}`);
-      }
-    } catch (apiError) {
-      console.warn('API save failed, falling back to download:', apiError);
-      // Fallback: trigger download only if API fails
-      downloadJSON(data, filename);
-    }
   } catch (error) {
     console.error(`Error saving data:`, error);
   }
 };
 
-const downloadJSON = (data: any, filename: string) => {
-  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = filename;
-  a.style.display = 'none';
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
-};
+
 
 const generateId = (): string => {
   return Date.now().toString(36) + Math.random().toString(36).substr(2);
@@ -207,7 +171,7 @@ export const onAuthChange = (callback: (user: AuthUser | null) => void): (() => 
     callback(null);
   }
 
-  return () => {};
+  return () => { };
 };
 
 // Member Services

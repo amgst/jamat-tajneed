@@ -1,228 +1,279 @@
-const API_BASE = 'http://localhost:3001/api';
+import { db } from '../lib/firebase';
+import {
+  collection,
+  getDocs,
+  getDoc,
+  doc,
+  updateDoc,
+  deleteDoc,
+  query,
+  where,
+  setDoc
+} from 'firebase/firestore';
+import type { Member, Family, WaqfJadeedRecord, WaqfJadeedSpecialRecord, Payment } from '../types';
 
-// Optional local JSON mode toggle via Settings
-const getStorageMode = (): 'api' | 'json' => {
-  const mode = localStorage.getItem('storage_mode');
-  return mode === 'json' ? 'json' : 'api';
+// Helper to determine Tanzeem
+const calculateAge = (dob: string) => {
+  if (!dob) return 0;
+  const birthDate = new Date(dob);
+  const now = new Date();
+  let age = now.getFullYear() - birthDate.getFullYear();
+  const m = now.getMonth() - birthDate.getMonth();
+  if (m < 0 || (m === 0 && now.getDate() < birthDate.getDate())) {
+    age--;
+  }
+  return age;
 };
 
-// Lazy import to avoid bundling when not used
-let jsonImpl: any | null = null;
-async function ensureJsonImpl() {
-  if (!jsonImpl) {
-    jsonImpl = await import('./jsonStorage');
-  }
-  return jsonImpl;
-}
-
 export class ApiService {
-  static async getAllMembers() {
-    if (getStorageMode() === 'json') {
-      const { getAllMembers } = await ensureJsonImpl();
-      return getAllMembers();
-    }
-    const response = await fetch(`${API_BASE}/members`);
-    return response.json();
+  // --- Members ---
+
+  static async getAllMembers(): Promise<Member[]> {
+    const snapshot = await getDocs(collection(db, 'members'));
+    return snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Member));
   }
 
-  static async getAllFamilies() {
-    if (getStorageMode() === 'json') {
-      const { getAllFamilies } = await ensureJsonImpl();
-      return getAllFamilies();
-    }
-    const response = await fetch(`${API_BASE}/families`);
-    return response.json();
+  static async createMember(member: any): Promise<Member> {
+    const id = member.id || crypto.randomUUID();
+    await setDoc(doc(db, 'members', id), { ...member, id });
+    return { ...member, id } as Member;
   }
+
+  static async updateMember(id: string, member: any): Promise<Member> {
+    const ref = doc(db, 'members', id);
+    await updateDoc(ref, member);
+    const snap = await getDoc(ref);
+    return { ...snap.data(), id: snap.id } as Member;
+  }
+
+  static async deleteMember(id: string): Promise<{ success: boolean }> {
+    await deleteDoc(doc(db, 'members', id));
+    return { success: true };
+  }
+
+  // --- Families ---
+
+  static async getAllFamilies(): Promise<Family[]> {
+    const snapshot = await getDocs(collection(db, 'families'));
+    return snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Family));
+  }
+
+  static async getFamily(id: string): Promise<Family | null> {
+    const snap = await getDoc(doc(db, 'families', id));
+    if (!snap.exists()) return null;
+    return { ...snap.data(), id: snap.id } as Family;
+  }
+
+  static async createFamily(family: any): Promise<Family> {
+    const id = family.id || crypto.randomUUID();
+    await setDoc(doc(db, 'families', id), { ...family, id });
+    return { ...family, id } as Family;
+  }
+
+  static async updateFamily(id: string, family: any): Promise<Family> {
+    const ref = doc(db, 'families', id);
+    await updateDoc(ref, family);
+    const snap = await getDoc(ref);
+    return { ...snap.data(), id: snap.id } as Family;
+  }
+
+  static async deleteFamily(id: string): Promise<{ success: boolean }> {
+    await deleteDoc(doc(db, 'families', id));
+    return { success: true };
+  }
+
+  // --- Stats (Client-Side implementation) ---
 
   static async getDashboardStats() {
-    if (getStorageMode() === 'json') {
-      const { getAllMembers, getAllFamilies } = await ensureJsonImpl();
-      const [members, families] = await Promise.all([getAllMembers(), getAllFamilies()]);
-      const totalMembers = members.length;
-      const maleMembers = members.filter((m: any) => m.gender === 'male').length;
-      const femaleMembers = members.filter((m: any) => m.gender === 'female').length;
-      const tanzeemStats = members.reduce((acc: any, m: any) => {
-        acc[m.tanzeem] = (acc[m.tanzeem] || 0) + 1;
-        return acc;
-      }, {} as Record<string, number>);
-      const halqaStats = members.reduce((acc: any, m: any) => {
-        const h = m.halqa || '';
-        if (!h) return acc;
-        acc[h] = (acc[h] || 0) + 1;
-        return acc;
-      }, {} as Record<string, number>);
-      return { totalMembers, maleMembers, femaleMembers, totalFamilies: families.length, tanzeemStats, halqaStats };
-    }
-    const response = await fetch(`${API_BASE}/stats`);
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-    }
-    const data = await response.json();
-    return data;
-  }
+    const [members, families] = await Promise.all([
+      this.getAllMembers(),
+      this.getAllFamilies()
+    ]);
 
-  static async createMember(member: any) {
-    if (getStorageMode() === 'json') {
-      const { addMember } = await ensureJsonImpl();
-      const id = await addMember(member);
-      return { id, ...member };
-    }
-    const response = await fetch(`${API_BASE}/members`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(member)
+    const totalMembers = members.length;
+    const maleMembers = members.filter((m: any) => m.gender === 'male').length;
+    const femaleMembers = members.filter((m: any) => m.gender === 'female').length;
+
+    const tanzeemStats = members.reduce((acc: any, m: any) => {
+      if (m.tanzeem) acc[m.tanzeem] = (acc[m.tanzeem] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+
+    const halqaStats = members.reduce((acc: any, m: any) => {
+      const h = m.halqa || '';
+      if (!h) return acc;
+      acc[h] = (acc[h] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+
+    // Age Groups
+    const ageGroups: Record<string, number> = {};
+    members.forEach((m: any) => {
+      let group = 'Above 60';
+      const age = m.age || calculateAge(m.dateOfBirth);
+      if (age < 7) group = 'Under 7';
+      else if (age <= 15) group = '7-15';
+      else if (age <= 25) group = '16-25';
+      else if (age <= 40) group = '26-40';
+      else if (age <= 60) group = '41-60';
+
+      ageGroups[group] = (ageGroups[group] || 0) + 1;
     });
-    return response.json();
+
+    const membersWithReligiousData = members.filter((m: any) =>
+      m.religiousActivities && Object.keys(m.religiousActivities).length > 0
+    ).length;
+
+    // Recent members (30 days)
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    const recentMembers = members.filter((m: any) => new Date(m.createdAt) >= thirtyDaysAgo).length;
+
+    // Waqf-e-Jadeed Stats
+    const wjSpecial = await this.getWaqfJadeedSpecialRecords();
+    const waqfJadeedStats = {
+      deceasedTotal: wjSpecial.filter((r: any) => r.isDeceased).length,
+      deceasedMale: wjSpecial.filter((r: any) => r.isDeceased && r.gender === 'male').length,
+      deceasedFemale: wjSpecial.filter((r: any) => r.isDeceased && r.gender === 'female').length,
+      hazratMuhammadCount: wjSpecial.filter((r: any) => r.name === 'Hazrat Muhammad (pbuh)').length,
+      hazratMessiahCount: wjSpecial.filter((r: any) => r.name === 'Hazrat Messiah Maoud (as)').length,
+      totalSpecialPromise: wjSpecial.reduce((sum: number, r: any) => sum + (r.promiseAmount || 0) + (r.nagarparAmount || 0), 0),
+      totalSpecialPaid: wjSpecial.reduce((sum: number, r: any) => sum + (r.paidAmount || 0), 0)
+    };
+
+    return {
+      totalMembers,
+      maleMembers,
+      femaleMembers,
+      totalFamilies: families.length,
+      tanzeemStats,
+      halqaStats,
+      ageGroups,
+      membersWithReligiousData,
+      recentMembers,
+      waqfJadeedStats
+    };
   }
 
-  static async updateMember(id: string, member: any) {
-    if (getStorageMode() === 'json') {
-      const { updateMember } = await ensureJsonImpl();
-      await updateMember(id, member);
-      return { id, ...member };
+  // --- Waqf-e-Jadeed ---
+
+  static async getWaqfJadeedRecords(year?: number, memberId?: string): Promise<WaqfJadeedRecord[]> {
+    let q = query(collection(db, 'waqfJadeed'));
+    if (year) q = query(q, where('year', '==', year));
+    if (memberId) q = query(q, where('memberId', '==', memberId));
+
+    const snapshot = await getDocs(q);
+    const records = await Promise.all(snapshot.docs.map(async (d) => {
+      const data = d.data();
+      // Fetch payments
+      const pQuery = query(collection(db, 'waqfJadeedPayments'), where('waqfJadeedId', '==', d.id));
+      const pSnap = await getDocs(pQuery);
+      const payments = pSnap.docs.map(pd => ({ ...pd.data(), id: pd.id } as Payment));
+      return { ...data, id: d.id, payments } as WaqfJadeedRecord;
+    }));
+    return records;
+  }
+
+  static async saveWaqfJadeedRecord(data: any): Promise<WaqfJadeedRecord | null> {
+    let records: any[] = [];
+    if (data.id) {
+      // Update existing via ID if known
+    } else {
+      const q = query(
+        collection(db, 'waqfJadeed'),
+        where('memberId', '==', data.memberId),
+        where('year', '==', data.year)
+      );
+      const snap = await getDocs(q);
+      records = snap.docs.map(d => ({ ...d.data(), id: d.id }));
     }
-    const response = await fetch(`${API_BASE}/members/${id}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(member)
-    });
-    return response.json();
+
+    let id = data.id || (records.length > 0 ? records[0].id : crypto.randomUUID());
+
+    const payload = { ...data, id, updatedAt: new Date().toISOString() };
+    await setDoc(doc(db, 'waqfJadeed', id), payload, { merge: true });
+
+    return this.getWaqfJadeedRecordById(id);
   }
 
-  static async deleteMember(id: string) {
-    if (getStorageMode() === 'json') {
-      const { deleteMember } = await ensureJsonImpl();
-      await deleteMember(id);
-      return { success: true };
-    }
-    const response = await fetch(`${API_BASE}/members/${id}`, {
-      method: 'DELETE'
-    });
-    return response.json();
+  static async getWaqfJadeedRecordById(id: string): Promise<WaqfJadeedRecord | null> {
+    const snap = await getDoc(doc(db, 'waqfJadeed', id));
+    if (!snap.exists()) return null;
+
+    const pQuery = query(collection(db, 'waqfJadeedPayments'), where('waqfJadeedId', '==', id));
+    const pSnap = await getDocs(pQuery);
+    const payments = pSnap.docs.map(pd => ({ ...pd.data(), id: pd.id } as Payment));
+
+    return { ...snap.data(), id: snap.id, payments } as WaqfJadeedRecord;
   }
 
-  static async updateFamily(id: string, family: any) {
-    if (getStorageMode() === 'json') {
-      const { updateFamily } = await ensureJsonImpl();
-      await updateFamily(id, family);
-      return { id, ...family };
-    }
-    const response = await fetch(`${API_BASE}/families/${id}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(family)
+  static async addWaqfJadeedPayment(data: { memberId: string; year: number; amount: number; date: string; notes?: string }): Promise<WaqfJadeedRecord | null> {
+    const record = await this.saveWaqfJadeedRecord({ memberId: data.memberId, year: data.year });
+
+    if (!record) throw new Error('Failed to create/fetch record');
+
+    const paymentId = crypto.randomUUID();
+    await setDoc(doc(db, 'waqfJadeedPayments', paymentId), {
+      id: paymentId,
+      waqfJadeedId: record.id,
+      amount: data.amount,
+      date: data.date,
+      notes: data.notes || ''
     });
-    return response.json();
-  }
 
-  static async getWaqfJadeedRecords(year?: number, memberId?: string) {
-    if (getStorageMode() === 'json') {
-      // Not implementing JSON for this new feature
-      return [];
-    }
-    const params = new URLSearchParams();
-    if (year) params.append('year', year.toString());
-    if (memberId) params.append('memberId', memberId);
+    await this.recalculatePaidAmount(record.id);
 
-    const response = await fetch(`${API_BASE}/waqf-jadeed?${params.toString()}`);
-    return response.json();
-  }
-
-  static async saveWaqfJadeedRecord(data: any) {
-    if (getStorageMode() === 'json') {
-      // Not implementing JSON for this new feature
-      return null;
-    }
-    const response = await fetch(`${API_BASE}/waqf-jadeed`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data)
-    });
-    return response.json();
-  }
-
-  static async addWaqfJadeedPayment(data: { memberId: string; year: number; amount: number; date: string; notes?: string }) {
-    if (getStorageMode() === 'json') return null;
-    const response = await fetch(`${API_BASE}/waqf-jadeed/payment`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data)
-    });
-    return response.json();
+    return this.getWaqfJadeedRecordById(record.id);
   }
 
   static async deleteWaqfJadeedPayment(id: string) {
-    if (getStorageMode() === 'json') return { success: false };
-    const response = await fetch(`${API_BASE}/waqf-jadeed/payment/${id}`, {
-      method: 'DELETE'
+    const snap = await getDoc(doc(db, 'waqfJadeedPayments', id));
+    if (!snap.exists()) return { error: 'Not found' };
+
+    const waqfJadeedId = snap.data().waqfJadeedId;
+    await deleteDoc(doc(db, 'waqfJadeedPayments', id));
+
+    const newTotal = await this.recalculatePaidAmount(waqfJadeedId);
+
+    return { success: true, waqfJadeedId, newTotal };
+  }
+
+  static async recalculatePaidAmount(waqfJadeedId: string) {
+    const q = query(collection(db, 'waqfJadeedPayments'), where('waqfJadeedId', '==', waqfJadeedId));
+    const snap = await getDocs(q);
+    const total = snap.docs.reduce((sum, d) => sum + (d.data().amount || 0), 0);
+
+    await updateDoc(doc(db, 'waqfJadeed', waqfJadeedId), {
+      paidAmount: total,
+      updatedAt: new Date().toISOString()
     });
-    return response.json();
+    return total;
   }
 
   // --- Special Members ---
 
-  static async getWaqfJadeedSpecialRecords(year?: number, familyId?: string) {
-    if (getStorageMode() === 'json') return [];
-    const params = new URLSearchParams();
-    if (year) params.append('year', year.toString());
-    if (familyId) params.append('familyId', familyId);
+  static async getWaqfJadeedSpecialRecords(year?: number, familyId?: string): Promise<WaqfJadeedSpecialRecord[]> {
+    let q = query(collection(db, 'waqfJadeedSpecial'));
+    if (year) q = query(q, where('year', '==', year));
+    if (familyId) q = query(q, where('familyId', '==', familyId));
 
-    const response = await fetch(`${API_BASE}/waqf-jadeed/special?${params.toString()}`);
-    return response.json();
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as WaqfJadeedSpecialRecord));
   }
 
-  static async saveWaqfJadeedSpecialRecord(data: any) {
-    if (getStorageMode() === 'json') return null;
-    const response = await fetch(`${API_BASE}/waqf-jadeed/special`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data)
+  static async saveWaqfJadeedSpecialRecord(data: any): Promise<WaqfJadeedSpecialRecord> {
+    const id = data.id || crypto.randomUUID();
+    await setDoc(doc(db, 'waqfJadeedSpecial', id), {
+      ...data,
+      id,
+      updatedAt: new Date().toISOString()
     });
-    return response.json();
+    const snap = await getDoc(doc(db, 'waqfJadeedSpecial', id));
+    return { ...snap.data(), id: snap.id } as WaqfJadeedSpecialRecord;
   }
 
-  static async deleteWaqfJadeedSpecialRecord(id: string) {
-    if (getStorageMode() === 'json') return { success: false };
-    const response = await fetch(`${API_BASE}/waqf-jadeed/special/${id}`, {
-      method: 'DELETE'
-    });
-    return response.json();
-  }
-
-  static async getFamily(id: string) {
-    if (getStorageMode() === 'json') {
-      const { getAllFamilies } = await ensureJsonImpl();
-      const families = await getAllFamilies();
-      return families.find((f: any) => f.id === id);
-    }
-    const response = await fetch(`${API_BASE}/families/${id}`);
-    if (!response.ok) return null;
-    return response.json();
-  }
-
-  static async createFamily(family: any) {
-    if (getStorageMode() === 'json') {
-      const { addFamily } = await ensureJsonImpl();
-      const id = await addFamily(family);
-      return { id, ...family };
-    }
-    const response = await fetch(`${API_BASE}/families`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(family)
-    });
-    return response.json();
-  }
-
-  static async deleteFamily(id: string) {
-    if (getStorageMode() === 'json') {
-      const { deleteFamily } = await ensureJsonImpl();
-      await deleteFamily(id);
-      return { success: true };
-    }
-    const response = await fetch(`${API_BASE}/families/${id}`, {
-      method: 'DELETE'
-    });
-    return response.json();
+  static async deleteWaqfJadeedSpecialRecord(id: string): Promise<{ success: boolean }> {
+    await deleteDoc(doc(db, 'waqfJadeedSpecial', id));
+    return { success: true };
   }
 }

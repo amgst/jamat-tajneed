@@ -114,7 +114,9 @@ const WaqfJadeed: React.FC = () => {
             };
 
             const savedRecord = await ApiService.saveWaqfJadeedRecord(payload);
-            updateLocalRecord(savedRecord);
+            if (savedRecord) {
+                updateLocalRecord(savedRecord);
+            }
 
             message.success('Promise updated');
             setIsEditingPromise(false);
@@ -136,7 +138,9 @@ const WaqfJadeed: React.FC = () => {
             };
 
             const updatedRecord = await ApiService.addWaqfJadeedPayment(payload);
-            updateLocalRecord(updatedRecord);
+            if (updatedRecord) {
+                updateLocalRecord(updatedRecord);
+            }
 
             paymentForm.resetFields();
             message.success('Payment added');
@@ -200,10 +204,10 @@ const WaqfJadeed: React.FC = () => {
                 const idx = prev.findIndex(r => r.id === saved.id);
                 if (idx >= 0) {
                     const newRecs = [...prev];
-                    newRecs[idx] = { ...saved, isDeceased: !!saved.isDeceased };
+                    newRecs[idx] = { ...saved, isDeceased: !!saved.isDeceased } as WaqfJadeedSpecialRecord;
                     return newRecs;
                 }
-                return [...prev, { ...saved, isDeceased: !!saved.isDeceased }];
+                return [...prev, { ...saved, isDeceased: !!saved.isDeceased } as WaqfJadeedSpecialRecord];
             });
 
             message.success('Special record saved');
