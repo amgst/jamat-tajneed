@@ -1,11 +1,17 @@
 import React, { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
-import { signIn, logout as fileLogout, onAuthChange } from '../services/fileStorage';
+import {
+  signInWithEmailAndPassword,
+  signOut,
+  onAuthStateChanged,
+  type User
+} from 'firebase/auth';
+import { auth } from '../lib/firebase';
 import type { AuthUser } from '../types';
 
 export interface AuthContextType {
   user: AuthUser | null;
   loading: boolean;
-  login: (pin: string) => Promise<void>;
+  login: (email: string, pass: string) => Promise<void>;
   logout: () => Promise<void>;
 }
 
@@ -16,18 +22,26 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const unsubscribe = onAuthChange((user) => {
-      setUser(user);
+    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
+      if (firebaseUser) {
+        setUser({
+          uid: firebaseUser.uid,
+          email: firebaseUser.email || '',
+          displayName: firebaseUser.displayName || 'Admin'
+        });
+      } else {
+        setUser(null);
+      }
       setLoading(false);
     });
 
     return unsubscribe;
   }, []);
 
-  const login = async (pin: string) => {
+  const login = async (email: string, pass: string) => {
     setLoading(true);
     try {
-      await signIn(pin);
+      await signInWithEmailAndPassword(auth, email, pass);
     } catch (error) {
       setLoading(false);
       throw error;
@@ -37,7 +51,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const logout = async () => {
     setLoading(true);
     try {
-      await fileLogout();
+      await signOut(auth);
     } finally {
       setLoading(false);
     }
