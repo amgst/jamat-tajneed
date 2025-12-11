@@ -57,6 +57,7 @@ const WaqfJadeed: React.FC = () => {
     const [form] = Form.useForm();
     const [paymentForm] = Form.useForm(); // New form for adding payments
     const [specialForm] = Form.useForm();
+    const [submitting, setSubmitting] = useState(false);
 
     // Special Member State
     const [specialModalVisible, setSpecialModalVisible] = useState(false);
@@ -99,6 +100,7 @@ const WaqfJadeed: React.FC = () => {
     };
 
     const handleSave = async () => {
+        setSubmitting(true);
         try {
             const values = await form.validateFields();
             if (!editingMember) return;
@@ -122,12 +124,15 @@ const WaqfJadeed: React.FC = () => {
             setIsEditingPromise(false);
         } catch (error) {
             message.error('Failed to save promise');
+        } finally {
+            setSubmitting(false);
         }
     };
 
     const handleAddPayment = async (values: any) => {
         try {
             if (!editingMember) return;
+            setSubmitting(true);
 
             const payload = {
                 memberId: editingMember.id,
@@ -147,6 +152,8 @@ const WaqfJadeed: React.FC = () => {
         } catch (error) {
             console.error('Add payment error:', error);
             message.error('Failed to add payment');
+        } finally {
+            setSubmitting(false);
         }
     };
 
@@ -186,6 +193,7 @@ const WaqfJadeed: React.FC = () => {
 
     // Special Member Handlers
     const handleSaveSpecial = async () => {
+        setSubmitting(true);
         try {
             const values = await specialForm.validateFields();
             const payload = {
@@ -215,6 +223,8 @@ const WaqfJadeed: React.FC = () => {
             specialForm.resetFields();
         } catch (error) {
             message.error('Failed to save');
+        } finally {
+            setSubmitting(false);
         }
     };
 
@@ -604,7 +614,7 @@ const WaqfJadeed: React.FC = () => {
                 onClose={() => setDrawerVisible(false)}
                 open={drawerVisible}
                 extra={
-                    <Button type="primary" onClick={handleSave}>
+                    <Button type="primary" onClick={handleSave} loading={submitting}>
                         Save
                     </Button>
                 }
@@ -628,6 +638,7 @@ const WaqfJadeed: React.FC = () => {
                                             type="primary"
                                             onClick={handleSave}
                                             icon={<CheckCircleOutlined />}
+                                            loading={submitting}
                                         />
                                     </div>
                                 ) : (
@@ -691,7 +702,7 @@ const WaqfJadeed: React.FC = () => {
                             <Form.Item name="notes" style={{ flex: 2, minWidth: 150, margin: 0 }}>
                                 <Input placeholder="Ref/Receipt #" />
                             </Form.Item>
-                            <Button type="primary" htmlType="submit" icon={<PlusOutlined />}>Add</Button>
+                            <Button type="primary" htmlType="submit" icon={<PlusOutlined />} loading={submitting}>Add</Button>
                         </div>
                     </Form>
                 </div>
@@ -738,6 +749,7 @@ const WaqfJadeed: React.FC = () => {
                 onOk={handleSaveSpecial}
                 onCancel={() => setSpecialModalVisible(false)}
                 okText="Save"
+                confirmLoading={submitting}
             >
                 <Form form={specialForm} layout="vertical">
                     <Form.Item name="id" hidden><Input /></Form.Item>
