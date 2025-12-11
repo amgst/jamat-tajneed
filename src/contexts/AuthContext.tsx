@@ -2,8 +2,7 @@ import React, { createContext, useContext, useState, useEffect, type ReactNode }
 import {
   signInWithEmailAndPassword,
   signOut,
-  onAuthStateChanged,
-  type User
+  onAuthStateChanged
 } from 'firebase/auth';
 import { auth } from '../lib/firebase';
 import type { AuthUser } from '../types';
