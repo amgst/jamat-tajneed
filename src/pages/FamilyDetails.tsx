@@ -34,7 +34,7 @@ import {
 } from '@ant-design/icons';
 import { ApiService } from '../services/apiService';
 import ReligiousActivitiesModal from '../components/ReligiousActivitiesModal';
-import { getTanzeemDisplayName, formatDate, calculateAge, determineTanzeem, formatCNIC, validateCNIC, validatePhone } from '../utils/helpers';
+import { getTanzeemDisplayName, formatDate, calculateAge, determineTanzeem, formatCNIC, validateCNIC } from '../utils/helpers';
 import { processImageFile, generateAvatarFromName } from '../utils/imageUtils';
 import dayjs from 'dayjs';
 import type { Family, Member } from '../types';
@@ -68,7 +68,7 @@ const FamilyDetails: React.FC = () => {
         ApiService.getAllMembers()
       ]);
 
-      const familyData = familiesData.find(f => f.id === id);
+      const familyData = familiesData.find((f: Family) => f.id === id);
 
       if (familyData) {
         setFamily(familyData);
@@ -77,32 +77,32 @@ const FamilyDetails: React.FC = () => {
         const members = allMembersData.filter((member: Member) =>
           familyData.memberIds.includes(member.id)
         );
-        
+
         // Sort members: head, wife, ansar, lajna, khuddam, atfal, nasirat
-        const sortedMembers = members.sort((a, b) => {
+        const sortedMembers = members.sort((a: Member, b: Member) => {
           // Head of family first
           if (a.id === familyData.headId) return -1;
           if (b.id === familyData.headId) return 1;
-          
+
           // Wife second (female who is not head)
           const aIsWife = a.gender === 'female' && a.id !== familyData.headId;
           const bIsWife = b.gender === 'female' && b.id !== familyData.headId;
           if (aIsWife && !bIsWife) return -1;
           if (!aIsWife && bIsWife) return 1;
-          
+
           // Then by tanzeem order
           const tanzeemOrder = ['ansar', 'lajna', 'khuddam', 'atfal', 'nasirat', 'saf-e-awal', 'saf-e-awal-girls'];
           const aIndex = tanzeemOrder.indexOf(a.tanzeem);
           const bIndex = tanzeemOrder.indexOf(b.tanzeem);
-          
+
           if (aIndex !== bIndex) {
             return aIndex - bIndex;
           }
-          
+
           // Finally by age (older first)
           return b.age - a.age;
         });
-        
+
         setFamilyMembers(sortedMembers);
       } else {
         message.error('Family not found');
@@ -298,7 +298,7 @@ const FamilyDetails: React.FC = () => {
       render: (name: string, record: Member) => (
         <div>
           <div style={{ fontWeight: 500 }}>
-            <span 
+            <span
               style={{ color: '#1890ff', cursor: 'pointer' }}
               onClick={() => {
                 setSelectedMember(record);
@@ -473,7 +473,7 @@ const FamilyDetails: React.FC = () => {
                 {formatDate(family.updatedAt)}
               </Descriptions.Item>
             </Descriptions>
-            
+
             {/* Family History Section */}
             <div style={{ marginTop: 24 }}>
               <Title level={4}>Family History</Title>
@@ -487,7 +487,7 @@ const FamilyDetails: React.FC = () => {
                 }}
                 onBlur={async () => {
                   try {
-                    await ApiService.updateFamily(family.id, { 
+                    await ApiService.updateFamily(family.id, {
                       familyHistory: family.familyHistory || '',
                       updatedAt: new Date().toISOString()
                     });
@@ -776,10 +776,10 @@ const FamilyDetails: React.FC = () => {
               <Form.Item
                 label="Halqa"
               >
-                <Input 
-                  disabled 
-                  value={family?.halqa || 'Not assigned to family'} 
-                  placeholder="Halqa is managed at family level" 
+                <Input
+                  disabled
+                  value={family?.halqa || 'Not assigned to family'}
+                  placeholder="Halqa is managed at family level"
                 />
               </Form.Item>
             </Col>

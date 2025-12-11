@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { ConfigProvider } from 'antd';
 import { AuthProvider } from './contexts/AuthContext';
@@ -14,12 +14,11 @@ import TanzeemView from './pages/TanzeemView';
 import ReligiousActivitiesPage from './pages/ReligiousActivities';
 import Settings from './pages/Settings';
 import Profile from './pages/Profile';
-import ImportData from './ImportAllData';
+
 import MembersJsonView from './pages/MembersJsonView';
 import WaqfJadeed from './pages/WaqfJadeed';
 
-// Set this to true to run the data import script
-const runImporter = false;
+
 
 // Protected Route component
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -44,15 +43,6 @@ const PublicRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
 };
 
 function App() {
-  // If the runImporter flag is true, render the import component directly
-  if (runImporter) {
-    return (
-      <div style={{ padding: '24px' }}>
-        <ImportData />
-      </div>
-    );
-  }
-
   // Otherwise, render the main application
   return (
     <ConfigProvider

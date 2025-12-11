@@ -13,10 +13,11 @@ import {
   ManOutlined,
   WomanOutlined,
   ReloadOutlined,
-  CalendarOutlined,
   BookOutlined,
   HomeOutlined,
-  PlusOutlined
+  PlusOutlined,
+  StarOutlined,
+  HeartOutlined
 } from '@ant-design/icons';
 import { Column, Pie, Bar } from '@ant-design/charts';
 import { ApiService } from '../services/apiService';
@@ -50,7 +51,7 @@ const Dashboard: React.FC = () => {
   const tanzeemData = stats?.tanzeemStats ? Object.entries(stats.tanzeemStats).map(([key, value]) => ({
     tanzeem: getTanzeemDisplayName(key as Tanzeem),
     count: value,
-  })) : [];  return (
+  })) : []; return (
     <div>
       {/* Header Section */}
       <div style={{ marginBottom: 24, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
@@ -166,6 +167,67 @@ const Dashboard: React.FC = () => {
           </Card>
         </Col>
       </Row>
+
+      {/* Deceased & Special Stats Row */}
+      {stats?.waqfJadeedStats && (
+        <>
+          <Title level={4} style={{ marginBottom: 16 }}>Special & Deceased Records</Title>
+          <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+            <Col xs={24} sm={8} md={8}>
+              <Card>
+                <Statistic
+                  title="Deceased (Total)"
+                  value={stats.waqfJadeedStats.deceasedTotal}
+                  prefix={<UserOutlined style={{ color: '#595959' }} />}
+                  valueStyle={{ color: '#595959' }}
+                />
+              </Card>
+            </Col>
+            <Col xs={24} sm={8} md={8}>
+              <Card>
+                <Statistic
+                  title="Deceased (Male)"
+                  value={stats.waqfJadeedStats.deceasedMale}
+                  prefix={<ManOutlined style={{ color: '#595959' }} />}
+                  valueStyle={{ color: '#595959' }}
+                />
+              </Card>
+            </Col>
+            <Col xs={24} sm={8} md={8}>
+              <Card>
+                <Statistic
+                  title="Deceased (Female)"
+                  value={stats.waqfJadeedStats.deceasedFemale}
+                  prefix={<WomanOutlined style={{ color: '#595959' }} />}
+                  valueStyle={{ color: '#595959' }}
+                />
+              </Card>
+            </Col>
+          </Row>
+          <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+            <Col xs={24} sm={12} md={12}>
+              <Card>
+                <Statistic
+                  title="Hazrat Muhammad (pbuh)"
+                  value={stats.waqfJadeedStats.hazratMuhammadCount}
+                  prefix={<StarOutlined style={{ color: '#faad14' }} />}
+                  valueStyle={{ color: '#faad14' }}
+                />
+              </Card>
+            </Col>
+            <Col xs={24} sm={12} md={12}>
+              <Card>
+                <Statistic
+                  title="Hazrat Messiah Maoud (as)"
+                  value={stats.waqfJadeedStats.hazratMessiahCount}
+                  prefix={<HeartOutlined style={{ color: '#eb2f96' }} />}
+                  valueStyle={{ color: '#eb2f96' }}
+                />
+              </Card>
+            </Col>
+          </Row>
+        </>
+      )}
 
       {/* Charts Row */}
       <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>

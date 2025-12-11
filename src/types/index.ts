@@ -116,11 +116,25 @@ export interface DashboardStats {
   maleMembers: number;
   femaleMembers: number;
   totalFamilies: number;
+  membersWithReligiousData: number;
+  recentMembers: number;
   tanzeemStats: {
     [key in Tanzeem]: number;
   };
+  ageGroups: {
+    [key: string]: number;
+  };
   halqaStats?: {
     [halqa: string]: number;
+  };
+  waqfJadeedStats?: {
+    deceasedTotal: number;
+    deceasedMale: number;
+    deceasedFemale: number;
+    hazratMuhammadCount: number;
+    hazratMessiahCount: number;
+    totalSpecialPromise: number;
+    totalSpecialPaid: number;
   };
 }
 

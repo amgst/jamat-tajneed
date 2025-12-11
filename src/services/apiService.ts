@@ -188,4 +188,41 @@ export class ApiService {
     });
     return response.json();
   }
+
+  static async getFamily(id: string) {
+    if (getStorageMode() === 'json') {
+      const { getAllFamilies } = await ensureJsonImpl();
+      const families = await getAllFamilies();
+      return families.find((f: any) => f.id === id);
+    }
+    const response = await fetch(`${API_BASE}/families/${id}`);
+    if (!response.ok) return null;
+    return response.json();
+  }
+
+  static async createFamily(family: any) {
+    if (getStorageMode() === 'json') {
+      const { addFamily } = await ensureJsonImpl();
+      const id = await addFamily(family);
+      return { id, ...family };
+    }
+    const response = await fetch(`${API_BASE}/families`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(family)
+    });
+    return response.json();
+  }
+
+  static async deleteFamily(id: string) {
+    if (getStorageMode() === 'json') {
+      const { deleteFamily } = await ensureJsonImpl();
+      await deleteFamily(id);
+      return { success: true };
+    }
+    const response = await fetch(`${API_BASE}/families/${id}`, {
+      method: 'DELETE'
+    });
+    return response.json();
+  }
 }

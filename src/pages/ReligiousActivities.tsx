@@ -7,7 +7,6 @@ import {
   Modal,
   Form,
   Input,
-  Select,
   message,
   Tag,
   Avatar,
@@ -20,10 +19,8 @@ import {
   Divider
 } from 'antd';
 import {
-  PlusOutlined,
-  EditOutlined,
-  EyeOutlined,
   UserOutlined,
+  EditOutlined,
   TeamOutlined,
   ReloadOutlined,
   SearchOutlined,
@@ -33,7 +30,6 @@ import { ApiService } from '../services/apiService';
 import type { Member, ReligiousActivities, Tanzeem } from '../types';
 import { getTanzeemDisplayName, formatDate, exportToCSV } from '../utils/helpers';
 
-const { Option } = Select;
 const { Text, Title } = Typography;
 
 const ReligiousActivitiesPage: React.FC = () => {
@@ -65,31 +61,31 @@ const ReligiousActivitiesPage: React.FC = () => {
     if (!searchText.trim()) {
       return members;
     }
-    
+
     const searchLower = searchText.toLowerCase();
     return members.filter(member => {
       const name = member.name.toLowerCase();
       const fatherName = (member.fatherName || '').toLowerCase();
       const halqa = (member.halqa || '').toLowerCase();
-      
-      return name.includes(searchLower) || 
-             fatherName.includes(searchLower) || 
-             halqa.includes(searchLower);
+
+      return name.includes(searchLower) ||
+        fatherName.includes(searchLower) ||
+        halqa.includes(searchLower);
     });
   };
 
   const getReligiousStats = () => {
     const totalMembers = members.length;
     const membersWithData = members.filter(m => m.religiousActivities).length;
-    const fivePrayersCount = members.filter(m => 
+    const fivePrayersCount = members.filter(m =>
       m.religiousActivities?.fiveDailyPrayers === 5
     ).length;
-    const mtaUsers = members.filter(m => 
-      m.religiousActivities?.mtaDish || 
-      m.religiousActivities?.mtaCable || 
+    const mtaUsers = members.filter(m =>
+      m.religiousActivities?.mtaDish ||
+      m.religiousActivities?.mtaCable ||
       m.religiousActivities?.mtaInternet
     ).length;
-    const internetUsers = members.filter(m => 
+    const internetUsers = members.filter(m =>
       m.religiousActivities?.internetAccess
     ).length;
 
@@ -222,7 +218,7 @@ const ReligiousActivitiesPage: React.FC = () => {
       title: 'تنظیم',
       dataIndex: 'tanzeem',
       key: 'tanzeem',
-      render: (tanzeem: string) => (
+      render: (tanzeem: Tanzeem) => (
         <Tag color="green">{getTanzeemDisplayName(tanzeem)}</Tag>
       ),
     },
@@ -249,9 +245,9 @@ const ReligiousActivitiesPage: React.FC = () => {
       title: 'MTA',
       key: 'mta',
       render: (record: Member) => {
-        const hasMTA = record.religiousActivities?.mtaDish || 
-                      record.religiousActivities?.mtaCable || 
-                      record.religiousActivities?.mtaInternet;
+        const hasMTA = record.religiousActivities?.mtaDish ||
+          record.religiousActivities?.mtaCable ||
+          record.religiousActivities?.mtaInternet;
         return (
           <Tag color={hasMTA ? 'green' : 'red'}>
             {hasMTA ? 'ہاں' : 'نہیں'}
@@ -428,15 +424,15 @@ const ReligiousActivitiesPage: React.FC = () => {
                 <Input disabled value={editingMember?.name} />
               </Form.Item>
             </Col>
-                         <Col span={12}>
-               <Form.Item label="تنظیم">
-                 <Input disabled value={getTanzeemDisplayName(editingMember?.tanzeem || 'khuddam' as Tanzeem)} />
-               </Form.Item>
-             </Col>
+            <Col span={12}>
+              <Form.Item label="تنظیم">
+                <Input disabled value={getTanzeemDisplayName(editingMember?.tanzeem || 'khuddam' as Tanzeem)} />
+              </Form.Item>
+            </Col>
           </Row>
 
           <Divider>Daily tasks</Divider>
-          
+
           <Row gutter={16}>
             <Col span={8}>
               <Form.Item

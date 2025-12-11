@@ -42,7 +42,6 @@ import {
   getTanzeemDisplayName,
   formatCNIC,
   validateCNIC,
-  validatePhone,
   formatDate,
   exportToCSV
 } from '../utils/helpers';
@@ -146,10 +145,7 @@ const Members: React.FC = () => {
     }
   };
 
-  const getFamilyName = (familyId: string): string => {
-    const family = families.find(f => f.id === familyId);
-    return family ? family.familyName : 'Unknown Family';
-  };
+
 
   const getFamilyMembers = (familyId: string): Member[] => {
     const family = families.find(f => f.id === familyId);
@@ -159,7 +155,7 @@ const Members: React.FC = () => {
 
   const getFilteredAndSortedMembers = (): Member[] => {
     let filtered = members;
-    
+
     // Filter by deceased status based on active tab
     filtered = filtered.filter(member => {
       if (activeTab === 'deceased') {
@@ -168,13 +164,13 @@ const Members: React.FC = () => {
         return !member.isDeceased;
       }
     });
-    
+
     // Apply family filter
     if (selectedFamilyId) {
       const familyMembers = getFamilyMembers(selectedFamilyId);
       filtered = filtered.filter(member => familyMembers.some(fm => fm.id === member.id));
     }
-    
+
     // Apply search filter
     if (searchText.trim()) {
       const searchLower = searchText.toLowerCase();
@@ -184,40 +180,40 @@ const Members: React.FC = () => {
         const phone = (member.phone || '').toLowerCase();
         const address = (member.address || '').toLowerCase();
         const halqa = (member.halqa || '').toLowerCase();
-        
-        return name.includes(searchLower) || 
-               fatherName.includes(searchLower) || 
-               phone.includes(searchLower) ||
-               address.includes(searchLower) ||
-               halqa.includes(searchLower);
+
+        return name.includes(searchLower) ||
+          fatherName.includes(searchLower) ||
+          phone.includes(searchLower) ||
+          address.includes(searchLower) ||
+          halqa.includes(searchLower);
       });
     }
-    
+
     // Sort by family number, then by family role
     filtered.sort((a, b) => {
       const familyA = families.find(f => f.memberIds.includes(a.id));
       const familyB = families.find(f => f.memberIds.includes(b.id));
-      
+
       // First sort by family number
       const familyNumA = familyA?.familyNumber || 999999; // Put members without family number at end
       const familyNumB = familyB?.familyNumber || 999999;
-      
+
       if (familyNumA !== familyNumB) {
         return familyNumA - familyNumB;
       }
-      
+
       // Within same family, sort by role
       if (familyA && a.id === familyA.headId) return -1;
       if (familyB && b.id === familyB.headId) return 1;
-      
+
       // Then by gender (wife after head)
       if (a.gender === 'female' && b.gender === 'male') return -1;
       if (a.gender === 'male' && b.gender === 'female') return 1;
-      
+
       // Finally by age (older first)
       return b.age - a.age;
     });
-    
+
     return filtered;
   };
 
@@ -283,7 +279,7 @@ const Members: React.FC = () => {
 
       setModalVisible(false);
       loadMembers();
-    } catch (error) {
+    } catch (error: any) {
       if (error.errorFields) {
         console.log('Validation errors:', error.errorFields);
         message.error('Please fix form validation errors');
@@ -314,7 +310,10 @@ const Members: React.FC = () => {
   };
 
   const handleFirebaseExport = () => {
-    const firebaseData = {
+    const firebaseData: {
+      members: Record<string, any>;
+      families: Record<string, any>;
+    } = {
       members: {},
       families: {}
     };
@@ -335,7 +334,7 @@ const Members: React.FC = () => {
       delete firebaseData.families[family.id].id;
     });
 
-    const blob = new Blob([JSON.stringify(firebaseData, null, 2)], {type: 'application/json'});
+    const blob = new Blob([JSON.stringify(firebaseData, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
@@ -370,20 +369,19 @@ const Members: React.FC = () => {
       render: (record: Member) => {
         const family = families.find(f => f.memberIds.includes(record.id));
         if (!family) return <Tag color="default">No Family</Tag>;
-        
+
         const isHead = family.headId === record.id;
-        const isWife = record.gender === 'female' && family.headId !== record.id;
-        
+
         return (
           <div>
-            <div 
+            <div
               style={{ fontWeight: 500, color: '#1890ff', cursor: 'pointer' }}
               onClick={() => navigate(`/families/${family.id}`)}
             >
               {family.familyName}
             </div>
             {isHead && (
-              <Tag color="red" size="small">
+              <Tag color="red">
                 Head
               </Tag>
             )}
@@ -482,7 +480,7 @@ const Members: React.FC = () => {
               setSelectedMemberForReligious(record);
               setReligiousModalVisible(true);
             }}
-            style={{ 
+            style={{
               backgroundColor: hasData ? '#52c41a' : undefined,
               borderColor: hasData ? '#52c41a' : undefined
             }}
@@ -578,52 +576,52 @@ const Members: React.FC = () => {
               label: `Active Members (${activeCount})`,
               children: (
                 <div>
-        {/* Search and Filter Controls */}
-        <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
-          <Col xs={24} sm={12} md={8}>
-            <Input
-              placeholder="Search by name, father, phone, address, or halqa..."
-              prefix={<SearchOutlined />}
-              value={searchText}
-              onChange={(e) => setSearchText(e.target.value)}
-              allowClear
-              style={{ width: '100%' }}
-            />
-          </Col>
-          <Col xs={24} sm={12} md={8}>
-            <Select
-              placeholder="Filter by family..."
-              value={selectedFamilyId}
-              onChange={setSelectedFamilyId}
-              allowClear
-              style={{ width: '100%' }}
-            >
-              {families.map(family => (
-                <Option key={family.id} value={family.id}>
-                  <Space>
-                    <TeamOutlined />
-                    {family.familyName}
-                    <Tag size="small" color="blue">
-                      {getFamilyMembers(family.id).length} members
-                    </Tag>
-                  </Space>
-                </Option>
-              ))}
-            </Select>
-          </Col>
-          <Col xs={24} sm={12} md={8}>
-            <Button
-              type="default"
-              onClick={() => {
-                setSearchText('');
-                setSelectedFamilyId('');
-              }}
-              style={{ width: '100%' }}
-            >
-              Clear Filters
-            </Button>
-          </Col>
-        </Row>
+                  {/* Search and Filter Controls */}
+                  <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
+                    <Col xs={24} sm={12} md={8}>
+                      <Input
+                        placeholder="Search by name, father, phone, address, or halqa..."
+                        prefix={<SearchOutlined />}
+                        value={searchText}
+                        onChange={(e) => setSearchText(e.target.value)}
+                        allowClear
+                        style={{ width: '100%' }}
+                      />
+                    </Col>
+                    <Col xs={24} sm={12} md={8}>
+                      <Select
+                        placeholder="Filter by family..."
+                        value={selectedFamilyId}
+                        onChange={setSelectedFamilyId}
+                        allowClear
+                        style={{ width: '100%' }}
+                      >
+                        {families.map(family => (
+                          <Option key={family.id} value={family.id}>
+                            <Space>
+                              <TeamOutlined />
+                              {family.familyName}
+                              <Tag color="blue">
+                                {getFamilyMembers(family.id).length} members
+                              </Tag>
+                            </Space>
+                          </Option>
+                        ))}
+                      </Select>
+                    </Col>
+                    <Col xs={24} sm={12} md={8}>
+                      <Button
+                        type="default"
+                        onClick={() => {
+                          setSearchText('');
+                          setSelectedFamilyId('');
+                        }}
+                        style={{ width: '100%' }}
+                      >
+                        Clear Filters
+                      </Button>
+                    </Col>
+                  </Row>
 
                   <Table
                     columns={columns}
@@ -866,16 +864,16 @@ const Members: React.FC = () => {
               <Form.Item
                 label="Halqa"
               >
-                <Input 
-                  disabled 
+                <Input
+                  disabled
                   value={(() => {
                     if (editingMember) {
                       const family = families.find(f => f.memberIds.includes(editingMember.id));
                       return family?.halqa || 'Not assigned to family';
                     }
                     return 'Will be set by family assignment';
-                  })()} 
-                  placeholder="Halqa is managed at family level" 
+                  })()}
+                  placeholder="Halqa is managed at family level"
                 />
               </Form.Item>
             </Col>
@@ -968,14 +966,14 @@ const Members: React.FC = () => {
       </Modal>
 
       {/* Religious Activities Modal */}
-       <ReligiousActivitiesModal
-         visible={religiousModalVisible}
-         member={selectedMemberForReligious}
-         onClose={() => setReligiousModalVisible(false)}
-         onSuccess={() => {
-           loadMembers(); // Refresh the members list
-         }}
-       />
+      <ReligiousActivitiesModal
+        visible={religiousModalVisible}
+        member={selectedMemberForReligious}
+        onClose={() => setReligiousModalVisible(false)}
+        onSuccess={() => {
+          loadMembers(); // Refresh the members list
+        }}
+      />
     </div>
   );
 };

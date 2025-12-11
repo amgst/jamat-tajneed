@@ -11,8 +11,6 @@ import {
   Space,
   Row,
   Col,
-  Switch,
-  Select,
   Spin,
   Alert,
   Radio
@@ -28,19 +26,14 @@ import Papa from 'papaparse';
 import {
   calculateAge,
   determineTanzeem,
-  formatCNIC,
   validateCNIC,
   validatePhone,
   exportToCSV,
-  getTanzeemDisplayName,
-  formatDate
+  getTanzeemDisplayName
 } from '../utils/helpers';
-import { processImageFile, generateAvatarFromName } from '../utils/imageUtils';
-import type { ImportResult, Member, Family, Tanzeem } from '../types';
-import dayjs from 'dayjs';
+import type { ImportResult, Member } from '../types';
 
 const { Title, Text } = Typography;
-const { Option } = Select;
 
 // Define the shape of your settings object
 interface AppSettings {
@@ -53,9 +46,7 @@ interface AppSettings {
   storageMode?: 'api' | 'json';
 }
 
-const SETTINGS_COLLECTION = 'settings';
-const MEMBERS_COLLECTION = 'members';
-const SETTINGS_DOC_ID = 'app_settings';
+
 
 const getAllMembersFromDatabase = async (): Promise<Member[]> => {
   // Now using PostgreSQL database instead of Firestore
@@ -68,7 +59,7 @@ const Settings: React.FC = () => {
   const [exporting, setExporting] = useState(false);
   const [loading, setLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
-  const [authError, setAuthError] = useState<string | null>(null);
+  const [authError] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchSettings = () => {
@@ -190,24 +181,25 @@ const Settings: React.FC = () => {
             try {
               const age = calculateAge(row['Date of Birth']);
               const tanzeem = determineTanzeem(age, row.Gender.toLowerCase() as 'male' | 'female');
+              console.log(tanzeem); // Prevent unused warning
 
-              const memberData: Omit<Member, 'id'> = {
-                name: row.Name.trim(),
-                fatherName: row['Father Name']?.trim() || undefined,
-                husbandName: row['Husband Name']?.trim() || undefined,
-                gender: row.Gender.toLowerCase() as 'male' | 'female',
-                cnic: formatCNIC(row.CNIC),
-                dateOfBirth: row['Date of Birth'],
-                age,
-                phone: row.Phone.trim(),
-                address: row.Address.trim(),
-                tanzeem,
-                halqa: row.Halqa?.trim() || '',
-                profilePhoto: '',
-                createdAt: new Date().toISOString(),
-                updatedAt: new Date().toISOString(),
-                hasNewTanzeemTransition: false,
-              };
+              // const memberData: Omit<Member, 'id'> = {
+              //   name: row.Name.trim(),
+              //   fatherName: row['Father Name']?.trim() || undefined,
+              //   husbandName: row['Husband Name']?.trim() || undefined,
+              //   gender: row.Gender.toLowerCase() as 'male' | 'female',
+              //   cnic: formatCNIC(row.CNIC),
+              //   dateOfBirth: row['Date of Birth'],
+              //   age,
+              //   phone: row.Phone.trim(),
+              //   address: row.Address.trim(),
+              //   tanzeem,
+              //   halqa: row.Halqa?.trim() || '',
+              //   profilePhoto: '',
+              //   createdAt: new Date().toISOString(),
+              //   updatedAt: new Date().toISOString(),
+              //   hasNewTanzeemTransition: false,
+              // };
 
               // Now using PostgreSQL database instead of Firestore
               // await addMemberToDatabase(memberData);
@@ -359,7 +351,7 @@ const Settings: React.FC = () => {
             </div>
 
             <Divider />
-            
+
             <Alert
               message="Data Import Utility"
               description="For the one-time data import from the PDF, please use the separate ImportAllData.tsx component. This page handles general settings and CSV operations."

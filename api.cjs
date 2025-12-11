@@ -336,6 +336,38 @@ app.get('/api/stats', (req, res) => {
     const maleCount = membersRows.find(row => row.gender === 'male')?.count || 0;
     const femaleCount = membersRows.find(row => row.gender === 'female')?.count || 0;
 
+    // Waqf-e-Jadeed Special Stats
+    let waqfJadeedStats = {
+      deceasedTotal: 0,
+      deceasedMale: 0,
+      deceasedFemale: 0,
+      hazratMuhammadCount: 0,
+      hazratMessiahCount: 0,
+      totalSpecialPromise: 0,
+      totalSpecialPaid: 0
+    };
+
+    try {
+      // Ensure table exists before querying (just in case, though app start covers it)
+      const specialStmt = db.prepare('SELECT * FROM "WaqfJadeedSpecial"');
+      const specialRows = specialStmt.all();
+
+      const deceasedRows = specialRows.filter(r => r.isDeceased);
+
+      waqfJadeedStats.deceasedTotal = deceasedRows.length;
+      waqfJadeedStats.deceasedMale = deceasedRows.filter(r => r.gender === 'male').length;
+      waqfJadeedStats.deceasedFemale = deceasedRows.filter(r => r.gender === 'female').length;
+
+      waqfJadeedStats.hazratMuhammadCount = specialRows.filter(r => r.name === 'Hazrat Muhammad (pbuh)').length;
+      waqfJadeedStats.hazratMessiahCount = specialRows.filter(r => r.name === 'Hazrat Messiah Maoud (as)').length;
+
+      waqfJadeedStats.totalSpecialPromise = specialRows.reduce((sum, r) => sum + (r.promiseAmount || 0) + (r.nagarparAmount || 0), 0);
+      waqfJadeedStats.totalSpecialPaid = specialRows.reduce((sum, r) => sum + (r.paidAmount || 0), 0);
+
+    } catch (err) {
+      console.warn('Could not fetch special stats:', err.message);
+    }
+
     res.json({
       totalMembers: membersRows.reduce((sum, row) => sum + row.count, 0),
       maleMembers: maleCount,
@@ -354,7 +386,8 @@ app.get('/api/stats', (req, res) => {
         return acc;
       }, {}),
       membersWithReligiousData: religiousDataCount,
-      recentMembers: recentMembersCount
+      recentMembers: recentMembersCount,
+      waqfJadeedStats
     });
 
   } catch (error) {
