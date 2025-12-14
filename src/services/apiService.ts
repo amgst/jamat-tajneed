@@ -258,7 +258,14 @@ export class ApiService {
     if (familyId) q = query(q, where('familyId', '==', familyId));
 
     const snapshot = await getDocs(q);
-    return snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as WaqfJadeedSpecialRecord));
+    const records = await Promise.all(snapshot.docs.map(async (d) => {
+      const data = d.data();
+      const pQuery = query(collection(db, 'waqfJadeedPayments'), where('waqfJadeedId', '==', d.id));
+      const pSnap = await getDocs(pQuery);
+      const payments = pSnap.docs.map(pd => ({ ...pd.data(), id: pd.id } as Payment));
+      return { ...data, id: d.id, payments } as WaqfJadeedSpecialRecord;
+    }));
+    return records;
   }
 
   static async saveWaqfJadeedSpecialRecord(data: any): Promise<WaqfJadeedSpecialRecord> {
@@ -275,5 +282,66 @@ export class ApiService {
   static async deleteWaqfJadeedSpecialRecord(id: string): Promise<{ success: boolean }> {
     await deleteDoc(doc(db, 'waqfJadeedSpecial', id));
     return { success: true };
+  }
+
+  static async getWaqfJadeedSpecialRecordById(id: string): Promise<WaqfJadeedSpecialRecord | null> {
+    const snap = await getDoc(doc(db, 'waqfJadeedSpecial', id));
+    if (!snap.exists()) return null;
+
+    const pQuery = query(collection(db, 'waqfJadeedPayments'), where('waqfJadeedId', '==', id));
+    const pSnap = await getDocs(pQuery);
+    const payments = pSnap.docs.map(pd => ({ ...pd.data(), id: pd.id } as Payment));
+
+    return { ...snap.data(), id: snap.id, payments } as WaqfJadeedSpecialRecord;
+  }
+
+  static async addWaqfJadeedSpecialPayment(data: { specialId: string; amount: number; date: string; notes?: string }): Promise<WaqfJadeedSpecialRecord | null> {
+    const paymentId = crypto.randomUUID();
+    await setDoc(doc(db, 'waqfJadeedPayments', paymentId), {
+      id: paymentId,
+      waqfJadeedId: data.specialId,
+      amount: data.amount,
+      date: data.date,
+      notes: data.notes || ''
+    });
+
+    await this.recalculateSpecialPaidAmount(data.specialId);
+    return this.getWaqfJadeedSpecialRecordById(data.specialId);
+  }
+
+  static async recalculateSpecialPaidAmount(specialId: string) {
+    const q = query(collection(db, 'waqfJadeedPayments'), where('waqfJadeedId', '==', specialId));
+    const snap = await getDocs(q);
+    const total = snap.docs.reduce((sum, d) => sum + (d.data().amount || 0), 0);
+
+    await updateDoc(doc(db, 'waqfJadeedSpecial', specialId), {
+      paidAmount: total,
+      updatedAt: new Date().toISOString()
+    });
+    return total;
+  }
+
+  static async deleteWaqfJadeedSpecialPayment(id: string) {
+    // This is virtually same as normal payment delete but calls different recalculate
+    const snap = await getDoc(doc(db, 'waqfJadeedPayments', id));
+    if (!snap.exists()) return { error: 'Not found' };
+
+    const waqfJadeedId = snap.data().waqfJadeedId;
+    await deleteDoc(doc(db, 'waqfJadeedPayments', id));
+
+    // Try to recalculate both ways or check which table reference exists?
+    // Optimization: Just try special table. If it fails, it might be normal table.
+    // Better approach: Generic payments don't distinguish parent type in DB.
+    // But here we need to update the parent sum.
+    // We can try updating Special table first.
+    try {
+      await this.recalculateSpecialPaidAmount(waqfJadeedId);
+    } catch (e) {
+      // If it fails (e.g. doc not found), it might be a normal record
+      // checking normal record update
+      await this.recalculatePaidAmount(waqfJadeedId);
+    }
+
+    return { success: true, waqfJadeedId };
   }
 }

@@ -193,4 +193,5 @@ export interface WaqfJadeedSpecialRecord {
   paidAmount: number;
   notes?: string;
   updatedAt: string;
+  payments?: Payment[];
 }

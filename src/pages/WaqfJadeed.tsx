@@ -52,6 +52,7 @@ const WaqfJadeed: React.FC = () => {
     // Drawer & Edit State
     const [drawerVisible, setDrawerVisible] = useState(false);
     const [editingMember, setEditingMember] = useState<Member | null>(null);
+    const [editingSpecial, setEditingSpecial] = useState<WaqfJadeedSpecialRecord | null>(null);
     const [isEditingPromise, setIsEditingPromise] = useState(false);
 
     const [form] = Form.useForm();
@@ -87,8 +88,22 @@ const WaqfJadeed: React.FC = () => {
         }
     };
 
+    const updateLocalRecord = (savedRecord: WaqfJadeedRecord) => {
+        setRecords(prev => {
+            const idx = prev.findIndex(r => r.memberId === savedRecord.memberId);
+            if (idx >= 0) {
+                const newRecords = [...prev];
+                newRecords[idx] = savedRecord;
+                return newRecords;
+            } else {
+                return [...prev, savedRecord];
+            }
+        });
+    };
+
     const handleEdit = (member: Member) => {
         setEditingMember(member);
+        setEditingSpecial(null);
         const record = records.find(r => r.memberId === member.id);
         form.setFieldsValue({
             promiseAmount: record?.promiseAmount || 0,
@@ -99,25 +114,53 @@ const WaqfJadeed: React.FC = () => {
         setDrawerVisible(true);
     };
 
+    const handleEditSpecial = (record: WaqfJadeedSpecialRecord) => {
+        setEditingMember(null);
+        setEditingSpecial(record);
+        form.setFieldsValue({
+            promiseAmount: record.promiseAmount || 0,
+            nagarparAmount: record.nagarparAmount || 0,
+        });
+        setIsEditingPromise(!record.promiseAmount);
+        setDrawerVisible(true);
+    };
+
     const handleSave = async () => {
         setSubmitting(true);
         try {
             const values = await form.validateFields();
-            if (!editingMember) return;
+            if (editingMember) {
+                // Member update
+                const payload = {
+                    memberId: editingMember.id,
+                    year: selectedYear,
+                    promiseAmount: values.promiseAmount,
+                    nagarparAmount: values.nagarparAmount,
+                };
 
-
-            // Only update promise (notes removed as per request)
-            const payload = {
-                memberId: editingMember.id,
-                year: selectedYear,
-                promiseAmount: values.promiseAmount,
-                nagarparAmount: values.nagarparAmount,
-                // notes: values.notes 
-            };
-
-            const savedRecord = await ApiService.saveWaqfJadeedRecord(payload);
-            if (savedRecord) {
-                updateLocalRecord(savedRecord);
+                const savedRecord = await ApiService.saveWaqfJadeedRecord(payload);
+                if (savedRecord) {
+                    updateLocalRecord(savedRecord);
+                }
+            } else if (editingSpecial) {
+                // Special record update
+                const payload = {
+                    ...editingSpecial,
+                    promiseAmount: values.promiseAmount,
+                    nagarparAmount: values.nagarparAmount,
+                };
+                const saved = await ApiService.saveWaqfJadeedSpecialRecord(payload);
+                setSpecialRecords(prev => {
+                    const idx = prev.findIndex(r => r.id === saved.id);
+                    if (idx >= 0) {
+                        const newRecs = [...prev];
+                        // Preserve payments
+                        const oldPayments = prev[idx].payments;
+                        newRecs[idx] = { ...saved, isDeceased: !!saved.isDeceased, payments: oldPayments } as WaqfJadeedSpecialRecord;
+                        return newRecs;
+                    }
+                    return [...prev, { ...saved, isDeceased: !!saved.isDeceased } as WaqfJadeedSpecialRecord];
+                });
             }
 
             message.success('Promise updated');
@@ -131,20 +174,45 @@ const WaqfJadeed: React.FC = () => {
 
     const handleAddPayment = async (values: any) => {
         try {
-            if (!editingMember) return;
+            if (!editingMember && !editingSpecial) return;
             setSubmitting(true);
 
-            const payload = {
-                memberId: editingMember.id,
-                year: selectedYear,
-                amount: values.amount,
-                date: dayjs().toISOString(), // Default to now since no date picker
-                notes: values.notes
-            };
+            if (editingMember) {
+                const payload = {
+                    memberId: editingMember.id,
+                    year: selectedYear,
+                    amount: values.amount,
+                    date: dayjs().toISOString(),
+                    notes: values.notes
+                };
 
-            const updatedRecord = await ApiService.addWaqfJadeedPayment(payload);
-            if (updatedRecord) {
-                updateLocalRecord(updatedRecord);
+                const updatedRecord = await ApiService.addWaqfJadeedPayment(payload);
+                if (updatedRecord) {
+                    updateLocalRecord(updatedRecord);
+                }
+            } else if (editingSpecial) {
+                const payload = {
+                    specialId: editingSpecial.id,
+                    amount: values.amount,
+                    date: dayjs().toISOString(),
+                    notes: values.notes
+                };
+                const updatedRecord = await ApiService.addWaqfJadeedSpecialPayment(payload);
+                if (updatedRecord) {
+                    setSpecialRecords(prev => {
+                        const idx = prev.findIndex(r => r.id === updatedRecord.id);
+                        if (idx >= 0) {
+                            const newRecs = [...prev];
+                            newRecs[idx] = updatedRecord;
+                            return newRecs;
+                        }
+                        return prev;
+                    });
+                    // Also update editingSpecial to show new history immediately if needed, 
+                    // but we usually derive history from the record list. 
+                    // However, Drawer uses `records.find` for member, but for special we might need to look up in `specialRecords`.
+                    setEditingSpecial(updatedRecord);
+                }
             }
 
             paymentForm.resetFields();
@@ -161,14 +229,24 @@ const WaqfJadeed: React.FC = () => {
         try {
             const res = await ApiService.deleteWaqfJadeedPayment(paymentId);
             if (res.success) {
-                // We need to fetch the updated record or manually update state
-                // Since delete response might just be success, let's re-fetch or manual splice
-                // Best to refetch or return new total from API. My API returns { newTotal, waqfJadeedId }.
-                // But simplified: let's reload the record for this member
                 if (editingMember) {
                     const [updatedRecords] = await Promise.all([ApiService.getWaqfJadeedRecords(selectedYear, editingMember.id)]);
                     if (updatedRecords && updatedRecords.length > 0) {
                         updateLocalRecord(updatedRecords[0]);
+                    }
+                } else if (editingSpecial) {
+                    const updatedRecord = await ApiService.getWaqfJadeedSpecialRecordById(editingSpecial.id);
+                    if (updatedRecord) {
+                        setSpecialRecords(prev => {
+                            const idx = prev.findIndex(r => r.id === updatedRecord.id);
+                            if (idx >= 0) {
+                                const newRecs = [...prev];
+                                newRecs[idx] = updatedRecord;
+                                return newRecs;
+                            }
+                            return prev;
+                        });
+                        setEditingSpecial(updatedRecord);
                     }
                 }
                 message.success('Payment deleted');
@@ -178,18 +256,7 @@ const WaqfJadeed: React.FC = () => {
         }
     };
 
-    const updateLocalRecord = (savedRecord: WaqfJadeedRecord) => {
-        setRecords(prev => {
-            const idx = prev.findIndex(r => r.memberId === savedRecord.memberId);
-            if (idx >= 0) {
-                const newRecords = [...prev];
-                newRecords[idx] = savedRecord;
-                return newRecords;
-            } else {
-                return [...prev, savedRecord];
-            }
-        });
-    };
+
 
     // Special Member Handlers
     const handleSaveSpecial = async () => {
@@ -206,7 +273,9 @@ const WaqfJadeed: React.FC = () => {
                 promiseAmount: values.promiseAmount,
                 nagarparAmount: values.nagarparAmount,
             };
+            console.log('Saving Special:', payload);
             const saved = await ApiService.saveWaqfJadeedSpecialRecord(payload);
+            console.log('Saved Record:', saved);
 
             setSpecialRecords(prev => {
                 const idx = prev.findIndex(r => r.id === saved.id);
@@ -238,18 +307,7 @@ const WaqfJadeed: React.FC = () => {
         }
     };
 
-    const openSpecialEdit = (record: WaqfJadeedSpecialRecord) => {
-        setActiveFamilyId(record.familyId);
-        specialForm.setFieldsValue({
-            id: record.id,
-            name: record.name,
-            gender: record.gender,
-            isDeceased: record.isDeceased,
-            promiseAmount: record.promiseAmount,
-            nagarparAmount: record.nagarparAmount,
-        });
-        setSpecialModalVisible(true);
-    };
+
 
     // Merge Data
     const getMemberData = (memberId: string) => {
@@ -543,7 +601,7 @@ const WaqfJadeed: React.FC = () => {
                                                             size="small"
                                                             hoverable
                                                             actions={[
-                                                                <EditOutlined key="edit" onClick={() => openSpecialEdit(record)} />,
+                                                                <EditOutlined key="edit" onClick={() => handleEditSpecial(record)} />,
                                                                 <DeleteOutlined key="delete" onClick={() => handleDeleteSpecial(record.id)} />
                                                             ]}
                                                         >
@@ -608,7 +666,7 @@ const WaqfJadeed: React.FC = () => {
 
             {/* Edit Drawer */}
             <Drawer
-                title={`Edit: ${editingMember?.name}`}
+                title={`Edit: ${editingMember ? editingMember.name : editingSpecial ? editingSpecial.name : ''}`}
                 placement="bottom"
                 height="70vh" // Good for mobile reachability
                 onClose={() => setDrawerVisible(false)}
@@ -644,7 +702,10 @@ const WaqfJadeed: React.FC = () => {
                                 ) : (
                                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                                         <Title level={4} style={{ margin: 0 }}>
-                                            {(records.find(r => r.memberId === editingMember?.id)?.promiseAmount || 0).toLocaleString()}
+                                            {(editingMember
+                                                ? (records.find(r => r.memberId === editingMember.id)?.promiseAmount || 0)
+                                                : (editingSpecial?.promiseAmount || 0)
+                                            ).toLocaleString()}
                                         </Title>
                                         <Button
                                             size="small"
@@ -668,7 +729,10 @@ const WaqfJadeed: React.FC = () => {
                                     </Form.Item>
                                 ) : (
                                     <Title level={4} style={{ margin: 0 }}>
-                                        {(records.find(r => r.memberId === editingMember?.id)?.nagarparAmount || 0).toLocaleString()}
+                                        {(editingMember
+                                            ? (records.find(r => r.memberId === editingMember.id)?.nagarparAmount || 0)
+                                            : (editingSpecial?.nagarparAmount || 0)
+                                        ).toLocaleString()}
                                     </Title>
                                 )}
                             </Form.Item>
@@ -676,15 +740,20 @@ const WaqfJadeed: React.FC = () => {
                         <Col span={6}>
                             <Form.Item label="Total Promised">
                                 <Title level={4} style={{ margin: 0, marginTop: 4 }}>
-                                    {((records.find(r => r.memberId === editingMember?.id)?.promiseAmount || 0) +
-                                        (records.find(r => r.memberId === editingMember?.id)?.nagarparAmount || 0)).toLocaleString()}
+                                    {((editingMember
+                                        ? ((records.find(r => r.memberId === editingMember.id)?.promiseAmount || 0) + (records.find(r => r.memberId === editingMember.id)?.nagarparAmount || 0))
+                                        : ((editingSpecial?.promiseAmount || 0) + (editingSpecial?.nagarparAmount || 0))
+                                    ).toLocaleString())}
                                 </Title>
                             </Form.Item>
                         </Col>
                         <Col span={6}>
                             <Form.Item label="Total Paid">
                                 <Title level={4} style={{ margin: 0, marginTop: 4 }}>
-                                    {records.find(r => r.memberId === editingMember?.id)?.paidAmount?.toLocaleString() || 0}
+                                    {editingMember
+                                        ? (records.find(r => r.memberId === editingMember.id)?.paidAmount?.toLocaleString() || 0)
+                                        : (editingSpecial?.paidAmount?.toLocaleString() || 0)
+                                    }
                                 </Title>
                             </Form.Item>
                         </Col>
@@ -711,7 +780,10 @@ const WaqfJadeed: React.FC = () => {
                     <Title level={5}>Payment History</Title>
                     <List
                         size="small"
-                        dataSource={records.find(r => r.memberId === editingMember?.id)?.payments || []}
+                        dataSource={editingMember
+                            ? (records.find(r => r.memberId === editingMember.id)?.payments || [])
+                            : (editingSpecial?.payments || [])
+                        }
                         renderItem={(item: Payment) => (
                             <List.Item
                                 actions={[
