@@ -15,13 +15,18 @@ import {
     Row,
     Col,
     Statistic,
-    message,
     Tabs,
     Collapse,
     Modal,
     Radio,
-    Checkbox
+    Checkbox,
+    App
 } from 'antd';
+
+const { Text, Title } = Typography;
+const { Option } = Select;
+const { Panel } = Collapse;
+
 import {
     UserOutlined,
     SearchOutlined,
@@ -29,17 +34,16 @@ import {
     CheckCircleOutlined,
     DeleteOutlined,
     PlusOutlined,
-    EditOutlined
+    EditOutlined,
+    PrinterOutlined
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { ApiService } from '../services/apiService';
 import type { Member, WaqfJadeedRecord, Family, Payment, WaqfJadeedSpecialRecord } from '../types';
-
-const { Text, Title } = Typography;
-const { Option } = Select;
-const { Panel } = Collapse;
+import { ReceiptTemplate } from '../components/ReceiptTemplate';
 
 const WaqfJadeed: React.FC = () => {
+    const { message } = App.useApp();
     const [loading, setLoading] = useState(false);
     const [members, setMembers] = useState<Member[]>([]);
     const [families, setFamilies] = useState<Family[]>([]);
@@ -59,6 +63,10 @@ const WaqfJadeed: React.FC = () => {
     const [paymentForm] = Form.useForm(); // New form for adding payments
     const [specialForm] = Form.useForm();
     const [submitting, setSubmitting] = useState(false);
+
+    // Receipt Printing State
+    const [printingPayment, setPrintingPayment] = useState<{ payment: Payment, recordName: string, memberCode?: string } | null>(null);
+    const receiptRef = React.useRef<HTMLDivElement>(null);
 
     // Special Member State
     const [specialModalVisible, setSpecialModalVisible] = useState(false);
@@ -269,13 +277,11 @@ const WaqfJadeed: React.FC = () => {
                 year: selectedYear,
                 name: values.name,
                 gender: values.gender,
-                isDeceased: values.isDeceased,
-                promiseAmount: values.promiseAmount,
-                nagarparAmount: values.nagarparAmount,
+                isDeceased: !!values.isDeceased, // Ensure boolean
+                promiseAmount: values.promiseAmount || 0,
+                nagarparAmount: values.nagarparAmount || 0,
             };
-            console.log('Saving Special:', payload);
             const saved = await ApiService.saveWaqfJadeedSpecialRecord(payload);
-            console.log('Saved Record:', saved);
 
             setSpecialRecords(prev => {
                 const idx = prev.findIndex(r => r.id === saved.id);
@@ -785,16 +791,7 @@ const WaqfJadeed: React.FC = () => {
                             : (editingSpecial?.payments || [])
                         }
                         renderItem={(item: Payment) => (
-                            <List.Item
-                                actions={[
-                                    <Button
-                                        type="text"
-                                        danger
-                                        icon={<DeleteOutlined />}
-                                        onClick={() => handleDeletePayment(item.id)}
-                                    />
-                                ]}
-                            >
+                            <List.Item>
                                 <List.Item.Meta
                                     title={`Rs. ${item.amount.toLocaleString()}`}
                                     description={
@@ -804,6 +801,26 @@ const WaqfJadeed: React.FC = () => {
                                         </Space>
                                     }
                                 />
+                                <Space>
+                                    <Button
+                                        type="text"
+                                        icon={<PrinterOutlined />}
+                                        onClick={() => {
+                                            setPrintingPayment({
+                                                payment: item,
+                                                recordName: editingMember ? editingMember.name : (editingSpecial?.name || 'Unknown'),
+                                                // memberCode: editingMember ? editingMember.memberCode : undefined // Property does not exist
+                                                memberCode: undefined // Or use another field if available, but for now undefined to fix build
+                                            });
+                                        }}
+                                    />
+                                    <Button
+                                        type="text"
+                                        danger
+                                        icon={<DeleteOutlined />}
+                                        onClick={() => handleDeletePayment(item.id)}
+                                    />
+                                </Space>
                             </List.Item>
                         )}
                     />
@@ -813,6 +830,36 @@ const WaqfJadeed: React.FC = () => {
                     <Text type="secondary">Year: {selectedYear}</Text>
                 </div>
             </Drawer>
+
+            {/* Receipt Modal */}
+            <Modal
+                title="Print Receipt"
+                open={!!printingPayment}
+                onCancel={() => setPrintingPayment(null)}
+                footer={[
+                    <Button key="close" onClick={() => setPrintingPayment(null)}>Close</Button>,
+                    <Button key="print" type="primary" icon={<PrinterOutlined />} onClick={() => window.print()}>Print</Button>
+                ]}
+                width={800}
+                styles={{ body: { padding: 0 } }}
+            >
+                {printingPayment && (
+                    <div style={{ padding: 20, background: '#f0f2f5', maxHeight: '70vh', overflow: 'auto' }}>
+                        <ReceiptTemplate
+                            ref={receiptRef}
+                            data={{
+                                receiptNo: printingPayment.payment.id.slice(0, 8).toUpperCase(),
+                                date: printingPayment.payment.date,
+                                name: printingPayment.recordName,
+                                memberCode: printingPayment.memberCode || '',
+                                amount: printingPayment.payment.amount,
+                                year: selectedYear,
+                                type: printingPayment.memberCode ? 'Waqf-e-Jadeed' : 'Waqf-e-Jadeed (Special)'
+                            }}
+                        />
+                    </div>
+                )}
+            </Modal>
 
             {/* Special Member Modal */}
             <Modal
@@ -853,7 +900,7 @@ const WaqfJadeed: React.FC = () => {
                             </Form.Item>
                         </Col>
                         <Col span={12}>
-                            <Form.Item name="isDeceased" valuePropName="checked">
+                            <Form.Item name="isDeceased" valuePropName="checked" initialValue={false}>
                                 <Checkbox>Is Deceased?</Checkbox>
                             </Form.Item>
                         </Col>
