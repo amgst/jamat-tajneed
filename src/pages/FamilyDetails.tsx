@@ -38,6 +38,8 @@ import { getTanzeemDisplayName, formatDate, calculateAge, determineTanzeem, form
 import { processImageFile, generateAvatarFromName } from '../utils/imageUtils';
 import dayjs from 'dayjs';
 import type { Family, Member } from '../types';
+import { jsPDF } from 'jspdf';
+import autoTable from 'jspdf-autotable';
 const { Title, Text } = Typography;
 const { Option } = Select;
 
@@ -121,8 +123,47 @@ const FamilyDetails: React.FC = () => {
   }, [loadFamilyData]);
 
   const handleExportPDF = () => {
-    // TODO: Implement PDF export functionality
-    message.info('PDF export functionality will be implemented');
+    if (!family) return;
+    
+    // Create new PDF document
+    const doc = new jsPDF();
+    
+    // Add title
+    doc.setFontSize(18);
+    doc.text(`${family.familyName} Family Members`, 14, 20);
+    
+    // Add generation date
+    doc.setFontSize(12);
+    doc.text(`Generated on: ${new Date().toLocaleDateString()}`, 14, 30);
+    
+    // Prepare table data
+    const tableData = familyMembers.map((member, index) => [
+      index + 1,
+      member.name,
+      member.husbandName ? `Husband: ${member.husbandName}` : member.fatherName || '',
+      member.gender,
+      member.age.toString(),
+      formatDate(member.dateOfBirth),
+      getTanzeemDisplayName(member.tanzeem),
+      member.phone || ''
+    ]);
+    
+    // Add table
+    autoTable(doc, {
+      head: [['S.No', 'Name', 'Father/Husband', 'Gender', 'Age', 'DOB', 'Tanzeem', 'Phone']],
+      body: tableData,
+      startY: 40,
+      styles: { fontSize: 8 },
+      headStyles: { fillColor: [24, 144, 255] },
+      alternateRowStyles: { fillColor: [240, 240, 240] },
+      didDrawCell: (data) => {
+        // This helps with character encoding
+        doc.setTextColor(0, 0, 0);
+      }
+    });
+    
+    // Save the PDF
+    doc.save(`${family.familyName.toLowerCase().replace(/\s+/g, '_')}_members.pdf`);
   };
 
   const handleRemoveMember = async (memberId: string) => {

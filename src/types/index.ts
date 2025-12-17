@@ -48,6 +48,7 @@ export interface Member {
   talem?: string;
   isDeceased?: boolean;
   dateOfDeath?: string;
+  graveNumber?: string;
 
   // Religious Activities (per member)
   religiousActivities?: ReligiousActivities;
@@ -182,6 +183,33 @@ export interface WaqfJadeedRecord {
 }
 
 export interface WaqfJadeedSpecialRecord {
+  id: string;
+  familyId: string;
+  year: number;
+  name: string;
+  gender: 'male' | 'female';
+  isDeceased: boolean;
+  promiseAmount: number;
+  nagarparAmount?: number;
+  paidAmount: number;
+  notes?: string;
+  updatedAt: string;
+  payments?: Payment[];
+}
+
+export interface TahreqJadeedRecord {
+  id: string;
+  memberId: string;
+  year: number;
+  promiseAmount: number;
+  nagarparAmount?: number;
+  paidAmount: number;
+  notes?: string;
+  updatedAt: string;
+  payments?: Payment[];
+}
+
+export interface TahreqJadeedSpecialRecord {
   id: string;
   familyId: string;
   year: number;

@@ -10,7 +10,7 @@ import {
   where,
   setDoc
 } from 'firebase/firestore';
-import type { Member, Family, WaqfJadeedRecord, WaqfJadeedSpecialRecord, Payment } from '../types';
+import type { Member, Family, WaqfJadeedRecord, WaqfJadeedSpecialRecord, TahreqJadeedRecord, TahreqJadeedSpecialRecord, Payment } from '../types';
 
 // Helper to determine Tanzeem
 const calculateAge = (dob: string) => {
@@ -343,5 +343,195 @@ export class ApiService {
     }
 
     return { success: true, waqfJadeedId };
+  }
+
+  // --- Tahreq Jadeed ---
+
+  static async getTahreqJadeedRecords(year?: number, memberId?: string): Promise<TahreqJadeedRecord[]> {
+    let q = query(collection(db, 'tahreqJadeed'));
+    if (year) q = query(q, where('year', '==', year));
+    if (memberId) q = query(q, where('memberId', '==', memberId));
+
+    const snapshot = await getDocs(q);
+    const records = await Promise.all(snapshot.docs.map(async (d) => {
+      const data = d.data();
+      // Fetch payments
+      const pQuery = query(collection(db, 'waqfJadeedPayments'), where('waqfJadeedId', '==', d.id));
+      const pSnap = await getDocs(pQuery);
+      const payments = pSnap.docs.map(pd => ({ ...pd.data(), id: pd.id } as Payment));
+      return { ...data, id: d.id, payments } as TahreqJadeedRecord;
+    }));
+    return records;
+  }
+
+  static async saveTahreqJadeedRecord(data: any): Promise<TahreqJadeedRecord | null> {
+    let records: any[] = [];
+    if (data.id) {
+      // Update existing via ID if known
+    } else {
+      const q = query(
+        collection(db, 'tahreqJadeed'),
+        where('memberId', '==', data.memberId),
+        where('year', '==', data.year)
+      );
+      const snap = await getDocs(q);
+      records = snap.docs.map(d => ({ ...d.data(), id: d.id }));
+    }
+
+    let id = data.id || (records.length > 0 ? records[0].id : crypto.randomUUID());
+
+    const payload = { ...data, id, updatedAt: new Date().toISOString() };
+    await setDoc(doc(db, 'tahreqJadeed', id), payload, { merge: true });
+
+    return this.getTahreqJadeedRecordById(id);
+  }
+
+  static async getTahreqJadeedRecordById(id: string): Promise<TahreqJadeedRecord | null> {
+    const snap = await getDoc(doc(db, 'tahreqJadeed', id));
+    if (!snap.exists()) return null;
+
+    const pQuery = query(collection(db, 'waqfJadeedPayments'), where('waqfJadeedId', '==', id));
+    const pSnap = await getDocs(pQuery);
+    const payments = pSnap.docs.map(pd => ({ ...pd.data(), id: pd.id } as Payment));
+
+    return { ...snap.data(), id: snap.id, payments } as TahreqJadeedRecord;
+  }
+
+  static async addTahreqJadeedPayment(data: { memberId: string; year: number; amount: number; date: string; notes?: string }): Promise<TahreqJadeedRecord | null> {
+    const record = await this.saveTahreqJadeedRecord({ memberId: data.memberId, year: data.year });
+
+    if (!record) throw new Error('Failed to create/fetch record');
+
+    const paymentId = crypto.randomUUID();
+    await setDoc(doc(db, 'waqfJadeedPayments', paymentId), {
+      id: paymentId,
+      waqfJadeedId: record.id,
+      amount: data.amount,
+      date: data.date,
+      notes: data.notes || ''
+    });
+
+    await this.recalculateTahreqPaidAmount(record.id);
+
+    return this.getTahreqJadeedRecordById(record.id);
+  }
+
+  static async deleteTahreqJadeedPayment(id: string) {
+    const snap = await getDoc(doc(db, 'waqfJadeedPayments', id));
+    if (!snap.exists()) return { error: 'Not found' };
+
+    const tahreqJadeedId = snap.data().waqfJadeedId;
+    await deleteDoc(doc(db, 'waqfJadeedPayments', id));
+
+    const newTotal = await this.recalculateTahreqPaidAmount(tahreqJadeedId);
+
+    return { success: true, tahreqJadeedId, newTotal };
+  }
+
+  static async recalculateTahreqPaidAmount(tahreqJadeedId: string) {
+    const q = query(collection(db, 'waqfJadeedPayments'), where('waqfJadeedId', '==', tahreqJadeedId));
+    const snap = await getDocs(q);
+    const total = snap.docs.reduce((sum, d) => sum + (d.data().amount || 0), 0);
+
+    await updateDoc(doc(db, 'tahreqJadeed', tahreqJadeedId), {
+      paidAmount: total,
+      updatedAt: new Date().toISOString()
+    });
+    return total;
+  }
+
+  // --- Tahreq Special Members ---
+
+  static async getTahreqJadeedSpecialRecords(year?: number, familyId?: string): Promise<TahreqJadeedSpecialRecord[]> {
+    let q = query(collection(db, 'tahreqJadeedSpecial'));
+    if (year) q = query(q, where('year', '==', year));
+    if (familyId) q = query(q, where('familyId', '==', familyId));
+
+    const snapshot = await getDocs(q);
+    const records = await Promise.all(snapshot.docs.map(async (d) => {
+      const data = d.data();
+      const pQuery = query(collection(db, 'waqfJadeedPayments'), where('waqfJadeedId', '==', d.id));
+      const pSnap = await getDocs(pQuery);
+      const payments = pSnap.docs.map(pd => ({ ...pd.data(), id: pd.id } as Payment));
+      return { ...data, id: d.id, payments } as TahreqJadeedSpecialRecord;
+    }));
+    return records;
+  }
+
+  static async saveTahreqJadeedSpecialRecord(data: any): Promise<TahreqJadeedSpecialRecord> {
+    const id = data.id || crypto.randomUUID();
+    await setDoc(doc(db, 'tahreqJadeedSpecial', id), {
+      ...data,
+      id,
+      updatedAt: new Date().toISOString()
+    });
+    const snap = await getDoc(doc(db, 'tahreqJadeedSpecial', id));
+    return { ...snap.data(), id: snap.id } as TahreqJadeedSpecialRecord;
+  }
+
+  static async deleteTahreqJadeedSpecialRecord(id: string): Promise<{ success: boolean }> {
+    await deleteDoc(doc(db, 'tahreqJadeedSpecial', id));
+    return { success: true };
+  }
+
+  static async getTahreqJadeedSpecialRecordById(id: string): Promise<TahreqJadeedSpecialRecord | null> {
+    const snap = await getDoc(doc(db, 'tahreqJadeedSpecial', id));
+    if (!snap.exists()) return null;
+
+    const pQuery = query(collection(db, 'waqfJadeedPayments'), where('waqfJadeedId', '==', id));
+    const pSnap = await getDocs(pQuery);
+    const payments = pSnap.docs.map(pd => ({ ...pd.data(), id: pd.id } as Payment));
+
+    return { ...snap.data(), id: snap.id, payments } as TahreqJadeedSpecialRecord;
+  }
+
+  static async addTahreqJadeedSpecialPayment(data: { specialId: string; amount: number; date: string; notes?: string }): Promise<TahreqJadeedSpecialRecord | null> {
+    const paymentId = crypto.randomUUID();
+    await setDoc(doc(db, 'waqfJadeedPayments', paymentId), {
+      id: paymentId,
+      waqfJadeedId: data.specialId,
+      amount: data.amount,
+      date: data.date,
+      notes: data.notes || ''
+    });
+
+    await this.recalculateTahreqSpecialPaidAmount(data.specialId);
+    return this.getTahreqJadeedSpecialRecordById(data.specialId);
+  }
+
+  static async recalculateTahreqSpecialPaidAmount(specialId: string) {
+    const q = query(collection(db, 'waqfJadeedPayments'), where('waqfJadeedId', '==', specialId));
+    const snap = await getDocs(q);
+    const total = snap.docs.reduce((sum, d) => sum + (d.data().amount || 0), 0);
+
+    await updateDoc(doc(db, 'tahreqJadeedSpecial', specialId), {
+      paidAmount: total,
+      updatedAt: new Date().toISOString()
+    });
+    return total;
+  }
+
+  static async deleteTahreqJadeedSpecialPayment(id: string) {
+    // This is virtually same as normal payment delete but calls different recalculate
+    const snap = await getDoc(doc(db, 'waqfJadeedPayments', id));
+    if (!snap.exists()) return { error: 'Not found' };
+
+    const tahreqJadeedId = snap.data().waqfJadeedId;
+    await deleteDoc(doc(db, 'waqfJadeedPayments', id));
+
+    // Try to recalculate both ways or check which table reference exists?
+    // Optimization: Just try special table. If it fails, it might be normal table.
+    // Better approach: Generic payments don't distinguish parent type in DB.
+    // But here we need to update the parent sum.
+    // We can try updating Special table first.
+    try {
+      await this.recalculateTahreqSpecialPaidAmount(tahreqJadeedId);
+    } catch (e) {
+      // If it fails (e.g. doc not found), it might be a normal record
+      // checking normal record update
+      await this.recalculateTahreqPaidAmount(tahreqJadeedId);
+    }
+
+    return { success: true, tahreqJadeedId };
   }
 }

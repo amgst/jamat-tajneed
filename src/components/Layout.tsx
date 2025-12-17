@@ -10,6 +10,7 @@ import {
   MenuUnfoldOutlined,
   BankOutlined,
   BookOutlined,
+  HeartOutlined,
 
   DatabaseOutlined,
   MenuOutlined
@@ -79,6 +80,16 @@ const AppLayout: React.FC = () => {
       key: '/waqf-jadeed',
       icon: <BankOutlined />,
       label: 'Waqf-e-Jadeed',
+    },
+    {
+      key: '/tahreq-jadeed',
+      icon: <BankOutlined />,
+      label: 'Tahreq Jadeed',
+    },
+    {
+      key: '/graveyard',
+      icon: <HeartOutlined />,
+      label: 'Graveyard',
     },
     {
       key: '/members-json',

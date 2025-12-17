@@ -17,6 +17,8 @@ import Profile from './pages/Profile';
 
 import MembersJsonView from './pages/MembersJsonView';
 import WaqfJadeed from './pages/WaqfJadeed';
+import TahreqJadeed from './pages/TahreqJadeed';
+import Graveyard from './pages/Graveyard';
 
 
 
@@ -84,6 +86,8 @@ function App() {
                 <Route path="profile" element={<Profile />} />
                 <Route path="members-json" element={<MembersJsonView />} />
                 <Route path="waqf-jadeed" element={<WaqfJadeed />} />
+                <Route path="tahreq-jadeed" element={<TahreqJadeed />} />
+                <Route path="graveyard" element={<Graveyard />} />
               </Route>
             </Routes>
           </Router>

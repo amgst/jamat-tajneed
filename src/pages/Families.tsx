@@ -247,12 +247,15 @@ const Families: React.FC = () => {
     }
   };
 
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const [pageSize, setPageSize] = useState<number>(10);
+
   const columns = [
     {
       title: 'S.No',
       key: 'serial',
       width: 80,
-      render: (_: any, __: any, index: number) => index + 1,
+      render: (_: any, __: any, index: number) => (currentPage - 1) * pageSize + index + 1,
     },
     {
       title: 'Family #',
@@ -427,6 +430,10 @@ const Families: React.FC = () => {
             showTotal: (total, range) =>
               `${range[0]}-${range[1]} of ${total} items`,
             responsive: true,
+            onChange: (page, pageSize) => {
+              setCurrentPage(page);
+              setPageSize(pageSize || 10);
+            },
           }}
         />
       </Card>

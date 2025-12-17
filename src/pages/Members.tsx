@@ -59,6 +59,7 @@ interface MemberForm {
   dateOfBirth: dayjs.Dayjs;
   phone?: string;
   address: string;
+  graveNumber?: string;
 
   isDeceased?: boolean;
   dateOfDeath?: dayjs.Dayjs;
@@ -260,6 +261,7 @@ const Members: React.FC = () => {
         profilePhoto: uploadedImage || generateAvatarFromName(formData.name),
         hasNewTanzeemTransition: false,
         isDeceased: formData.isDeceased || false,
+        graveNumber: formData.graveNumber || '',
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       };
@@ -942,6 +944,20 @@ const Members: React.FC = () => {
                   disabled={!Form.useWatch('isDeceased', form)}
                   disabledDate={(current) => current && current > dayjs().endOf('day')}
                 />
+              </Form.Item>
+            </Col>
+          </Row>
+          
+          <Row gutter={16}>
+            <Col xs={24} md={12}>
+              <Form.Item
+                name="graveNumber"
+                label="Grave Number"
+                rules={[
+                  { max: 50, message: 'Grave number cannot be longer than 50 characters' }
+                ]}
+              >
+                <Input placeholder="Enter grave number" />
               </Form.Item>
             </Col>
           </Row>

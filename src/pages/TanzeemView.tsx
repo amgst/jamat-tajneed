@@ -10,14 +10,18 @@ import {
   Avatar,
   Space,
   Typography,
-  Button
+  Button,
+  Divider
 } from 'antd';
 import {
   UserOutlined,
   TeamOutlined,
-  DownloadOutlined
+  DownloadOutlined,
+  FilePdfOutlined
 } from '@ant-design/icons';
 import { Pie } from '@ant-design/charts';
+import { jsPDF } from 'jspdf';
+import autoTable from 'jspdf-autotable';
 import { ApiService } from '../services/apiService';
 import type { Member, Tanzeem } from '../types';
 import { getTanzeemDisplayName, formatDate, exportToCSV } from '../utils/helpers';
@@ -75,6 +79,49 @@ const TanzeemView: React.FC = () => {
     }));
 
     exportToCSV(exportData, `${getTanzeemDisplayName(tanzeem).toLowerCase()}_members.csv`);
+  };
+
+  const handleExportTanzeemPDF = (tanzeem: Tanzeem) => {
+    const tanzeemMembers = getMembersByTanzeem(tanzeem);
+    
+    // Create new PDF document
+    const doc = new jsPDF();
+    
+    // Add title
+    doc.setFontSize(18);
+    doc.text(`${getTanzeemDisplayName(tanzeem)} Members List`, 14, 20);
+    
+    // Add generation date
+    doc.setFontSize(12);
+    doc.text(`Generated on: ${new Date().toLocaleDateString()}`, 14, 30);
+    
+    // Prepare table data
+    const tableData = tanzeemMembers.map((member, index) => [
+      index + 1,
+      member.name,
+      member.fatherName || '',
+      member.age.toString(),
+      member.phone || '',
+      member.halqa || '',
+      formatDate(member.createdAt)
+    ]);
+    
+    // Add table
+    autoTable(doc, {
+      head: [['S.No', 'Name', 'Father Name', 'Age', 'Phone', 'Halqa', 'Joined']],
+      body: tableData,
+      startY: 40,
+      styles: { fontSize: 8 },
+      headStyles: { fillColor: [24, 144, 255] },
+      alternateRowStyles: { fillColor: [240, 240, 240] },
+      didDrawCell: (data) => {
+        // This helps with character encoding
+        doc.setTextColor(0, 0, 0);
+      }
+    });
+    
+    // Save the PDF
+    doc.save(`${getTanzeemDisplayName(tanzeem).toLowerCase()}_members.pdf`);
   };
 
   const createTanzeemTable = (tanzeem: Tanzeem) => {
@@ -241,14 +288,25 @@ const TanzeemView: React.FC = () => {
                       Total: {count} members
                     </Text>
                   </div>
-                  <Button
-                    type="primary"
-                    icon={<DownloadOutlined />}
-                    onClick={() => handleExportTanzeem(tanzeem)}
-                    disabled={count === 0}
-                  >
-                    Export List
-                  </Button>
+                  <div>
+                    <Button
+                      type="primary"
+                      icon={<DownloadOutlined />}
+                      onClick={() => handleExportTanzeem(tanzeem)}
+                      disabled={count === 0}
+                      style={{ marginRight: 8 }}
+                    >
+                      Export CSV
+                    </Button>
+                    <Button
+                      type="primary"
+                      icon={<FilePdfOutlined />}
+                      onClick={() => handleExportTanzeemPDF(tanzeem)}
+                      disabled={count === 0}
+                    >
+                      Export PDF
+                    </Button>
+                  </div>
                 </div>
                 {createTanzeemTable(tanzeem)}
               </TabPane>
