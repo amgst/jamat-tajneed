@@ -534,4 +534,155 @@ export class ApiService {
 
     return { success: true, tahreqJadeedId };
   }
+
+  // --- Payment Plans ---
+
+  static async createPaymentPlan(data: any): Promise<any> {
+    const id = crypto.randomUUID();
+    const plan = {
+      ...data,
+      id,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+    await setDoc(doc(db, 'paymentPlans', id), plan);
+    return plan;
+  }
+
+  static async getPaymentPlans(memberId?: string): Promise<any[]> {
+    let q = query(collection(db, 'paymentPlans'));
+    if (memberId) {
+      q = query(q, where('memberId', '==', memberId));
+    }
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id }));
+  }
+
+  static async updatePaymentPlan(id: string, data: any): Promise<any> {
+    const updatedData = {
+      ...data,
+      updatedAt: new Date().toISOString()
+    };
+    await updateDoc(doc(db, 'paymentPlans', id), updatedData);
+    const snap = await getDoc(doc(db, 'paymentPlans', id));
+    return { ...snap.data(), id: snap.id };
+  }
+
+  static async deletePaymentPlan(id: string): Promise<void> {
+    await deleteDoc(doc(db, 'paymentPlans', id));
+  }
+
+  // --- Payment Reminders ---
+
+  static async createPaymentReminder(data: any): Promise<any> {
+    const id = crypto.randomUUID();
+    const reminder = {
+      ...data,
+      id,
+      createdAt: new Date().toISOString()
+    };
+    await setDoc(doc(db, 'paymentReminders', id), reminder);
+    return reminder;
+  }
+
+  static async getPaymentReminders(filters?: { memberId?: string, status?: string, type?: string }): Promise<any[]> {
+    let q: any = query(collection(db, 'paymentReminders'));
+
+    if (filters?.memberId) {
+      q = query(q, where('memberId', '==', filters.memberId));
+    }
+
+    if (filters?.status) {
+      q = query(q, where('status', '==', filters.status));
+    }
+
+    if (filters?.type) {
+      q = query(q, where('type', '==', filters.type));
+    }
+
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(doc => ({ ...(doc.data() as any), id: doc.id }));
+  }
+
+  static async updatePaymentReminder(id: string, data: any): Promise<any> {
+    await updateDoc(doc(db, 'paymentReminders', id), data);
+    const snap = await getDoc(doc(db, 'paymentReminders', id));
+    return { ...snap.data(), id: snap.id };
+  }
+
+  static async deletePaymentReminder(id: string): Promise<void> {
+    await deleteDoc(doc(db, 'paymentReminders', id));
+  }
+
+  // --- Financial Reports ---
+
+  static async createFinancialReport(data: any): Promise<any> {
+    const id = crypto.randomUUID();
+    const report = {
+      ...data,
+      id,
+      createdAt: new Date().toISOString()
+    };
+    await setDoc(doc(db, 'financialReports', id), report);
+    return report;
+  }
+
+  static async getFinancialReports(filters?: { year?: number, reportType?: string }): Promise<any[]> {
+    let q: any = query(collection(db, 'financialReports'));
+
+    if (filters?.year) {
+      q = query(q, where('year', '==', filters.year));
+    }
+
+    if (filters?.reportType) {
+      q = query(q, where('reportType', '==', filters.reportType));
+    }
+
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(doc => ({ ...(doc.data() as any), id: doc.id }));
+  }
+
+  static async getFinancialReportById(id: string): Promise<any | null> {
+    const snap = await getDoc(doc(db, 'financialReports', id));
+    if (!snap.exists()) return null;
+    return { ...snap.data(), id: snap.id };
+  }
+
+  // --- Multi-year Comparison Data ---
+
+  static async getMultiYearComparisonData(years: number[]): Promise<any> {
+    const comparisonData: any = {};
+
+    for (const year of years) {
+      // Get Waqf-e-Jadeed data
+      const waqfRecords = await this.getWaqfJadeedRecords(year);
+      const tahreqRecords = await this.getTahreqJadeedRecords(year);
+
+      const waqfPromised = waqfRecords.reduce((sum, record) => sum + (record.promiseAmount || 0), 0);
+      const waqfReceived = waqfRecords.reduce((sum, record) => sum + (record.paidAmount || 0), 0);
+
+      const tahreqPromised = tahreqRecords.reduce((sum, record) => sum + (record.promiseAmount || 0), 0);
+      const tahreqReceived = tahreqRecords.reduce((sum, record) => sum + (record.paidAmount || 0), 0);
+
+      comparisonData[year] = {
+        waqf: {
+          promised: waqfPromised,
+          received: waqfReceived,
+          members: waqfRecords.length
+        },
+        tahreq: {
+          promised: tahreqPromised,
+          received: tahreqReceived,
+          members: tahreqRecords.length
+        },
+        total: {
+          promised: waqfPromised + tahreqPromised,
+          received: waqfReceived + tahreqReceived,
+          members: [...new Set([...waqfRecords.map(r => r.memberId), ...tahreqRecords.map(r => r.memberId)])].length
+        }
+      };
+    }
+
+    return comparisonData;
+  }
 }

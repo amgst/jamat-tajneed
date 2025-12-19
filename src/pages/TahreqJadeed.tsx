@@ -41,6 +41,7 @@ import dayjs from 'dayjs';
 import { ApiService } from '../services/apiService';
 import type { Member, TahreqJadeedRecord, Family, Payment, TahreqJadeedSpecialRecord } from '../types';
 import { ReceiptTemplate } from '../components/ReceiptTemplate';
+import PaymentPlanManager from '../components/PaymentPlanManager';
 
 const TahreqJadeed: React.FC = () => {
     const { message } = App.useApp();
@@ -826,6 +827,21 @@ const TahreqJadeed: React.FC = () => {
                         )}
                     />
                 </div>
+
+                {/* Payment Plans Section */}
+                {editingMember && (
+                    <div style={{ marginTop: 24 }}>
+                        <PaymentPlanManager 
+                            memberId={editingMember.id}
+                            year={selectedYear}
+                            totalAmount={
+                                (records.find(r => r.memberId === editingMember.id)?.promiseAmount || 0) +
+                                (records.find(r => r.memberId === editingMember.id)?.nagarparAmount || 0)
+                            }
+                            onUpdate={loadData}
+                        />
+                    </div>
+                )}
 
                 <div style={{ marginTop: 20, textAlign: 'center' }}>
                     <Text type="secondary">Year: {selectedYear}</Text>

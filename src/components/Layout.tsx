@@ -11,9 +11,11 @@ import {
   BankOutlined,
   BookOutlined,
   HeartOutlined,
+  FileTextOutlined,
 
   DatabaseOutlined,
-  MenuOutlined
+  MenuOutlined,
+  ToolOutlined
 } from '@ant-design/icons';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 // import { logout } from '../services/storage'; // Using mock logout
@@ -72,11 +74,6 @@ const AppLayout: React.FC = () => {
       label: 'Religious Activities',
     },
     {
-      key: '/settings',
-      icon: <SettingOutlined />,
-      label: 'Settings',
-    },
-    {
       key: '/waqf-jadeed',
       icon: <BankOutlined />,
       label: 'Waqf-e-Jadeed',
@@ -92,9 +89,34 @@ const AppLayout: React.FC = () => {
       label: 'Graveyard',
     },
     {
+      key: '/financial-reports',
+      icon: <FileTextOutlined />,
+      label: 'Financial Reports',
+    },
+    {
+      key: '/settings',
+      icon: <SettingOutlined />,
+      label: 'Settings',
+    },
+    {
       key: '/members-json',
       icon: <DatabaseOutlined />,
       label: 'Members (JSON)',
+    },
+    {
+      key: '/tools',
+      icon: <ToolOutlined />,
+      label: 'Tools',
+      children: [
+        {
+          key: '/tools',
+          label: 'Overview',
+        },
+        {
+          key: '/tools/zakat-calculator',
+          label: 'Zakat Calculator',
+        }
+      ]
     },
   ];
 

@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Card, Space, Avatar, Tag, Button, Descriptions, message, Tabs } from 'antd';
+import { Card, Avatar, Tag, Button, Descriptions, message, Tabs } from 'antd';
 import { UserOutlined, ArrowLeftOutlined } from '@ant-design/icons';
 import { ApiService } from '../services/apiService';
 import type { Member, Family, WaqfJadeedRecord, TahreqJadeedRecord } from '../types';
@@ -37,11 +37,11 @@ const MemberDetails: React.FC = () => {
         if (found) {
           const fam = families.find((f: Family) => (f.memberIds || []).includes(found.id)) || null;
           setFamily(fam);
-          
+
           // Find Waqf Jadeed record for this member
           const waqfRecord = waqfRecords.find((r: WaqfJadeedRecord) => r.memberId === found.id) || null;
           setWaqfJadeedRecord(waqfRecord);
-          
+
           // Find Tahreq Jadeed record for this member
           const tahreqRecord = tahreqRecords.find((r: TahreqJadeedRecord) => r.memberId === found.id) || null;
           setTahreqJadeedRecord(tahreqRecord);
@@ -86,7 +86,7 @@ const MemberDetails: React.FC = () => {
               </div>
             </div>
           </div>
-          
+
           <Tabs defaultActiveKey="1">
             <Tabs.TabPane tab="Personal Information" key="1">
               <Card>
@@ -120,7 +120,7 @@ const MemberDetails: React.FC = () => {
                 </Descriptions>
               </Card>
             </Tabs.TabPane>
-            
+
             <Tabs.TabPane tab="Financial Records" key="2">
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 16 }}>
                 <Card title="Waqf-e-Jadeed">
@@ -142,7 +142,7 @@ const MemberDetails: React.FC = () => {
                     <div>No Waqf-e-Jadeed record found for this member</div>
                   )}
                 </Card>
-                
+
                 <Card title="Tahreq Jadeed">
                   {tahreqJadeedRecord ? (
                     <>

@@ -170,6 +170,57 @@ export interface Payment {
   notes?: string;
 }
 
+export interface PaymentPlan {
+  id: string;
+  memberId: string;
+  year: number;
+  totalAmount: number;
+  startDate: string;
+  endDate: string;
+  frequency: 'monthly' | 'quarterly' | 'half-yearly' | 'yearly';
+  installmentAmount: number;
+  totalInstallments: number;
+  paidInstallments: number;
+  remainingAmount: number;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface PaymentReminder {
+  id: string;
+  memberId: string;
+  memberName: string;
+  type: 'upcoming' | 'overdue';
+  dueDate: string;
+  amount: number;
+  year: number;
+  programType: 'Waqf-e-Jadeed' | 'Tahreq Jadeed';
+  sentAt?: string;
+  status: 'pending' | 'sent' | 'failed';
+  createdAt: string;
+}
+
+export interface FinancialReport {
+  id: string;
+  year: number;
+  month?: number;
+  reportType: 'monthly' | 'annual' | 'comparison';
+  totalPromised: number;
+  totalReceived: number;
+  totalMembers: number;
+  tanzeemBreakdown: {
+    [key in Tanzeem]: {
+      promised: number;
+      received: number;
+      members: number;
+    };
+  };
+  createdAt: string;
+  periodStart?: string;
+  periodEnd?: string;
+}
+
 export interface WaqfJadeedRecord {
   id: string;
   memberId: string;

@@ -12,7 +12,7 @@ interface ReceiptTemplateProps {
         memberCode: string;
         amount: number;
         year: number;
-        type: 'Waqf-e-Jadeed' | 'Waqf-e-Jadeed (Special)';
+        type: 'Waqf-e-Jadeed' | 'Waqf-e-Jadeed (Special)' | 'Tahreq Jadeed' | 'Tahreq Jadeed (Special)';
     }
 }
 

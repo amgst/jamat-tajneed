@@ -3,21 +3,18 @@ import {
   Card,
   Table,
   Button,
-  Space,
   Tag,
   Avatar,
   Typography,
   Row,
   Col,
-  Statistic,
-  Divider
+  Statistic
 } from 'antd';
 import {
   UserOutlined,
   DownloadOutlined,
-  FilePdfOutlined,
-  CalendarOutlined,
-  HeartOutlined
+  HeartOutlined,
+  FilePdfOutlined
 } from '@ant-design/icons';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -43,7 +40,7 @@ const Graveyard: React.FC = () => {
         ApiService.getAllMembers(),
         ApiService.getAllFamilies()
       ]);
-      
+
       // Filter only deceased members
       const deceased = members.filter(member => member.isDeceased);
       setDeceasedMembers(deceased);
@@ -81,15 +78,15 @@ const Graveyard: React.FC = () => {
   const handleExportPDF = () => {
     // Create new PDF document
     const doc = new jsPDF();
-    
+
     // Add title
     doc.setFontSize(18);
     doc.text('Graveyard Members List', 14, 20);
-    
+
     // Add generation date
     doc.setFontSize(12);
     doc.text(`Generated on: ${new Date().toLocaleDateString()}`, 14, 30);
-    
+
     // Prepare table data
     const tableData = deceasedMembers.map((member, index) => [
       index + 1,
@@ -104,7 +101,7 @@ const Graveyard: React.FC = () => {
       getTanzeemDisplayName(member.tanzeem),
       getFamilyName(member.id)
     ]);
-    
+
     // Add table
     autoTable(doc, {
       head: [['S.No', 'Name', 'Father/Husband', 'Gender', 'Age', 'DOB', 'DOD', 'Years Passed', 'Grave Number', 'Tanzeem', 'Family']],
@@ -113,12 +110,12 @@ const Graveyard: React.FC = () => {
       styles: { fontSize: 8 },
       headStyles: { fillColor: [24, 144, 255] },
       alternateRowStyles: { fillColor: [240, 240, 240] },
-      didDrawCell: (data) => {
+      didDrawCell: (_data) => {
         // This helps with character encoding
         doc.setTextColor(0, 0, 0);
       }
     });
-    
+
     // Save the PDF
     doc.save('graveyard_members.pdf');
   };
@@ -230,7 +227,7 @@ const Graveyard: React.FC = () => {
   const totalDeceased = deceasedMembers.length;
   const maleDeceased = deceasedMembers.filter(m => m.gender === 'male').length;
   const femaleDeceased = deceasedMembers.filter(m => m.gender === 'female').length;
-  
+
   // Group by tanzeem for statistics
   const tanzeemStats = deceasedMembers.reduce((acc, member) => {
     acc[member.tanzeem] = (acc[member.tanzeem] || 0) + 1;

@@ -81,6 +81,23 @@ const Members: React.FC = () => {
   const [selectedMemberForReligious, setSelectedMemberForReligious] = useState<Member | null>(null);
   const [form] = Form.useForm();
 
+  // Add CSS for deceased member rows
+  useEffect(() => {
+    const style = document.createElement('style');
+    style.innerHTML = `
+      .deceased-member {
+        background-color: #fff0f0 !important;
+      }
+      .deceased-member:hover {
+        background-color: #ffe0e0 !important;
+      }
+    `;
+    document.head.appendChild(style);
+    return () => {
+      document.head.removeChild(style);
+    };
+  }, []);
+
   const mapMemberToFormValues = (member: Member) => ({
     ...member,
     dateOfBirth: dayjs(member.dateOfBirth),
@@ -407,10 +424,15 @@ const Members: React.FC = () => {
         return (
           <div>
             <div
-              style={{ fontWeight: 500, color: '#1890ff', cursor: 'pointer' }}
+              style={{ fontWeight: 500, color: '#1890ff', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8 }}
               onClick={() => navigate(`/members/${slugId}`)}
             >
               {name}
+              {record.isDeceased && (
+                <Tag color="red" style={{ fontSize: '10px', padding: '0 4px' }}>
+                  Deceased
+                </Tag>
+              )}
             </div>
             <Text type="secondary" style={{ fontSize: '12px' }}>
               {record.husbandName ? `Husband: ${record.husbandName}` : record.fatherName}
@@ -713,6 +735,7 @@ const Members: React.FC = () => {
                       responsive: true,
                     }}
                     scroll={{ x: 1000 }}
+                    rowClassName={(record: Member) => record.isDeceased ? 'deceased-member' : ''}
                   />
                 </div>
               ),
@@ -947,7 +970,7 @@ const Members: React.FC = () => {
               </Form.Item>
             </Col>
           </Row>
-          
+
           <Row gutter={16}>
             <Col xs={24} md={12}>
               <Form.Item

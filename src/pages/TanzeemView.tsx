@@ -11,7 +11,7 @@ import {
   Space,
   Typography,
   Button,
-  Divider
+
 } from 'antd';
 import {
   UserOutlined,
@@ -83,18 +83,18 @@ const TanzeemView: React.FC = () => {
 
   const handleExportTanzeemPDF = (tanzeem: Tanzeem) => {
     const tanzeemMembers = getMembersByTanzeem(tanzeem);
-    
+
     // Create new PDF document
     const doc = new jsPDF();
-    
+
     // Add title
     doc.setFontSize(18);
     doc.text(`${getTanzeemDisplayName(tanzeem)} Members List`, 14, 20);
-    
+
     // Add generation date
     doc.setFontSize(12);
     doc.text(`Generated on: ${new Date().toLocaleDateString()}`, 14, 30);
-    
+
     // Prepare table data
     const tableData = tanzeemMembers.map((member, index) => [
       index + 1,
@@ -105,7 +105,7 @@ const TanzeemView: React.FC = () => {
       member.halqa || '',
       formatDate(member.createdAt)
     ]);
-    
+
     // Add table
     autoTable(doc, {
       head: [['S.No', 'Name', 'Father Name', 'Age', 'Phone', 'Halqa', 'Joined']],
@@ -114,12 +114,12 @@ const TanzeemView: React.FC = () => {
       styles: { fontSize: 8 },
       headStyles: { fillColor: [24, 144, 255] },
       alternateRowStyles: { fillColor: [240, 240, 240] },
-      didDrawCell: (data) => {
+      didDrawCell: (_data) => {
         // This helps with character encoding
         doc.setTextColor(0, 0, 0);
       }
     });
-    
+
     // Save the PDF
     doc.save(`${getTanzeemDisplayName(tanzeem).toLowerCase()}_members.pdf`);
   };

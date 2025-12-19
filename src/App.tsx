@@ -19,8 +19,9 @@ import MembersJsonView from './pages/MembersJsonView';
 import WaqfJadeed from './pages/WaqfJadeed';
 import TahreqJadeed from './pages/TahreqJadeed';
 import Graveyard from './pages/Graveyard';
-
-
+import FinancialReportsPage from './pages/FinancialReportsPage';
+import Tools from './pages/Tools';
+import ZakatCalculator from './pages/ZakatCalculator';
 
 // Protected Route component
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -88,6 +89,9 @@ function App() {
                 <Route path="waqf-jadeed" element={<WaqfJadeed />} />
                 <Route path="tahreq-jadeed" element={<TahreqJadeed />} />
                 <Route path="graveyard" element={<Graveyard />} />
+                <Route path="financial-reports" element={<FinancialReportsPage />} />
+                <Route path="tools" element={<Tools />} />
+                <Route path="tools/zakat-calculator" element={<ZakatCalculator />} />
               </Route>
             </Routes>
           </Router>
