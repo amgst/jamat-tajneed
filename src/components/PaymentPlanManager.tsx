@@ -1,17 +1,19 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  Card, 
-  Form, 
-  InputNumber, 
-  Select, 
-  DatePicker, 
-  Button, 
-  List, 
-  Tag, 
-  Space, 
-  Modal, 
+import {
+  Card,
+  Form,
+  InputNumber,
+  Select,
+  DatePicker,
+  Button,
+  List,
+  Tag,
+  Space,
+  Modal,
   Alert,
-  App
+  App,
+  Row,
+  Col
 } from 'antd';
 import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
@@ -27,9 +29,9 @@ interface PaymentPlanManagerProps {
   onUpdate: () => void;
 }
 
-const PaymentPlanManager: React.FC<PaymentPlanManagerProps> = ({ 
-  memberId, 
-  year, 
+const PaymentPlanManager: React.FC<PaymentPlanManagerProps> = ({
+  memberId,
+  year,
   totalAmount,
   onUpdate
 }) => {
@@ -60,11 +62,11 @@ const PaymentPlanManager: React.FC<PaymentPlanManagerProps> = ({
     try {
       const startDate = values.startDate.toISOString();
       const endDate = values.endDate.toISOString();
-      
+
       // Calculate installments
       const totalInstallments = calculateInstallments(values.frequency, startDate, endDate);
       const installmentAmount = values.totalAmount / totalInstallments;
-      
+
       const planData = {
         memberId,
         year,
@@ -92,15 +94,15 @@ const PaymentPlanManager: React.FC<PaymentPlanManagerProps> = ({
 
   const handleUpdatePlan = async (values: any) => {
     if (!editingPlan) return;
-    
+
     try {
       const startDate = values.startDate.toISOString();
       const endDate = values.endDate.toISOString();
-      
+
       // Calculate installments
       const totalInstallments = calculateInstallments(values.frequency, startDate, endDate);
       const installmentAmount = values.totalAmount / totalInstallments;
-      
+
       const planData = {
         totalAmount: values.totalAmount,
         startDate,
@@ -138,7 +140,7 @@ const PaymentPlanManager: React.FC<PaymentPlanManagerProps> = ({
     const start = dayjs(startDate);
     const end = dayjs(endDate);
     const diffMonths = end.diff(start, 'month');
-    
+
     switch (frequency) {
       case 'monthly':
         return diffMonths + 1;
@@ -181,12 +183,12 @@ const PaymentPlanManager: React.FC<PaymentPlanManagerProps> = ({
   };
 
   return (
-    <Card 
-      title="Payment Plans" 
+    <Card
+      title="Payment Plans"
       extra={
-        <Button 
-          type="primary" 
-          icon={<PlusOutlined />} 
+        <Button
+          type="primary"
+          icon={<PlusOutlined />}
           onClick={() => setModalVisible(true)}
         >
           Create Plan
@@ -194,11 +196,11 @@ const PaymentPlanManager: React.FC<PaymentPlanManagerProps> = ({
       }
     >
       {plans.length === 0 ? (
-        <Alert 
-          message="No payment plans created" 
-          description="Create a payment plan to help members manage their contributions." 
-          type="info" 
-          showIcon 
+        <Alert
+          message="No payment plans created"
+          description="Create a payment plan to help members manage their contributions."
+          type="info"
+          showIcon
         />
       ) : (
         <List
@@ -207,15 +209,15 @@ const PaymentPlanManager: React.FC<PaymentPlanManagerProps> = ({
           renderItem={plan => (
             <List.Item
               actions={[
-                <Button 
-                  type="text" 
-                  icon={<EditOutlined />} 
+                <Button
+                  type="text"
+                  icon={<EditOutlined />}
                   onClick={() => handleEditPlan(plan)}
                 />,
-                <Button 
-                  type="text" 
-                  icon={<DeleteOutlined />} 
-                  danger 
+                <Button
+                  type="text"
+                  icon={<DeleteOutlined />}
+                  danger
                   onClick={() => handleDeletePlan(plan.id)}
                 />
               ]}
@@ -252,15 +254,33 @@ const PaymentPlanManager: React.FC<PaymentPlanManagerProps> = ({
           form={form}
           layout="vertical"
           onFinish={editingPlan ? handleUpdatePlan : handleCreatePlan}
+          onValuesChange={(changedValues, allValues) => {
+            if (changedValues.startDate || changedValues.durationMonths) {
+              const start = changedValues.startDate || allValues.startDate;
+              const duration = changedValues.durationMonths || allValues.durationMonths;
+
+              if (start && duration) {
+                const end = dayjs(start).add(duration, 'month').subtract(1, 'day');
+                form.setFieldsValue({ endDate: end });
+              }
+            }
+          }}
+          initialValues={{
+            totalAmount: totalAmount,
+            frequency: 'monthly',
+            startDate: dayjs().year(year).month(0).date(1),
+            durationMonths: 12,
+            endDate: dayjs().year(year).month(11).date(31)
+          }}
         >
           <Form.Item
             name="totalAmount"
             label="Total Amount (Rs.)"
             rules={[{ required: true, message: 'Please enter total amount' }]}
           >
-            <InputNumber 
-              style={{ width: '100%' }} 
-              min={0} 
+            <InputNumber
+              style={{ width: '100%' }}
+              min={0}
               formatter={value => `Rs. ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
               parser={value => value!.replace(/Rs.\s?|(,*)/g, '') as any}
             />
@@ -279,20 +299,33 @@ const PaymentPlanManager: React.FC<PaymentPlanManagerProps> = ({
             </Select>
           </Form.Item>
 
-          <Form.Item
-            name="startDate"
-            label="Start Date"
-            rules={[{ required: true, message: 'Please select start date' }]}
-          >
-            <DatePicker picker="month" style={{ width: '100%' }} />
-          </Form.Item>
+          <Row gutter={16}>
+            <Col span={12}>
+              <Form.Item
+                name="startDate"
+                label="Start Date"
+                rules={[{ required: true, message: 'Please select start date' }]}
+              >
+                <DatePicker picker="date" style={{ width: '100%' }} format="DD MMM YYYY" />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item
+                name="durationMonths"
+                label="Duration (Months)"
+                rules={[{ required: true, message: 'Enter months' }]}
+              >
+                <InputNumber min={1} max={60} style={{ width: '100%' }} />
+              </Form.Item>
+            </Col>
+          </Row>
 
           <Form.Item
             name="endDate"
-            label="End Date"
+            label="End Date (Auto-calculated)"
             rules={[{ required: true, message: 'Please select end date' }]}
           >
-            <DatePicker picker="month" style={{ width: '100%' }} />
+            <DatePicker picker="date" style={{ width: '100%' }} format="DD MMM YYYY" disabled />
           </Form.Item>
 
           <Form.Item>
