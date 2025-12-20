@@ -1,9 +1,20 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Only authenticated users can read/write data
+    // ALLOW READ: Any authenticated user (e.g. viewers)
+    // ALLOW WRITE: Only the Admin
+    
+    // Replace 'YOUR_ADMIN_UID_HERE' with your actual Firebase User UID
+    // You can find this in the Firebase Console -> Authentication
+    function isAdmin() {
+      // Create a list of allowed admin UIDs if you have multiple
+      // return request.auth.uid in ['UID1', 'UID2'];
+      return request.auth.uid == 'YOUR_ADMIN_UID_HERE';
+    }
+
     match /{document=**} {
-      allow read, write: if request.auth != null;
+      allow read: if request.auth != null;
+      allow write: if isAdmin();
     }
   }
 }
