@@ -1,13 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  Card, 
-  Select, 
-  Button, 
-  Table, 
-  Space, 
-  Tag, 
-  Statistic, 
-  Row, 
+import {
+  Card,
+  Button,
+  Table,
+  Space,
+  Tag,
+  Row,
   Col,
   App
 } from 'antd';
@@ -15,8 +13,6 @@ import { Column } from '@ant-design/plots';
 import dayjs from 'dayjs';
 import { ApiService } from '../services/apiService';
 import type { ColumnsType } from 'antd/es/table';
-
-const { Option } = Select;
 
 interface ComparisonData {
   key: number;
@@ -71,7 +67,7 @@ const MultiYearComparison: React.FC = () => {
 
   const getChartData = () => {
     const chartData: any[] = [];
-    
+
     years.forEach(year => {
       chartData.push(
         { year: year.toString(), type: 'Waqf-e-Jadeed Promised', value: comparisonData[year]?.waqf.promised || 0 },
@@ -80,7 +76,7 @@ const MultiYearComparison: React.FC = () => {
         { year: year.toString(), type: 'Tahreq Jadeed Received', value: comparisonData[year]?.tahreq.received || 0 }
       );
     });
-    
+
     return chartData;
   };
 
@@ -101,7 +97,7 @@ const MultiYearComparison: React.FC = () => {
   };
 
   const formatCurrency = (amount: number) => {
-    return `Rs. ${amount.toLocaleString()}`;
+    return `Rs.${amount.toLocaleString()} `;
   };
 
   const columns: ColumnsType<ComparisonData> = [
@@ -190,8 +186,8 @@ const MultiYearComparison: React.FC = () => {
   };
 
   return (
-    <Card 
-      title="Multi-Year Comparison" 
+    <Card
+      title="Multi-Year Comparison"
       extra={
         <Space>
           <Button onClick={addYear}>Add Year</Button>
@@ -205,9 +201,9 @@ const MultiYearComparison: React.FC = () => {
         <Col span={24}>
           <Space>
             {years.map(year => (
-              <Tag 
-                key={year} 
-                closable 
+              <Tag
+                key={year}
+                closable
                 onClose={() => removeYear(year)}
                 color="blue"
               >

@@ -124,18 +124,18 @@ const FamilyDetails: React.FC = () => {
 
   const handleExportPDF = () => {
     if (!family) return;
-    
+
     // Create new PDF document
     const doc = new jsPDF();
-    
+
     // Add title
     doc.setFontSize(18);
     doc.text(`${family.familyName} Family Members`, 14, 20);
-    
+
     // Add generation date
     doc.setFontSize(12);
     doc.text(`Generated on: ${new Date().toLocaleDateString()}`, 14, 30);
-    
+
     // Prepare table data
     const tableData = familyMembers.map((member, index) => [
       index + 1,
@@ -147,7 +147,7 @@ const FamilyDetails: React.FC = () => {
       getTanzeemDisplayName(member.tanzeem),
       member.phone || ''
     ]);
-    
+
     // Add table
     autoTable(doc, {
       head: [['S.No', 'Name', 'Father/Husband', 'Gender', 'Age', 'DOB', 'Tanzeem', 'Phone']],
@@ -156,12 +156,12 @@ const FamilyDetails: React.FC = () => {
       styles: { fontSize: 8 },
       headStyles: { fillColor: [24, 144, 255] },
       alternateRowStyles: { fillColor: [240, 240, 240] },
-      didDrawCell: (data) => {
+      didDrawCell: (_data) => {
         // This helps with character encoding
         doc.setTextColor(0, 0, 0);
       }
     });
-    
+
     // Save the PDF
     doc.save(`${family.familyName.toLowerCase().replace(/\s+/g, '_')}_members.pdf`);
   };

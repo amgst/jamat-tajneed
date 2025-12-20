@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  Card, 
-  Button, 
-  Table, 
-  Space, 
-  Tag, 
-  Statistic, 
-  Row, 
+import {
+  Card,
+  Button,
+  Table,
+  Space,
+  Tag,
+  Statistic,
+  Row,
   Col,
   App,
   Modal,
@@ -15,7 +15,7 @@ import {
   Select,
   DatePicker
 } from 'antd';
-import { SendOutlined, ClockCircleOutlined, ExclamationCircleOutlined } from '@ant-design/icons';
+import { SendOutlined, ClockCircleOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { ApiService } from '../services/apiService';
 import type { PaymentReminder } from '../types';
@@ -49,11 +49,11 @@ const AutomatedReminders: React.FC = () => {
     try {
       // In a real implementation, this would send an actual email/SMS
       // For now, we'll just update the status
-      await ApiService.updatePaymentReminder(reminderId, { 
+      await ApiService.updatePaymentReminder(reminderId, {
         status: 'sent',
         sentAt: new Date().toISOString()
       });
-      
+
       message.success('Reminder sent successfully');
       loadReminders();
     } catch (error) {
@@ -152,8 +152,8 @@ const AutomatedReminders: React.FC = () => {
       render: (_: any, record: PaymentReminder) => (
         <Space>
           {record.status === 'pending' && (
-            <Button 
-              icon={<SendOutlined />} 
+            <Button
+              icon={<SendOutlined />}
               onClick={() => handleSendReminder(record.id)}
             >
               Send
@@ -165,11 +165,11 @@ const AutomatedReminders: React.FC = () => {
   ];
 
   return (
-    <Card 
-      title="Automated Reminders" 
+    <Card
+      title="Automated Reminders"
       extra={
-        <Button 
-          type="primary" 
+        <Button
+          type="primary"
           icon={<ClockCircleOutlined />}
           onClick={() => setModalVisible(true)}
         >

@@ -1,26 +1,23 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  Card, 
-  Select, 
-  Button, 
-  Table, 
-  Space, 
-  Tag, 
-  Statistic, 
-  Row, 
+import {
+  Card,
+  Select,
+  Button,
+  Table,
+  Space,
+  Tag,
+  Statistic,
+  Row,
   Col,
-  DatePicker,
   App
 } from 'antd';
 import { DownloadOutlined, BarChartOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { ApiService } from '../services/apiService';
-import type { FinancialReport, Tanzeem } from '../types';
-import { getTanzeemDisplayName } from '../utils/helpers';
+import type { FinancialReport } from '../types';
 import { exportToCSV } from '../utils/helpers';
 
 const { Option } = Select;
-const { RangePicker } = DatePicker;
 
 const FinancialReports: React.FC = () => {
   const { message } = App.useApp();
@@ -28,7 +25,6 @@ const FinancialReports: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [reportType, setReportType] = useState<'monthly' | 'annual' | 'comparison'>('annual');
   const [selectedYear, setSelectedYear] = useState<number>(dayjs().year());
-  const [dateRange, setDateRange] = useState<[dayjs.Dayjs, dayjs.Dayjs] | null>(null);
 
   useEffect(() => {
     loadReports();
@@ -53,24 +49,24 @@ const FinancialReports: React.FC = () => {
   const generateAnnualReport = async () => {
     try {
       setLoading(true);
-      
+
       // Get all members
       const members = await ApiService.getAllMembers();
-      
+
       // Get financial data for the year
       const waqfRecords = await ApiService.getWaqfJadeedRecords(selectedYear);
       const tahreqRecords = await ApiService.getTahreqJadeedRecords(selectedYear);
-      
+
       // Calculate totals
       const waqfPromised = waqfRecords.reduce((sum, record) => sum + (record.promiseAmount || 0), 0);
       const waqfReceived = waqfRecords.reduce((sum, record) => sum + (record.paidAmount || 0), 0);
-      
+
       const tahreqPromised = tahreqRecords.reduce((sum, record) => sum + (record.promiseAmount || 0), 0);
       const tahreqReceived = tahreqRecords.reduce((sum, record) => sum + (record.paidAmount || 0), 0);
-      
+
       // Group by tanzeem
       const tanzeemBreakdown: any = {};
-      
+
       members.forEach(member => {
         if (!tanzeemBreakdown[member.tanzeem]) {
           tanzeemBreakdown[member.tanzeem] = {
@@ -81,7 +77,7 @@ const FinancialReports: React.FC = () => {
         }
         tanzeemBreakdown[member.tanzeem].members += 1;
       });
-      
+
       waqfRecords.forEach(record => {
         const member = members.find(m => m.id === record.memberId);
         if (member && tanzeemBreakdown[member.tanzeem]) {
@@ -89,7 +85,7 @@ const FinancialReports: React.FC = () => {
           tanzeemBreakdown[member.tanzeem].received += (record.paidAmount || 0);
         }
       });
-      
+
       tahreqRecords.forEach(record => {
         const member = members.find(m => m.id === record.memberId);
         if (member && tanzeemBreakdown[member.tanzeem]) {
@@ -97,7 +93,7 @@ const FinancialReports: React.FC = () => {
           tanzeemBreakdown[member.tanzeem].received += (record.paidAmount || 0);
         }
       });
-      
+
       // Create report
       const reportData = {
         year: selectedYear,
@@ -107,8 +103,8 @@ const FinancialReports: React.FC = () => {
         totalMembers: members.length,
         tanzeemBreakdown
       };
-      
-      const report = await ApiService.createFinancialReport(reportData);
+
+      await ApiService.createFinancialReport(reportData);
       message.success('Annual report generated successfully');
       loadReports();
     } catch (error) {
@@ -129,7 +125,7 @@ const FinancialReports: React.FC = () => {
         'Members': report.totalMembers
       }
     ];
-    
+
     exportToCSV(data, `financial_report_${report.year}_${report.reportType}.csv`);
   };
 
@@ -173,8 +169,8 @@ const FinancialReports: React.FC = () => {
       title: 'Collection Rate',
       key: 'collectionRate',
       render: (_: any, record: FinancialReport) => {
-        const rate = record.totalPromised > 0 
-          ? Math.round((record.totalReceived / record.totalPromised) * 100) 
+        const rate = record.totalPromised > 0
+          ? Math.round((record.totalReceived / record.totalPromised) * 100)
           : 0;
         return (
           <Tag color={rate >= 80 ? 'green' : rate >= 50 ? 'orange' : 'red'}>
@@ -193,8 +189,8 @@ const FinancialReports: React.FC = () => {
       key: 'actions',
       render: (_: any, record: FinancialReport) => (
         <Space>
-          <Button 
-            icon={<DownloadOutlined />} 
+          <Button
+            icon={<DownloadOutlined />}
             onClick={() => exportReport(record)}
           >
             Export
@@ -205,12 +201,12 @@ const FinancialReports: React.FC = () => {
   ];
 
   return (
-    <Card 
-      title="Financial Reports" 
+    <Card
+      title="Financial Reports"
       extra={
         <Space>
-          <Select 
-            value={reportType} 
+          <Select
+            value={reportType}
             onChange={setReportType}
             style={{ width: 120 }}
           >
@@ -218,10 +214,10 @@ const FinancialReports: React.FC = () => {
             <Option value="annual">Annual</Option>
             <Option value="comparison">Comparison</Option>
           </Select>
-          
+
           {reportType !== 'comparison' && (
-            <Select 
-              value={selectedYear} 
+            <Select
+              value={selectedYear}
               onChange={setSelectedYear}
               style={{ width: 100 }}
             >
@@ -230,9 +226,9 @@ const FinancialReports: React.FC = () => {
               ))}
             </Select>
           )}
-          
-          <Button 
-            type="primary" 
+
+          <Button
+            type="primary"
             icon={<BarChartOutlined />}
             onClick={generateAnnualReport}
             loading={loading}
@@ -274,9 +270,9 @@ const FinancialReports: React.FC = () => {
             <Statistic
               title="Avg Collection Rate"
               value={
-                reports.length > 0 
-                  ? Math.round(reports.reduce((sum, r) => 
-                      r.totalPromised > 0 ? sum + (r.totalReceived / r.totalPromised) * 100 : sum, 0) / reports.length)
+                reports.length > 0
+                  ? Math.round(reports.reduce((sum, r) =>
+                    r.totalPromised > 0 ? sum + (r.totalReceived / r.totalPromised) * 100 : sum, 0) / reports.length)
                   : 0
               }
               suffix="%"
