@@ -695,7 +695,7 @@ const WaqfJadeed: React.FC = () => {
                 <Form form={form} layout="vertical">
                     <Row gutter={16}>
                         <Col span={6}>
-                            <Form.Item label="Promised Amount">
+                            <Form.Item label="Promise">
                                 {isEditingPromise ? (
                                     <div style={{ display: 'flex', gap: 8 }}>
                                         <Form.Item name="promiseAmount" noStyle>
@@ -744,7 +744,7 @@ const WaqfJadeed: React.FC = () => {
                             </Form.Item>
                         </Col>
                         <Col span={6}>
-                            <Form.Item label="Nagarpar Amount">
+                            <Form.Item label="Nagarpar">
                                 {isEditingPromise ? (
                                     <Form.Item name="nagarparAmount" noStyle>
                                         <InputNumber
@@ -765,7 +765,7 @@ const WaqfJadeed: React.FC = () => {
                             </Form.Item>
                         </Col>
                         <Col span={6}>
-                            <Form.Item label="Total Promised">
+                            <Form.Item label="Total Promise">
                                 <Title level={4} style={{ margin: 0, marginTop: 4 }}>
                                     {((editingMember
                                         ? ((records.find(r => r.memberId === editingMember.id)?.promiseAmount || 0) + (records.find(r => r.memberId === editingMember.id)?.nagarparAmount || 0))
