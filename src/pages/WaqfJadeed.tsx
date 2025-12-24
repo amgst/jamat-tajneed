@@ -50,6 +50,10 @@ const WaqfJadeed: React.FC = () => {
     const [families, setFamilies] = useState<Family[]>([]);
     const [records, setRecords] = useState<WaqfJadeedRecord[]>([]);
     const [specialRecords, setSpecialRecords] = useState<WaqfJadeedSpecialRecord[]>([]);
+    // Previous Year Data
+    const [prevRecords, setPrevRecords] = useState<WaqfJadeedRecord[]>([]);
+    const [prevSpecialRecords, setPrevSpecialRecords] = useState<WaqfJadeedSpecialRecord[]>([]);
+
     const [selectedYear, setSelectedYear] = useState<number>(dayjs().year());
     const [searchTerm, setSearchTerm] = useState('');
     const [activeTab, setActiveTab] = useState('families');
@@ -80,16 +84,20 @@ const WaqfJadeed: React.FC = () => {
     const loadData = async () => {
         setLoading(true);
         try {
-            const [membersData, familiesData, recordsData, specialData] = await Promise.all([
+            const [membersData, familiesData, recordsData, specialData, prevRecordsData, prevSpecialData] = await Promise.all([
                 ApiService.getAllMembers(),
                 ApiService.getAllFamilies(),
                 ApiService.getWaqfJadeedRecords(selectedYear),
-                ApiService.getWaqfJadeedSpecialRecords(selectedYear)
+                ApiService.getWaqfJadeedSpecialRecords(selectedYear),
+                ApiService.getWaqfJadeedRecords(selectedYear - 1),
+                ApiService.getWaqfJadeedSpecialRecords(selectedYear - 1)
             ]);
             setMembers(membersData);
             setFamilies(familiesData);
             setRecords(recordsData);
             setSpecialRecords(Array.isArray(specialData) ? specialData : []);
+            setPrevRecords(prevRecordsData);
+            setPrevSpecialRecords(Array.isArray(prevSpecialData) ? prevSpecialData : []);
         } catch (error) {
             message.error('Failed to load data');
         } finally {
@@ -721,6 +729,18 @@ const WaqfJadeed: React.FC = () => {
                                         />
                                     </div>
                                 )}
+                                {/* PREVIOUS YEAR PROMISE DISPLAY */}
+                                <div style={{ marginTop: 4 }}>
+                                    <Text type="secondary" style={{ fontSize: 12 }}>
+                                        {selectedYear - 1} Promise: {' '}
+                                        <Text strong>
+                                            {editingMember
+                                                ? (prevRecords.find(r => r.memberId === editingMember.id)?.promiseAmount || 0).toLocaleString()
+                                                : (prevSpecialRecords.find(r => r.id === editingSpecial?.id)?.promiseAmount || 0).toLocaleString()
+                                            }
+                                        </Text>
+                                    </Text>
+                                </div>
                             </Form.Item>
                         </Col>
                         <Col span={6}>
@@ -830,7 +850,7 @@ const WaqfJadeed: React.FC = () => {
                 {/* Payment Plans Section */}
                 {editingMember && (
                     <div style={{ marginTop: 24 }}>
-                        <PaymentPlanManager 
+                        <PaymentPlanManager
                             memberId={editingMember.id}
                             year={selectedYear}
                             totalAmount={
