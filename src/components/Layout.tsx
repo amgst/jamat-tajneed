@@ -246,8 +246,8 @@ const AppLayout: React.FC = () => {
         </Header>
 
         <Content style={{
-          margin: '24px 16px',
-          padding: 24,
+          margin: isMobile ? '8px' : '24px 16px',
+          padding: isMobile ? 12 : 24,
           minHeight: 280,
           background: '#fff',
           borderRadius: 6
