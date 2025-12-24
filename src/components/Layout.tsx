@@ -221,7 +221,7 @@ const AppLayout: React.FC = () => {
             )}
             <div>
               <Text strong style={{ fontSize: '16px' }}>
-                Jamaat Ahmadiyya Muridke
+                Jamaat
               </Text>
             </div>
           </Space>
@@ -255,7 +255,7 @@ const AppLayout: React.FC = () => {
           <Outlet />
         </Content>
       </Layout>
-    </Layout>
+    </Layout >
   );
 };
 
