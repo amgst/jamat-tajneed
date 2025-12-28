@@ -54,7 +54,7 @@ const WaqfJadeed: React.FC = () => {
     const [prevRecords, setPrevRecords] = useState<WaqfJadeedRecord[]>([]);
     const [prevSpecialRecords, setPrevSpecialRecords] = useState<WaqfJadeedSpecialRecord[]>([]);
 
-    const [selectedYear, setSelectedYear] = useState<number>(dayjs().year());
+    const [selectedYear, setSelectedYear] = useState<number>(2026);
     const [searchTerm, setSearchTerm] = useState('');
     const [activeTab, setActiveTab] = useState('families');
 
