@@ -20,7 +20,8 @@ import {
     Modal,
     Radio,
     Checkbox,
-    App
+    App,
+    Table
 } from 'antd';
 
 const { Text, Title } = Typography;
@@ -416,6 +417,32 @@ const WaqfJadeed: React.FC = () => {
         })).sort((a, b) => b.promise - a.promise); // Sort by highest promise
     }, [members, records]);
 
+    // Deceased Stats
+    const deceasedStats = useMemo(() => {
+        const deceasedMaleRecords = specialRecords.filter(r => r.isDeceased && r.gender === 'male');
+        const deceasedFemaleRecords = specialRecords.filter(r => r.isDeceased && r.gender === 'female');
+        
+        const malePromiseAmount = deceasedMaleRecords.reduce((sum, r) => sum + (r.promiseAmount || 0) + (r.nagarparAmount || 0), 0);
+        const malePaidAmount = deceasedMaleRecords.reduce((sum, r) => sum + (r.paidAmount || 0), 0);
+        
+        const femalePromiseAmount = deceasedFemaleRecords.reduce((sum, r) => sum + (r.promiseAmount || 0) + (r.nagarparAmount || 0), 0);
+        const femalePaidAmount = deceasedFemaleRecords.reduce((sum, r) => sum + (r.paidAmount || 0), 0);
+        
+        const totalDeceasedPromise = malePromiseAmount + femalePromiseAmount;
+        const totalDeceasedPaid = malePaidAmount + femalePaidAmount;
+        
+        return {
+            deceasedMales: deceasedMaleRecords.length,
+            deceasedFemales: deceasedFemaleRecords.length,
+            malePromiseAmount,
+            malePaidAmount,
+            femalePromiseAmount,
+            femalePaidAmount,
+            totalDeceasedPromise,
+            totalDeceasedPaid
+        };
+    }, [specialRecords]);
+
     const renderMemberCard = (item: any) => (
         <Card
             hoverable
@@ -579,14 +606,66 @@ const WaqfJadeed: React.FC = () => {
                                             </Row>
                                         }
                                     >
-                                        <List
-                                            grid={{ gutter: 16, xs: 1, sm: 2, lg: 3 }}
+                                        {/* Table for Family Members */}
+                                        <Table
+                                            size="small"
                                             dataSource={familyMembersCtx}
-                                            renderItem={(item: any) => (
-                                                <List.Item>
-                                                    {renderMemberCard(item)}
-                                                </List.Item>
-                                            )}
+                                            rowKey={(item) => item.member.id}
+                                            pagination={false}
+                                            columns={[
+                                                {
+                                                    title: 'Name',
+                                                    dataIndex: ['member', 'name'],
+                                                    key: 'name',
+                                                    render: (name, record) => (
+                                                        <a onClick={() => handleEdit(record.member)} style={{ cursor: 'pointer' }}>
+                                                            {name}
+                                                        </a>
+                                                    ),
+                                                },
+                                                {
+                                                    title: 'Halqa',
+                                                    dataIndex: ['member', 'halqa'],
+                                                    key: 'halqa',
+                                                },
+                                                {
+                                                    title: 'Promise',
+                                                    key: 'promise',
+                                                    render: (_, record) => record.promise.toLocaleString(),
+                                                },
+                                                {
+                                                    title: 'Paid',
+                                                    key: 'paid',
+                                                    render: (_, record) => (
+                                                        <span style={{ color: record.paid >= record.promise && record.promise > 0 ? 'green' : 'inherit' }}>
+                                                            {record.paid.toLocaleString()}
+                                                        </span>
+                                                    ),
+                                                },
+                                                {
+                                                    title: 'Progress',
+                                                    key: 'progress',
+                                                    render: (_, record) => (
+                                                        <div style={{ width: '100px' }}>
+                                                            <Progress
+                                                                percent={record.promise > 0 ? Math.min(100, Math.round((record.paid / record.promise) * 100)) : 0}
+                                                                size="small"
+                                                                showInfo={false}
+                                                                strokeColor={record.paid >= record.promise ? '#52c41a' : '#1890ff'}
+                                                            />
+                                                        </div>
+                                                    ),
+                                                },
+                                                {
+                                                    title: 'Actions',
+                                                    key: 'actions',
+                                                    render: (_, record) => (
+                                                        <Space>
+                                                            <Button size="small" icon={<EditOutlined />} onClick={() => handleEdit(record.member)} />
+                                                        </Space>
+                                                    ),
+                                                },
+                                            ]}
                                         />
 
                                         {/* Special Members Section */}
@@ -607,38 +686,62 @@ const WaqfJadeed: React.FC = () => {
                                                     Add Special
                                                 </Button>
                                             </Row>
-                                            <List
-                                                grid={{ gutter: 16, xs: 1, sm: 2, lg: 3 }}
+                                            <Table
+                                                size="small"
                                                 dataSource={familySpecialRecords}
-                                                renderItem={(record) => (
-                                                    <List.Item>
-                                                        <Card
-                                                            size="small"
-                                                            hoverable
-                                                            actions={[
-                                                                <EditOutlined key="edit" onClick={() => handleEditSpecial(record)} />,
-                                                                <DeleteOutlined key="delete" onClick={() => handleDeleteSpecial(record.id)} />
-                                                            ]}
-                                                        >
-                                                            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                                                                <Text strong>{record.name}</Text>
-                                                                {record.isDeceased && <Text type="secondary" style={{ fontSize: 10 }}>(Deceased)</Text>}
-                                                            </div>
-                                                            <div style={{ marginTop: 8 }}>
-                                                                <Row justify="space-between">
-                                                                    <Text type="secondary">Promise:</Text>
-                                                                    <Text>{((record.promiseAmount || 0) + (record.nagarparAmount || 0)).toLocaleString()}</Text>
-                                                                </Row>
-                                                                {/* Show breakdown if nagarpar exists */}
-                                                                {(record.nagarparAmount || 0) > 0 && (
-                                                                    <Text type="secondary" style={{ fontSize: 10 }}>
-                                                                        (P: {record.promiseAmount}, N: {record.nagarparAmount})
-                                                                    </Text>
-                                                                )}
-                                                            </div>
-                                                        </Card>
-                                                    </List.Item>
-                                                )}
+                                                rowKey="id"
+                                                pagination={false}
+                                                columns={[
+                                                    {
+                                                        title: 'Name',
+                                                        dataIndex: 'name',
+                                                        key: 'name',
+                                                        render: (name, record) => (
+                                                            <>
+                                                                {name}
+                                                                {record.isDeceased && <Text type="secondary" style={{ fontSize: 12, marginLeft: 8 }}>(Deceased)</Text>}
+                                                            </>
+                                                        ),
+                                                    },
+                                                    {
+                                                        title: 'Promise',
+                                                        key: 'promise',
+                                                        render: (_, record) => ((record.promiseAmount || 0) + (record.nagarparAmount || 0)).toLocaleString(),
+                                                    },
+                                                    {
+                                                        title: 'Paid',
+                                                        key: 'paid',
+                                                        render: (_, record) => record.paidAmount?.toLocaleString() || '0',
+                                                    },
+                                                    {
+                                                        title: 'Progress',
+                                                        key: 'progress',
+                                                        render: (_, record) => {
+                                                            const totalPromise = (record.promiseAmount || 0) + (record.nagarparAmount || 0);
+                                                            const percent = totalPromise > 0 ? Math.round((record.paidAmount || 0) / totalPromise * 100) : 0;
+                                                            return (
+                                                                <div style={{ width: '100px' }}>
+                                                                    <Progress
+                                                                        percent={percent}
+                                                                        size="small"
+                                                                        showInfo={false}
+                                                                        strokeColor={(record.paidAmount || 0) >= totalPromise ? '#52c41a' : '#1890ff'}
+                                                                    />
+                                                                </div>
+                                                            );
+                                                        },
+                                                    },
+                                                    {
+                                                        title: 'Actions',
+                                                        key: 'actions',
+                                                        render: (_, record) => (
+                                                            <Space>
+                                                                <Button size="small" icon={<EditOutlined />} onClick={() => handleEditSpecial(record)} />
+                                                                <Button size="small" icon={<DeleteOutlined />} danger onClick={() => handleDeleteSpecial(record.id)} />
+                                                            </Space>
+                                                        ),
+                                                    },
+                                                ]}
                                             />
                                         </div>
                                     </Panel>
@@ -650,18 +753,78 @@ const WaqfJadeed: React.FC = () => {
             ) : (
                 // Dashboard Tab (Tanzeem Wise)
                 <div className="dashboard-view">
+                    {/* Deceased Stats Cards with Amounts */}
+                    <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
+                        <Col xs={24} sm={12} md={8}>
+                            <Card hoverable>
+                                <Statistic
+                                    title="Deceased Males"
+                                    value={deceasedStats.deceasedMales}
+                                    suffix={` | Rs. ${deceasedStats.malePromiseAmount?.toLocaleString() || 0}`}
+                                    precision={0}
+                                />
+                                <Progress
+                                    percent={deceasedStats.deceasedMales > 0 ? Math.round((deceasedStats.malePaidAmount || 0) / (deceasedStats.malePromiseAmount || 1) * 100) : 0}
+                                    status="active"
+                                    strokeColor="#1890ff"
+                                />
+                                <div style={{ marginTop: 12, display: 'flex', justifyContent: 'space-between' }}>
+                                    <Text type="secondary">Paid: Rs. {(deceasedStats.malePaidAmount || 0).toLocaleString()}</Text>
+                                    <Text type="secondary">{deceasedStats.malePromiseAmount ? Math.round((deceasedStats.malePaidAmount || 0) / deceasedStats.malePromiseAmount * 100) + '%' : '0%'}</Text>
+                                </div>
+                            </Card>
+                        </Col>
+                        <Col xs={24} sm={12} md={8}>
+                            <Card hoverable>
+                                <Statistic
+                                    title="Deceased Females"
+                                    value={deceasedStats.deceasedFemales}
+                                    suffix={` | Rs. ${deceasedStats.femalePromiseAmount?.toLocaleString() || 0}`}
+                                    precision={0}
+                                />
+                                <Progress
+                                    percent={deceasedStats.deceasedFemales > 0 ? Math.round((deceasedStats.femalePaidAmount || 0) / (deceasedStats.femalePromiseAmount || 1) * 100) : 0}
+                                    status="active"
+                                    strokeColor="#1890ff"
+                                />
+                                <div style={{ marginTop: 12, display: 'flex', justifyContent: 'space-between' }}>
+                                    <Text type="secondary">Paid: Rs. {(deceasedStats.femalePaidAmount || 0).toLocaleString()}</Text>
+                                    <Text type="secondary">{deceasedStats.femalePromiseAmount ? Math.round((deceasedStats.femalePaidAmount || 0) / deceasedStats.femalePromiseAmount * 100) + '%' : '0%'}</Text>
+                                </div>
+                            </Card>
+                        </Col>
+                        <Col xs={24} sm={24} md={8}>
+                            <Card hoverable>
+                                <Statistic
+                                    title="Total Deceased"
+                                    value={deceasedStats.deceasedMales + deceasedStats.deceasedFemales}
+                                    suffix={` | Rs. ${(deceasedStats.malePromiseAmount + deceasedStats.femalePromiseAmount)?.toLocaleString() || 0}`}
+                                    precision={0}
+                                />
+                                <Progress
+                                    percent={deceasedStats.totalDeceasedPromise > 0 ? Math.round(deceasedStats.totalDeceasedPaid / deceasedStats.totalDeceasedPromise * 100) : 0}
+                                    status="active"
+                                    strokeColor="#1890ff"
+                                />
+                                <div style={{ marginTop: 12, display: 'flex', justifyContent: 'space-between' }}>
+                                    <Text type="secondary">Paid: Rs. {deceasedStats.totalDeceasedPaid?.toLocaleString()}</Text>
+                                    <Text type="secondary">{deceasedStats.totalDeceasedPromise ? Math.round(deceasedStats.totalDeceasedPaid / deceasedStats.totalDeceasedPromise * 100) + '%' : '0%'}</Text>
+                                </div>
+                            </Card>
+                        </Col>
+                    </Row>
+                    
                     <List
                         grid={{ gutter: 16, xs: 1, sm: 2, md: 3 }}
                         dataSource={tanzeemStats}
                         renderItem={(item) => (
                             <List.Item>
-                                <Card title={item.name} hoverable>
+                                <Card hoverable>
                                     <Statistic
-                                        title="Paid / Promise"
-                                        value={item.paid}
-                                        suffix={`/ ${item.promise.toLocaleString()}`}
+                                        title={item.name}
+                                        value={item.count}
+                                        suffix={` | Rs. ${item.promise.toLocaleString()}`}
                                         precision={0}
-                                        valueStyle={{ color: item.percent >= 100 ? '#3f8600' : '#1890ff', fontSize: '1.2rem' }}
                                     />
                                     <Progress
                                         percent={Math.round(item.percent)}
@@ -669,7 +832,7 @@ const WaqfJadeed: React.FC = () => {
                                         strokeColor={item.percent >= 100 ? '#52c41a' : '#1890ff'}
                                     />
                                     <div style={{ marginTop: 12, display: 'flex', justifyContent: 'space-between' }}>
-                                        <Text type="secondary">Members: {item.count}</Text>
+                                        <Text type="secondary">Paid: Rs. {item.paid.toLocaleString()}</Text>
                                         <Text type="secondary">{item.percent.toFixed(1)}%</Text>
                                     </div>
                                 </Card>
