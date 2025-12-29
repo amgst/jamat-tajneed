@@ -629,7 +629,7 @@ const WaqfJadeed: React.FC = () => {
                                                     title: 'Halqa',
                                                     dataIndex: ['member', 'halqa'],
                                                     key: 'halqa',
-                                                    render: (halqa, record) => halqa || 'N/A',
+                                                    render: (halqa) => halqa || 'N/A',
                                                 },
                                                 {
                                                     title: 'Promise',
