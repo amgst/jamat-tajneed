@@ -340,6 +340,8 @@ const WaqfJadeed: React.FC = () => {
         };
     };
 
+    type MemberData = ReturnType<typeof getMemberData>;
+
     const filteredMemberData = useMemo(() => {
         let data = members.map(member => {
             const record = records.find(r => r.memberId === member.id);
@@ -443,7 +445,7 @@ const WaqfJadeed: React.FC = () => {
         };
     }, [specialRecords]);
 
-    const renderMemberCard = (item: any) => (
+    const renderMemberCard = (item: NonNullable<MemberData>) => (
         <Card
             hoverable
             onClick={() => handleEdit(item.member)}
@@ -570,7 +572,7 @@ const WaqfJadeed: React.FC = () => {
                     {loading ? <p>Loading...</p> : (
                         <Collapse defaultActiveKey={[]} ghost>
                             {filteredFamilyData.map(family => {
-                                const familyMembersCtx = family.memberIds.map(mid => getMemberData(mid)).filter(Boolean);
+                                const familyMembersCtx = family.memberIds.map(mid => getMemberData(mid)).filter(Boolean) as NonNullable<MemberData>[];
                                 const familySpecialRecords = specialRecords.filter(r => r.familyId === family.id);
 
                                 const membersPromise = familyMembersCtx.reduce((sum, m) => sum + (m?.promise || 0), 0);
@@ -609,7 +611,7 @@ const WaqfJadeed: React.FC = () => {
                                         {/* Table for Family Members */}
                                         <Table
                                             size="small"
-                                            dataSource={familyMembersCtx}
+                                            dataSource={familyMembersCtx.filter(item => item !== null)}
                                             rowKey={(item) => item.member.id}
                                             pagination={false}
                                             columns={[
@@ -627,18 +629,19 @@ const WaqfJadeed: React.FC = () => {
                                                     title: 'Halqa',
                                                     dataIndex: ['member', 'halqa'],
                                                     key: 'halqa',
+                                                    render: (halqa, record) => halqa || 'N/A',
                                                 },
                                                 {
                                                     title: 'Promise',
                                                     key: 'promise',
-                                                    render: (_, record) => record.promise.toLocaleString(),
+                                                    render: (_, record) => record?.promise?.toLocaleString() || '0',
                                                 },
                                                 {
                                                     title: 'Paid',
                                                     key: 'paid',
                                                     render: (_, record) => (
-                                                        <span style={{ color: record.paid >= record.promise && record.promise > 0 ? 'green' : 'inherit' }}>
-                                                            {record.paid.toLocaleString()}
+                                                        <span style={{ color: record?.paid >= record?.promise && record?.promise > 0 ? 'green' : 'inherit' }}>
+                                                            {(record?.paid || 0).toLocaleString()}
                                                         </span>
                                                     ),
                                                 },
@@ -648,10 +651,10 @@ const WaqfJadeed: React.FC = () => {
                                                     render: (_, record) => (
                                                         <div style={{ width: '100px' }}>
                                                             <Progress
-                                                                percent={record.promise > 0 ? Math.min(100, Math.round((record.paid / record.promise) * 100)) : 0}
+                                                                percent={record?.promise > 0 ? Math.min(100, Math.round(((record?.paid || 0) / record?.promise) * 100)) : 0}
                                                                 size="small"
                                                                 showInfo={false}
-                                                                strokeColor={record.paid >= record.promise ? '#52c41a' : '#1890ff'}
+                                                                strokeColor={record?.paid >= record?.promise ? '#52c41a' : '#1890ff'}
                                                             />
                                                         </div>
                                                     ),
@@ -699,33 +702,33 @@ const WaqfJadeed: React.FC = () => {
                                                         render: (name, record) => (
                                                             <>
                                                                 {name}
-                                                                {record.isDeceased && <Text type="secondary" style={{ fontSize: 12, marginLeft: 8 }}>(Deceased)</Text>}
+                                                                {record?.isDeceased && <Text type="secondary" style={{ fontSize: 12, marginLeft: 8 }}>(Deceased)</Text>}
                                                             </>
                                                         ),
                                                     },
                                                     {
                                                         title: 'Promise',
                                                         key: 'promise',
-                                                        render: (_, record) => ((record.promiseAmount || 0) + (record.nagarparAmount || 0)).toLocaleString(),
+                                                        render: (_, record) => ((record?.promiseAmount || 0) + (record?.nagarparAmount || 0)).toLocaleString(),
                                                     },
                                                     {
                                                         title: 'Paid',
                                                         key: 'paid',
-                                                        render: (_, record) => record.paidAmount?.toLocaleString() || '0',
+                                                        render: (_, record) => record?.paidAmount?.toLocaleString() || '0',
                                                     },
                                                     {
                                                         title: 'Progress',
                                                         key: 'progress',
                                                         render: (_, record) => {
-                                                            const totalPromise = (record.promiseAmount || 0) + (record.nagarparAmount || 0);
-                                                            const percent = totalPromise > 0 ? Math.round((record.paidAmount || 0) / totalPromise * 100) : 0;
+                                                            const totalPromise = (record?.promiseAmount || 0) + (record?.nagarparAmount || 0);
+                                                            const percent = totalPromise > 0 ? Math.round((record?.paidAmount || 0) / totalPromise * 100) : 0;
                                                             return (
                                                                 <div style={{ width: '100px' }}>
                                                                     <Progress
                                                                         percent={percent}
                                                                         size="small"
                                                                         showInfo={false}
-                                                                        strokeColor={(record.paidAmount || 0) >= totalPromise ? '#52c41a' : '#1890ff'}
+                                                                        strokeColor={(record?.paidAmount || 0) >= totalPromise ? '#52c41a' : '#1890ff'}
                                                                     />
                                                                 </div>
                                                             );
