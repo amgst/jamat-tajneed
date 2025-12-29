@@ -614,11 +614,13 @@ const WaqfJadeed: React.FC = () => {
                                             dataSource={familyMembersCtx.filter(item => item !== null)}
                                             rowKey={(item) => item.member.id}
                                             pagination={false}
+                                            scroll={{ x: 800 }}
                                             columns={[
                                                 {
                                                     title: 'Name',
                                                     dataIndex: ['member', 'name'],
                                                     key: 'name',
+                                                    width: 150,
                                                     render: (name, record) => (
                                                         <a onClick={() => handleEdit(record.member)} style={{ cursor: 'pointer' }}>
                                                             {name}
@@ -626,19 +628,15 @@ const WaqfJadeed: React.FC = () => {
                                                     ),
                                                 },
                                                 {
-                                                    title: 'Halqa',
-                                                    dataIndex: ['member', 'halqa'],
-                                                    key: 'halqa',
-                                                    render: (halqa) => halqa || 'N/A',
-                                                },
-                                                {
                                                     title: 'Promise',
                                                     key: 'promise',
+                                                    width: 100,
                                                     render: (_, record) => record?.promise?.toLocaleString() || '0',
                                                 },
                                                 {
                                                     title: 'Paid',
                                                     key: 'paid',
+                                                    width: 100,
                                                     render: (_, record) => (
                                                         <span style={{ color: record?.paid >= record?.promise && record?.promise > 0 ? 'green' : 'inherit' }}>
                                                             {(record?.paid || 0).toLocaleString()}
@@ -648,6 +646,7 @@ const WaqfJadeed: React.FC = () => {
                                                 {
                                                     title: 'Progress',
                                                     key: 'progress',
+                                                    width: 120,
                                                     render: (_, record) => (
                                                         <div style={{ width: '100px' }}>
                                                             <Progress
@@ -662,8 +661,9 @@ const WaqfJadeed: React.FC = () => {
                                                 {
                                                     title: 'Actions',
                                                     key: 'actions',
+                                                    width: 80,
                                                     render: (_, record) => (
-                                                        <Space>
+                                                        <Space size="small">
                                                             <Button size="small" icon={<EditOutlined />} onClick={() => handleEdit(record.member)} />
                                                         </Space>
                                                     ),
@@ -694,11 +694,13 @@ const WaqfJadeed: React.FC = () => {
                                                 dataSource={familySpecialRecords}
                                                 rowKey="id"
                                                 pagination={false}
+                                                scroll={{ x: 800 }}
                                                 columns={[
                                                     {
                                                         title: 'Name',
                                                         dataIndex: 'name',
                                                         key: 'name',
+                                                        width: 150,
                                                         render: (name, record) => (
                                                             <>
                                                                 {name}
@@ -709,16 +711,19 @@ const WaqfJadeed: React.FC = () => {
                                                     {
                                                         title: 'Promise',
                                                         key: 'promise',
+                                                        width: 100,
                                                         render: (_, record) => ((record?.promiseAmount || 0) + (record?.nagarparAmount || 0)).toLocaleString(),
                                                     },
                                                     {
                                                         title: 'Paid',
                                                         key: 'paid',
+                                                        width: 100,
                                                         render: (_, record) => record?.paidAmount?.toLocaleString() || '0',
                                                     },
                                                     {
                                                         title: 'Progress',
                                                         key: 'progress',
+                                                        width: 120,
                                                         render: (_, record) => {
                                                             const totalPromise = (record?.promiseAmount || 0) + (record?.nagarparAmount || 0);
                                                             const percent = totalPromise > 0 ? Math.round((record?.paidAmount || 0) / totalPromise * 100) : 0;
@@ -737,8 +742,9 @@ const WaqfJadeed: React.FC = () => {
                                                     {
                                                         title: 'Actions',
                                                         key: 'actions',
+                                                        width: 100,
                                                         render: (_, record) => (
-                                                            <Space>
+                                                            <Space size="small">
                                                                 <Button size="small" icon={<EditOutlined />} onClick={() => handleEditSpecial(record)} />
                                                                 <Button size="small" icon={<DeleteOutlined />} danger onClick={() => handleDeleteSpecial(record.id)} />
                                                             </Space>
@@ -772,8 +778,8 @@ const WaqfJadeed: React.FC = () => {
                                     strokeColor="#1890ff"
                                 />
                                 <div style={{ marginTop: 12, display: 'flex', justifyContent: 'space-between' }}>
-                                    <Text type="secondary">Paid: Rs. {(deceasedStats.malePaidAmount || 0).toLocaleString()}</Text>
-                                    <Text type="secondary">{deceasedStats.malePromiseAmount ? Math.round((deceasedStats.malePaidAmount || 0) / deceasedStats.malePromiseAmount * 100) + '%' : '0%'}</Text>
+                                    <Text type="secondary" style={{ fontSize: '12px' }}>Paid: Rs. {(deceasedStats.malePaidAmount || 0).toLocaleString()}</Text>
+                                    <Text type="secondary" style={{ fontSize: '12px' }}>{deceasedStats.malePromiseAmount ? Math.round((deceasedStats.malePaidAmount || 0) / deceasedStats.malePromiseAmount * 100) + '%' : '0%'}</Text>
                                 </div>
                             </Card>
                         </Col>
@@ -791,8 +797,8 @@ const WaqfJadeed: React.FC = () => {
                                     strokeColor="#1890ff"
                                 />
                                 <div style={{ marginTop: 12, display: 'flex', justifyContent: 'space-between' }}>
-                                    <Text type="secondary">Paid: Rs. {(deceasedStats.femalePaidAmount || 0).toLocaleString()}</Text>
-                                    <Text type="secondary">{deceasedStats.femalePromiseAmount ? Math.round((deceasedStats.femalePaidAmount || 0) / deceasedStats.femalePromiseAmount * 100) + '%' : '0%'}</Text>
+                                    <Text type="secondary" style={{ fontSize: '12px' }}>Paid: Rs. {(deceasedStats.femalePaidAmount || 0).toLocaleString()}</Text>
+                                    <Text type="secondary" style={{ fontSize: '12px' }}>{deceasedStats.femalePromiseAmount ? Math.round((deceasedStats.femalePaidAmount || 0) / deceasedStats.femalePromiseAmount * 100) + '%' : '0%'}</Text>
                                 </div>
                             </Card>
                         </Col>
@@ -810,15 +816,15 @@ const WaqfJadeed: React.FC = () => {
                                     strokeColor="#1890ff"
                                 />
                                 <div style={{ marginTop: 12, display: 'flex', justifyContent: 'space-between' }}>
-                                    <Text type="secondary">Paid: Rs. {deceasedStats.totalDeceasedPaid?.toLocaleString()}</Text>
-                                    <Text type="secondary">{deceasedStats.totalDeceasedPromise ? Math.round(deceasedStats.totalDeceasedPaid / deceasedStats.totalDeceasedPromise * 100) + '%' : '0%'}</Text>
+                                    <Text type="secondary" style={{ fontSize: '12px' }}>Paid: Rs. {deceasedStats.totalDeceasedPaid?.toLocaleString()}</Text>
+                                    <Text type="secondary" style={{ fontSize: '12px' }}>{deceasedStats.totalDeceasedPromise ? Math.round(deceasedStats.totalDeceasedPaid / deceasedStats.totalDeceasedPromise * 100) + '%' : '0%'}</Text>
                                 </div>
                             </Card>
                         </Col>
                     </Row>
                     
                     <List
-                        grid={{ gutter: 16, xs: 1, sm: 2, md: 3 }}
+                        grid={{ gutter: [16, 16], xs: 1, sm: 2, md: 3 }}
                         dataSource={tanzeemStats}
                         renderItem={(item) => (
                             <List.Item>
@@ -835,8 +841,8 @@ const WaqfJadeed: React.FC = () => {
                                         strokeColor={item.percent >= 100 ? '#52c41a' : '#1890ff'}
                                     />
                                     <div style={{ marginTop: 12, display: 'flex', justifyContent: 'space-between' }}>
-                                        <Text type="secondary">Paid: Rs. {item.paid.toLocaleString()}</Text>
-                                        <Text type="secondary">{item.percent.toFixed(1)}%</Text>
+                                        <Text type="secondary" style={{ fontSize: '12px' }}>Paid: Rs. {item.paid.toLocaleString()}</Text>
+                                        <Text type="secondary" style={{ fontSize: '12px' }}>{item.percent.toFixed(1)}%</Text>
                                     </div>
                                 </Card>
                             </List.Item>
@@ -859,8 +865,8 @@ const WaqfJadeed: React.FC = () => {
                 }
             >
                 <Form form={form} layout="vertical">
-                    <Row gutter={16}>
-                        <Col span={6}>
+                    <Row gutter={[16, 16]}>
+                        <Col xs={24} sm={12} md={6}>
                             <Form.Item label="Promise">
                                 {isEditingPromise ? (
                                     <div style={{ display: 'flex', gap: 8 }}>
@@ -909,7 +915,7 @@ const WaqfJadeed: React.FC = () => {
                                 </div>
                             </Form.Item>
                         </Col>
-                        <Col span={6}>
+                        <Col xs={24} sm={12} md={6}>
                             <Form.Item label="Nagarpar">
                                 {isEditingPromise ? (
                                     <Form.Item name="nagarparAmount" noStyle>
@@ -930,7 +936,7 @@ const WaqfJadeed: React.FC = () => {
                                 )}
                             </Form.Item>
                         </Col>
-                        <Col span={6}>
+                        <Col xs={24} sm={12} md={6}>
                             <Form.Item label="Total Promise">
                                 <Title level={4} style={{ margin: 0, marginTop: 4 }}>
                                     {((editingMember
@@ -940,7 +946,7 @@ const WaqfJadeed: React.FC = () => {
                                 </Title>
                             </Form.Item>
                         </Col>
-                        <Col span={6}>
+                        <Col xs={24} sm={12} md={6}>
                             <Form.Item label="Total Paid">
                                 <Title level={4} style={{ margin: 0, marginTop: 4 }}>
                                     {editingMember
