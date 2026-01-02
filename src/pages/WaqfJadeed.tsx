@@ -354,17 +354,22 @@ const WaqfJadeed: React.FC = () => {
     type MemberData = ReturnType<typeof getMemberData>;
 
     const filteredMemberData = useMemo(() => {
-        let data = members.map(member => {
-            const record = records.find(r => r.memberId === member.id);
-            return {
-                member,
-                record,
-                promise: (record?.promiseAmount || 0) + (record?.nagarparAmount || 0),
-                paid: record?.paidAmount || 0,
-                originalPromise: record?.promiseAmount || 0,
-                nagarpar: record?.nagarparAmount || 0
-            };
-        });
+        let data = members
+            .filter(member => {
+                // Exclude deceased members from main members list
+                return !member.isDeceased;
+            })
+            .map(member => {
+                const record = records.find(r => r.memberId === member.id);
+                return {
+                    member,
+                    record,
+                    promise: (record?.promiseAmount || 0) + (record?.nagarparAmount || 0),
+                    paid: record?.paidAmount || 0,
+                    originalPromise: record?.promiseAmount || 0,
+                    nagarpar: record?.nagarparAmount || 0
+                };
+            });
 
         if (searchTerm) {
             const lower = searchTerm.toLowerCase();
@@ -554,23 +559,23 @@ const WaqfJadeed: React.FC = () => {
             
             // Helper function to determine row color based on tanzeem and promise
             const getRowColor = (tanzeem: string | undefined, promise: number, index: number): string => {
-                const isAtfalOrNasirat = tanzeem === 'atfal' || tanzeem === 'nasirat';
+                const isAtfalOrNasirat = tanzeem === 'atfal' || tanzeem === 'nasirat' || tanzeem === 'saf-e-awal' || tanzeem === 'saf-e-awal-girls';
                 
                 if (isAtfalOrNasirat) {
-                    // Atfal/Nasirat: Green if >= 1000, Yellow if < 1000
+                    // Atfal/Nasirat/Saf-e-Awal: Light blue if >= 1000, Yellow if < 1000
                     if (promise >= 1000) {
-                        return index % 2 === 0 ? '#e6f7ff' : '#bae7ff'; // Light blue shades
+                        return '#e6f7ff'; // Light blue - consistent color
                     } else {
-                        return index % 2 === 0 ? '#fff7e6' : '#ffe7ba'; // Light yellow/orange shades
+                        return '#fff7e6'; // Light yellow/orange - consistent color
                     }
                 } else {
-                    // Others: Stage 1 (>=5000) or Stage 2 (>=2500)
+                    // Others (Khuddam, Lajna, Ansar): Stage 1 (>=5000) or Stage 2 (>=2500)
                     if (promise >= 5000) {
-                        return index % 2 === 0 ? '#f6ffed' : '#d9f7be'; // Light green shades (Stage 1)
+                        return '#f6ffed'; // Light green (Stage 1) - consistent color
                     } else if (promise >= 2500) {
-                        return index % 2 === 0 ? '#fff1f0' : '#ffccc7'; // Light red/pink shades (Stage 2)
+                        return '#fff1f0'; // Light red/pink (Stage 2) - consistent color
                     } else {
-                        return index % 2 === 0 ? '#ffffff' : '#f5f5f5'; // Default white/gray
+                        return '#ffffff'; // Default white - consistent color
                     }
                 }
             };
@@ -748,9 +753,6 @@ const WaqfJadeed: React.FC = () => {
             setLoading(true);
             message.loading({ content: 'Copying names from 2025 to 2026...', key: 'copying', duration: 0 });
             
-            // Get all members
-            const allMembers = await ApiService.getAllMembers();
-            
             // Get 2025 records
             const records2025 = await ApiService.getWaqfJadeedRecords(2025);
             
@@ -759,13 +761,13 @@ const WaqfJadeed: React.FC = () => {
             const existing2026MemberIds = new Set(records2026.map(r => r.memberId));
             
             // Copy only names (create records with 0 promise and 0 paid)
-            let copied = 0;
-            let skipped = 0;
+            let copiedMembers = 0;
+            let skippedMembers = 0;
             
             for (const record2025 of records2025) {
                 // Skip if already exists in 2026
                 if (existing2026MemberIds.has(record2025.memberId)) {
-                    skipped++;
+                    skippedMembers++;
                     continue;
                 }
                 
@@ -776,44 +778,62 @@ const WaqfJadeed: React.FC = () => {
                     promiseAmount: 0,
                     nagarparAmount: 0
                 });
-                copied++;
+                copiedMembers++;
             }
             
-            // Also copy special records
+            // Copy special records (including deceased and اضافی)
             const special2025 = await ApiService.getWaqfJadeedSpecialRecords(2025);
             const special2026 = await ApiService.getWaqfJadeedSpecialRecords(2026);
-            // Check by name and familyId combination to avoid duplicates
+            
+            // Check by name and familyId combination to avoid duplicates (year is already 2026 for existing records)
             const existing2026SpecialKeys = new Set(
-                special2026.map(r => `${r.familyId || ''}_${r.name || ''}`)
+                special2026.map(r => `${r.familyId || 'no-family'}_${r.name || 'no-name'}`)
             );
             
-            for (const special2025 of special2025) {
-                const key = `${special2025.familyId || ''}_${special2025.name || ''}`;
+            let copiedSpecial = 0;
+            let skippedSpecial = 0;
+            
+            for (const special2025Record of special2025) {
+                const key = `${special2025Record.familyId || 'no-family'}_${special2025Record.name || 'no-name'}`;
+                
+                // Skip if already exists in 2026
                 if (existing2026SpecialKeys.has(key)) {
-                    skipped++;
+                    skippedSpecial++;
                     continue;
                 }
                 
-                // Create new record without the old ID so it gets a new one
-                const { id, ...specialDataWithoutId } = special2025;
-                await ApiService.saveWaqfJadeedSpecialRecord({
-                    ...specialDataWithoutId,
-                    year: 2026,
-                    promiseAmount: 0,
-                    nagarparAmount: 0,
-                    paidAmount: 0,
-                    payments: []
-                });
-                copied++;
+                try {
+                    // Create new record without the old ID so it gets a new one
+                    const { id, payments, paidAmount, ...specialDataWithoutId } = special2025Record;
+                    await ApiService.saveWaqfJadeedSpecialRecord({
+                        ...specialDataWithoutId,
+                        year: 2026,
+                        promiseAmount: 0,
+                        nagarparAmount: 0,
+                        paidAmount: 0,
+                        payments: []
+                    });
+                    copiedSpecial++;
+                } catch (err) {
+                    console.error('Error copying special record:', special2025Record.name, err);
+                    skippedSpecial++;
+                }
             }
             
-            message.success({ content: `Copied ${copied} names from 2025 to 2026. ${skipped} already existed.`, key: 'copying' });
+            const totalCopied = copiedMembers + copiedSpecial;
+            const totalSkipped = skippedMembers + skippedSpecial;
+            
+            message.success({ 
+                content: `Copied ${totalCopied} names (${copiedMembers} members, ${copiedSpecial} special) from 2025 to 2026. ${totalSkipped} already existed.`, 
+                key: 'copying',
+                duration: 5
+            });
             
             // Reload data
             await loadData();
         } catch (error) {
             console.error('Error copying names:', error);
-            message.error({ content: 'Failed to copy names', key: 'copying' });
+            message.error({ content: `Failed to copy names: ${error instanceof Error ? error.message : 'Unknown error'}`, key: 'copying', duration: 5 });
         } finally {
             setLoading(false);
         }
@@ -885,6 +905,20 @@ const WaqfJadeed: React.FC = () => {
                             allowClear
                         />
                     </Col>
+                    {selectedYear === 2026 && (
+                        <Col xs={24} sm={24} md={12}>
+                            <Button
+                                icon={<CopyOutlined />}
+                                onClick={handleCopyNamesFrom2025}
+                                loading={loading}
+                                type="dashed"
+                                block
+                                size="large"
+                            >
+                                Copy All Names from 2025 (Members + Special)
+                            </Button>
+                        </Col>
+                    )}
                 </Row>
                 <Tabs activeKey={activeTab} onChange={setActiveTab} style={{ marginTop: 12 }} type="card">
                     <Tabs.TabPane tab="Members" key="members" />
@@ -949,7 +983,14 @@ const WaqfJadeed: React.FC = () => {
                     {loading ? <p>Loading...</p> : (
                         <Collapse defaultActiveKey={[]} ghost>
                             {filteredFamilyData.map(family => {
-                                const familyMembersCtx = family.memberIds.map(mid => getMemberData(mid)).filter(Boolean) as NonNullable<MemberData>[];
+                                // Filter out deceased members from family members list
+                                const familyMembersCtx = family.memberIds
+                                    .map(mid => getMemberData(mid))
+                                    .filter((item): item is NonNullable<MemberData> => {
+                                        if (!item) return false;
+                                        // Exclude if member is marked as deceased
+                                        return !item.member.isDeceased;
+                                    });
                                 const familySpecialRecords = specialRecords.filter(r => r.familyId === family.id);
 
                                 const membersPromise = familyMembersCtx.reduce((sum, m) => sum + (m?.promise || 0), 0);
