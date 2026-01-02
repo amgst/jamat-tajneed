@@ -36,9 +36,14 @@ import {
     DeleteOutlined,
     PlusOutlined,
     EditOutlined,
-    PrinterOutlined
+    PrinterOutlined,
+    FilePdfOutlined,
+    CopyOutlined
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
+import { jsPDF } from 'jspdf';
+import autoTable from 'jspdf-autotable';
+import html2canvas from 'html2canvas';
 import { ApiService } from '../services/apiService';
 import type { Member, WaqfJadeedRecord, Family, Payment, WaqfJadeedSpecialRecord } from '../types';
 import { ReceiptTemplate } from '../components/ReceiptTemplate';
@@ -77,6 +82,12 @@ const WaqfJadeed: React.FC = () => {
     // Special Member State
     const [specialModalVisible, setSpecialModalVisible] = useState(false);
     const [activeFamilyId, setActiveFamilyId] = useState<string | null>(null);
+
+    // State for pagination
+    const [familyMembersCurrentPage, setFamilyMembersCurrentPage] = useState<Record<string, number>>({});
+    const [familySpecialCurrentPage, setFamilySpecialCurrentPage] = useState<Record<string, number>>({});
+    const [familyMembersPageSize, setFamilyMembersPageSize] = useState<Record<string, number>>({});
+    const [familySpecialPageSize, setFamilySpecialPageSize] = useState<Record<string, number>>({});
 
     useEffect(() => {
         loadData();
@@ -383,6 +394,26 @@ const WaqfJadeed: React.FC = () => {
         });
     }, [families, searchTerm]);
 
+    // Initialize pagination states when families change
+    useEffect(() => {
+        const initialMembersPageState = {};
+        const initialSpecialPageState = {};
+        const initialMembersPageSizeState = {};
+        const initialSpecialPageSizeState = {};
+        
+        families.forEach(family => {
+            initialMembersPageState[family.id] = 1;
+            initialSpecialPageState[family.id] = 1;
+            initialMembersPageSizeState[family.id] = 10;
+            initialSpecialPageSizeState[family.id] = 10;
+        });
+        
+        setFamilyMembersCurrentPage(initialMembersPageState);
+        setFamilySpecialCurrentPage(initialSpecialPageState);
+        setFamilyMembersPageSize(initialMembersPageSizeState);
+        setFamilySpecialPageSize(initialSpecialPageSizeState);
+    }, [families]);
+
 
     // Stats
     const stats = useMemo(() => {
@@ -445,6 +476,349 @@ const WaqfJadeed: React.FC = () => {
         };
     }, [specialRecords]);
 
+    // اضافی (Additional) Stats
+    const azafiStats = useMemo(() => {
+        const azafiRecords = specialRecords.filter(r => r.name === 'اضافی');
+        
+        const azafiPromiseAmount = azafiRecords.reduce((sum, r) => sum + (r.promiseAmount || 0) + (r.nagarparAmount || 0), 0);
+        const azafiPaidAmount = azafiRecords.reduce((sum, r) => sum + (r.paidAmount || 0), 0);
+        
+        return {
+            count: azafiRecords.length,
+            promiseAmount: azafiPromiseAmount,
+            paidAmount: azafiPaidAmount,
+            percent: azafiPromiseAmount > 0 ? (azafiPaidAmount / azafiPromiseAmount) * 100 : 0
+        };
+    }, [specialRecords]);
+
+    // Helper function to convert English names to Urdu for display
+    const getUrduName = (name: string): string => {
+        if (name === 'Hazrat Muhammad (pbuh)') {
+            return 'حضرت محمد ﷺ';
+        } else if (name === 'Hazrat Messiah Maoud (as)') {
+            return 'حضرت مسیح موعودؑ';
+        }
+        return name;
+    };
+
+    const handleExportFamilyPDF = async (family: Family, familyMembersCtx: NonNullable<MemberData>[], familySpecialRecords: WaqfJadeedSpecialRecord[], familyTotalPromise: number, familyTotalPaid: number) => {
+        try {
+            message.loading({ content: 'Generating PDF with Urdu support...', key: 'pdf-export', duration: 0 });
+            
+            // Create a temporary HTML element with proper Urdu rendering
+            const printDiv = document.createElement('div');
+            printDiv.style.position = 'absolute';
+            printDiv.style.left = '-9999px';
+            printDiv.style.width = '210mm'; // A4 width
+            printDiv.style.padding = '20px';
+            printDiv.style.fontFamily = 'Arial, "Noto Sans Arabic", "Al Qalam Taj Nastaleeq", sans-serif';
+            printDiv.style.direction = 'rtl';
+            printDiv.style.unicodeBidi = 'embed';
+            printDiv.style.backgroundColor = 'white';
+            printDiv.style.color = 'black';
+            
+            // Get family head data
+            const familyHead = getMemberData(family.headId);
+            const headPhone = familyHead?.member.phone || 'N/A';
+            
+            // Build HTML content
+            let htmlContent = `
+                <div style="text-align: center; margin-bottom: 20px;">
+                    <h1 style="font-size: 24px; margin: 0; font-weight: bold;">${family.familyName} - Waqf-e-Jadeed ${selectedYear}</h1>
+                </div><div style="margin-bottom: 15px; font-size: 12px; direction: rtl; text-align: right;">
+    <p style="margin: 5px 0;">
+        <strong>خاندان نمبر:</strong> ${family.familyNumber || 'N/A'} |
+        <strong>سربراہ:</strong> ${familyHead?.member.name || 'نامعلوم'} |
+        <strong>رابطہ نمبرِ سربراہ:</strong> ${headPhone}
+    </p>
+    <p style="margin: 5px 0;">
+        <strong>کل وعدہ شدہ رقم:</strong> روپے ${familyTotalPromise.toLocaleString()} |
+        <strong>کل ادا شدہ رقم:</strong> روپے ${familyTotalPaid.toLocaleString()}
+    </p>
+</div>
+
+                <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 10px;" dir="rtl">
+                    <thead>
+                        <tr style="background-color: #1890ff; color: white;">
+                            <th style="border: 1px solid #ddd; padding: 8px; text-align: center; direction: rtl;">نمبر</th>
+                            <th style="border: 1px solid #ddd; padding: 8px; text-align: right; direction: rtl;">نام</th>
+                            <th style="border: 1px solid #ddd; padding: 8px; text-align: right; direction: rtl;">تنظیم</th>
+                            <th style="border: 1px solid #ddd; padding: 8px; text-align: right; direction: rtl;">حلقہ</th>
+                            <th style="border: 1px solid #ddd; padding: 8px; text-align: center; direction: rtl;">وعدہ + نگرپار</th>
+                            <th style="border: 1px solid #ddd; padding: 8px; text-align: center; direction: rtl;">ادا شدہ</th>
+                            <th style="border: 1px solid #ddd; padding: 8px; text-align: center; direction: rtl;">پیش رفت</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+            
+            // Helper function to determine row color based on tanzeem and promise
+            const getRowColor = (tanzeem: string | undefined, promise: number, index: number): string => {
+                const isAtfalOrNasirat = tanzeem === 'atfal' || tanzeem === 'nasirat';
+                
+                if (isAtfalOrNasirat) {
+                    // Atfal/Nasirat: Green if >= 1000, Yellow if < 1000
+                    if (promise >= 1000) {
+                        return index % 2 === 0 ? '#e6f7ff' : '#bae7ff'; // Light blue shades
+                    } else {
+                        return index % 2 === 0 ? '#fff7e6' : '#ffe7ba'; // Light yellow/orange shades
+                    }
+                } else {
+                    // Others: Stage 1 (>=5000) or Stage 2 (>=2500)
+                    if (promise >= 5000) {
+                        return index % 2 === 0 ? '#f6ffed' : '#d9f7be'; // Light green shades (Stage 1)
+                    } else if (promise >= 2500) {
+                        return index % 2 === 0 ? '#fff1f0' : '#ffccc7'; // Light red/pink shades (Stage 2)
+                    } else {
+                        return index % 2 === 0 ? '#ffffff' : '#f5f5f5'; // Default white/gray
+                    }
+                }
+            };
+            
+            familyMembersCtx.forEach((item, index) => {
+                const rowColor = getRowColor(item.member.tanzeem, item.promise, index);
+                htmlContent += `
+                    <tr style="background-color: ${rowColor};">
+                        <td style="border: 1px solid #ddd; padding: 6px; text-align: center;">${index + 1}</td>
+                        <td style="border: 1px solid #ddd; padding: 6px; text-align: right; direction: rtl; unicode-bidi: embed;">${item.member.name}</td>
+                        <td style="border: 1px solid #ddd; padding: 6px; text-align: right; direction: rtl; unicode-bidi: embed;">${item.member.tanzeem || ''}</td>
+                        <td style="border: 1px solid #ddd; padding: 6px; text-align: right; direction: rtl; unicode-bidi: embed;">${family.halqa || ''}</td>
+                        <td style="border: 1px solid #ddd; padding: 6px; text-align: center;">Rs. ${item.promise.toLocaleString()}</td>
+                        <td style="border: 1px solid #ddd; padding: 6px; text-align: center;">Rs. ${item.paid.toLocaleString()}</td>
+                        <td style="border: 1px solid #ddd; padding: 6px; text-align: center;">${item.promise > 0 ? Math.round((item.paid / item.promise) * 100) : 0}%</td>
+                    </tr>
+                `;
+            });
+            
+            htmlContent += '</tbody></table>';
+            
+            // Add special records if any
+            if (familySpecialRecords.length > 0) {
+                htmlContent += `
+                    <h3 style="font-size: 14px; margin-top: 20px; margin-bottom: 10px; direction: rtl; text-align: right;">خصوصی / متوفی ریکارڈ</h3>
+                    <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 10px;" dir="rtl">
+                        <thead>
+                            <tr style="background-color: #8b4513; color: white;">
+                                <th style="border: 1px solid #ddd; padding: 8px; text-align: center; direction: rtl;">نمبر</th>
+                                <th style="border: 1px solid #ddd; padding: 8px; text-align: right; direction: rtl;">نام (خصوصی)</th>
+                                <th style="border: 1px solid #ddd; padding: 8px; text-align: center; direction: rtl;">جنس</th>
+                                <th style="border: 1px solid #ddd; padding: 8px; text-align: center; direction: rtl;">وعدہ + نگرپار</th>
+                                <th style="border: 1px solid #ddd; padding: 8px; text-align: center; direction: rtl;">ادا شدہ</th>
+                                <th style="border: 1px solid #ddd; padding: 8px; text-align: center; direction: rtl;">پیش رفت</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                `;
+                
+                familySpecialRecords.forEach((record, index) => {
+                    const totalPromise = (record.promiseAmount || 0) + (record.nagarparAmount || 0);
+                    const rowColor = index % 2 === 0 ? '#ffffff' : '#faf0e6';
+                    
+                    // Convert English names to Urdu for display
+                    const displayName = getUrduName(record.name);
+                    
+                    // Get deceased text based on gender
+                    let deceasedText = '';
+                    if (record.isDeceased) {
+                        deceasedText = record.gender === 'female' ? ' (مرحومہ)' : ' (مرحوم)';
+                    }
+                    
+                    htmlContent += `
+                        <tr style="background-color: ${rowColor};">
+                            <td style="border: 1px solid #ddd; padding: 6px; text-align: center;">${index + 1}</td>
+                            <td style="border: 1px solid #ddd; padding: 6px; text-align: right; direction: rtl; unicode-bidi: embed;">${displayName}${deceasedText}</td>
+                            <td style="border: 1px solid #ddd; padding: 6px; text-align: center;">${record.gender || ''}</td>
+                            <td style="border: 1px solid #ddd; padding: 6px; text-align: center;">Rs. ${totalPromise.toLocaleString()}</td>
+                            <td style="border: 1px solid #ddd; padding: 6px; text-align: center;">Rs. ${(record.paidAmount || 0).toLocaleString()}</td>
+                            <td style="border: 1px solid #ddd; padding: 6px; text-align: center;">${totalPromise > 0 ? Math.round(((record.paidAmount || 0) / totalPromise) * 100) : 0}%</td>
+                        </tr>
+                    `;
+                });
+                
+                htmlContent += '</tbody></table>';
+            }
+            
+            // Add footer notes with color legend in Urdu
+            htmlContent += `
+<div style="margin-top: 30px; padding: 15px; background-color: #fafafa; border: 1px solid #ddd; border-radius: 5px; font-size: 10px; direction: rtl; text-align: right;">
+    <h4 style="margin: 0 0 10px 0; font-size: 12px; font-weight: bold; text-align: center; direction: rtl;">
+        وعدہ کی ہدایات اور رنگوں کی وضاحت
+    </h4>
+
+    <div style="margin-bottom: 10px; direction: rtl;">
+        <p style="margin: 5px 0; direction: rtl;">
+            <strong>اطفال اور ناصرات کے لیے:</strong>
+        </p>
+
+        <div style="display: inline-block; width: 20px; height: 15px; background-color: #e6f7ff; border: 1px solid #91d5ff; margin-left: 8px; vertical-align: middle;"></div>
+        <span style="margin-left: 20px; direction: rtl;">
+            اچھا وعدہ: کم از کم 1,000 روپے یا اس سے زیادہ
+        </span>
+
+        <br style="margin-top: 5px;">
+
+        <div style="display: inline-block; width: 20px; height: 15px; background-color: #fff7e6; border: 1px solid #ffd591; margin-left: 8px; vertical-align: middle; margin-top: 5px;"></div>
+        <span style="margin-left: 20px; direction: rtl;">
+            کم از کم سے کم: 1,000 روپے سے کم
+        </span>
+    </div>
+
+    <div style="margin-top: 10px; direction: rtl;">
+        <p style="margin: 5px 0; direction: rtl;">
+            <strong>دیگر افراد کے لیے (خدام، لجنہ، انصار وغیرہ):</strong>
+        </p>
+
+        <div style="display: inline-block; width: 20px; height: 15px; background-color: #f6ffed; border: 1px solid #b7eb8f; margin-left: 8px; vertical-align: middle;"></div>
+        <span style="margin-left: 20px; direction: rtl;">
+            پہلا معیار: 5,000 روپے یا اس سے زیادہ
+        </span>
+
+        <br style="margin-top: 5px;">
+
+        <div style="display: inline-block; width: 20px; height: 15px; background-color: #fff1f0; border: 1px solid #ffccc7; margin-left: 8px; vertical-align: middle; margin-top: 5px;"></div>
+        <span style="margin-left: 20px; direction: rtl;">
+            دوسرا معیار: 2,500 روپے یا اس سے زیادہ (لیکن 5,000 روپے سے کم)
+        </span>
+
+        <br style="margin-top: 5px;">
+
+        <div style="display: inline-block; width: 20px; height: 15px; background-color: #ffffff; border: 1px solid #d9d9d9; margin-left: 8px; vertical-align: middle; margin-top: 5px;"></div>
+        <span style="margin-left: 20px; direction: rtl;">
+            دوسرے معیار سے کم: 2,500 روپے سے کم
+        </span>
+    </div>
+</div>
+
+                </div>
+                <div style="margin-top: 15px; font-size: 10px; text-align: center; color: #666; direction: rtl;">
+                    <p>تیار کیا گیا: ${new Date().toLocaleDateString()}</p>
+                </div>
+            `;
+            
+            printDiv.innerHTML = htmlContent;
+            document.body.appendChild(printDiv);
+            
+            // Convert to canvas with high quality
+            const canvas = await html2canvas(printDiv, {
+                scale: 2,
+                useCORS: true,
+                logging: false,
+                backgroundColor: '#ffffff',
+                onclone: (clonedDoc) => {
+                    // Ensure fonts are loaded in cloned document
+                    const clonedElement = clonedDoc.querySelector('[style*="font-family"]') as HTMLElement;
+                    if (clonedElement) {
+                        clonedElement.style.fontFamily = 'Arial, "Noto Sans Arabic", "Al Qalam Taj Nastaleeq", sans-serif';
+                    }
+                }
+            });
+            
+            // Remove temporary element
+            document.body.removeChild(printDiv);
+            
+            // Convert canvas to PDF
+            const imgData = canvas.toDataURL('image/png');
+            const pdf = new jsPDF('p', 'mm', 'a4');
+            const imgWidth = 210; // A4 width in mm
+            const pageHeight = 297; // A4 height in mm
+            const imgHeight = (canvas.height * imgWidth) / canvas.width;
+            let heightLeft = imgHeight;
+            let position = 0;
+            
+            pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+            heightLeft -= pageHeight;
+            
+            while (heightLeft > 0) {
+                position = heightLeft - imgHeight;
+                pdf.addPage();
+                pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+                heightLeft -= pageHeight;
+            }
+            
+            pdf.save(`${family.familyName.replace(/\s+/g, '_')}_waqf_${selectedYear}.pdf`);
+            message.success({ content: 'PDF generated successfully with Urdu support!', key: 'pdf-export' });
+        } catch (error) {
+            console.error('Error generating PDF:', error);
+            message.error({ content: 'Failed to generate PDF', key: 'pdf-export' });
+        }
+    };
+
+    const handleCopyNamesFrom2025 = async () => {
+        try {
+            setLoading(true);
+            message.loading({ content: 'Copying names from 2025 to 2026...', key: 'copying', duration: 0 });
+            
+            // Get all members
+            const allMembers = await ApiService.getAllMembers();
+            
+            // Get 2025 records
+            const records2025 = await ApiService.getWaqfJadeedRecords(2025);
+            
+            // Get 2026 records to check what already exists
+            const records2026 = await ApiService.getWaqfJadeedRecords(2026);
+            const existing2026MemberIds = new Set(records2026.map(r => r.memberId));
+            
+            // Copy only names (create records with 0 promise and 0 paid)
+            let copied = 0;
+            let skipped = 0;
+            
+            for (const record2025 of records2025) {
+                // Skip if already exists in 2026
+                if (existing2026MemberIds.has(record2025.memberId)) {
+                    skipped++;
+                    continue;
+                }
+                
+                // Create new record with 0 promise and 0 paid
+                await ApiService.saveWaqfJadeedRecord({
+                    memberId: record2025.memberId,
+                    year: 2026,
+                    promiseAmount: 0,
+                    nagarparAmount: 0
+                });
+                copied++;
+            }
+            
+            // Also copy special records
+            const special2025 = await ApiService.getWaqfJadeedSpecialRecords(2025);
+            const special2026 = await ApiService.getWaqfJadeedSpecialRecords(2026);
+            // Check by name and familyId combination to avoid duplicates
+            const existing2026SpecialKeys = new Set(
+                special2026.map(r => `${r.familyId || ''}_${r.name || ''}`)
+            );
+            
+            for (const special2025 of special2025) {
+                const key = `${special2025.familyId || ''}_${special2025.name || ''}`;
+                if (existing2026SpecialKeys.has(key)) {
+                    skipped++;
+                    continue;
+                }
+                
+                // Create new record without the old ID so it gets a new one
+                const { id, ...specialDataWithoutId } = special2025;
+                await ApiService.saveWaqfJadeedSpecialRecord({
+                    ...specialDataWithoutId,
+                    year: 2026,
+                    promiseAmount: 0,
+                    nagarparAmount: 0,
+                    paidAmount: 0,
+                    payments: []
+                });
+                copied++;
+            }
+            
+            message.success({ content: `Copied ${copied} names from 2025 to 2026. ${skipped} already existed.`, key: 'copying' });
+            
+            // Reload data
+            await loadData();
+        } catch (error) {
+            console.error('Error copying names:', error);
+            message.error({ content: 'Failed to copy names', key: 'copying' });
+        } finally {
+            setLoading(false);
+        }
+    };
+
     const renderMemberCard = (item: NonNullable<MemberData>) => (
         <Card
             hoverable
@@ -452,11 +826,11 @@ const WaqfJadeed: React.FC = () => {
             bodyStyle={{ padding: 12 }}
             style={{ marginBottom: 16 }}
         >
-            <Space style={{ width: '100%', marginBottom: 12 }}>
-                <Avatar size="large" icon={<UserOutlined />} src={item.member.profilePhoto} />
-                <div style={{ overflow: 'hidden' }}>
-                    <Text strong style={{ display: 'block' }} ellipsis>{item.member.name}</Text>
-                    <Text type="secondary" style={{ fontSize: 12 }}>
+            <Space style={{ width: '100%', marginBottom: 12 }} size="small">
+                <Avatar size={{ xs: 40, sm: 48, md: 56 }} icon={<UserOutlined />} src={item.member.profilePhoto} />
+                <div style={{ overflow: 'hidden', flex: 1, minWidth: 0 }}>
+                    <Text strong style={{ display: 'block', fontSize: 'clamp(14px, 3.5vw, 16px)' }} ellipsis>{item.member.name}</Text>
+                    <Text type="secondary" style={{ fontSize: 'clamp(11px, 2.5vw, 12px)' }}>
                         {item.member.halqa || 'No Halqa'} • {item.member.tanzeem}
                     </Text>
                 </div>
@@ -464,12 +838,12 @@ const WaqfJadeed: React.FC = () => {
 
             <div style={{ background: '#f5f5f5', padding: 8, borderRadius: 4 }}>
                 <Row justify="space-between" style={{ marginBottom: 4 }}>
-                    <Text type="secondary">Promise:</Text>
-                    <Text strong>{item.promise.toLocaleString()}</Text>
+                    <Text type="secondary" style={{ fontSize: 'clamp(11px, 2.5vw, 12px)' }}>Promise:</Text>
+                    <Text strong style={{ fontSize: 'clamp(12px, 3vw, 14px)' }}>{item.promise.toLocaleString()}</Text>
                 </Row>
                 <Row justify="space-between">
-                    <Text type="secondary">Paid:</Text>
-                    <Text strong style={{ color: item.paid >= item.promise && item.promise > 0 ? 'green' : undefined }}>
+                    <Text type="secondary" style={{ fontSize: 'clamp(11px, 2.5vw, 12px)' }}>Paid:</Text>
+                    <Text strong style={{ color: item.paid >= item.promise && item.promise > 0 ? 'green' : undefined, fontSize: 'clamp(12px, 3vw, 14px)' }}>
                         {item.paid.toLocaleString()}
                     </Text>
                 </Row>
@@ -484,14 +858,14 @@ const WaqfJadeed: React.FC = () => {
     );
 
     return (
-        <div style={{ paddingBottom: 80 }}>
+        <div style={{ margin: 0, padding: '0 8px', width: '100%', maxWidth: '100%', boxSizing: 'border-box', paddingBottom: 80 }} className="waqf-jadeed-container">
             {/* Search Header */}
             <Card style={{ marginBottom: 16, position: 'sticky', top: 0, zIndex: 10 }} bodyStyle={{ padding: 12 }}>
                 <Row gutter={[8, 8]} align="middle">
-                    <Col xs={24} sm={12}>
-                        <Title level={4} style={{ margin: 0 }}>Waqf-e-Jadeed</Title>
+                    <Col xs={24} sm={12} md={8}>
+                        <Title level={4} style={{ margin: 0, fontSize: 'clamp(16px, 4vw, 20px)' }}>Waqf-e-Jadeed</Title>
                     </Col>
-                    <Col xs={12} sm={6}>
+                    <Col xs={12} sm={6} md={4}>
                         <Select
                             value={selectedYear}
                             onChange={setSelectedYear}
@@ -502,7 +876,7 @@ const WaqfJadeed: React.FC = () => {
                             ))}
                         </Select>
                     </Col>
-                    <Col xs={24} sm={6}>
+                    <Col xs={12} sm={6} md={4}>
                         <Input
                             prefix={<SearchOutlined />}
                             placeholder="Search..."
@@ -512,7 +886,7 @@ const WaqfJadeed: React.FC = () => {
                         />
                     </Col>
                 </Row>
-                <Tabs activeKey={activeTab} onChange={setActiveTab} style={{ marginTop: 12 }}>
+                <Tabs activeKey={activeTab} onChange={setActiveTab} style={{ marginTop: 12 }} type="card">
                     <Tabs.TabPane tab="Members" key="members" />
                     <Tabs.TabPane tab="Family Wise" key="families" />
                     <Tabs.TabPane tab="Dashboard" key="dashboard" />
@@ -521,30 +895,31 @@ const WaqfJadeed: React.FC = () => {
 
             {/* Stats Cards */}
             <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
-                <Col xs={12} sm={8}>
+                <Col xs={24} sm={12} md={8}>
                     <Card bodyStyle={{ padding: 16 }}>
                         <Statistic
                             title="Total Promise"
                             value={stats.totalPromise}
                             prefix={<DollarOutlined />}
                             precision={0}
+                            valueStyle={{ fontSize: 'clamp(20px, 5vw, 32px)' }}
                         />
                     </Card>
                 </Col>
-                <Col xs={12} sm={8}>
+                <Col xs={24} sm={12} md={8}>
                     <Card bodyStyle={{ padding: 16 }}>
                         <Statistic
                             title="Total Paid"
                             value={stats.totalPaid}
                             prefix={<CheckCircleOutlined />}
-                            valueStyle={{ color: '#3f8600' }}
+                            valueStyle={{ color: '#3f8600', fontSize: 'clamp(20px, 5vw, 32px)' }}
                             precision={0}
                         />
                     </Card>
                 </Col>
-                <Col xs={24} sm={8}>
+                <Col xs={24} sm={24} md={8}>
                     <Card bodyStyle={{ padding: 16 }}>
-                        <Text type="secondary">Collection Progress</Text>
+                        <Text type="secondary" style={{ fontSize: 'clamp(12px, 3vw, 14px)' }}>Collection Progress</Text>
                         <Progress percent={Math.round(stats.percent)} status="active" />
                     </Card>
                 </Col>
@@ -553,7 +928,7 @@ const WaqfJadeed: React.FC = () => {
             {/* Content */}
             {activeTab === 'members' ? (
                 <List
-                    grid={{ gutter: 16, xs: 1, sm: 2, lg: 3 }}
+                    grid={{ gutter: [16, 16], xs: 1, sm: 2, md: 2, lg: 3, xl: 4 }}
                     dataSource={filteredMemberData}
                     loading={loading}
                     renderItem={(item) => (
@@ -564,7 +939,9 @@ const WaqfJadeed: React.FC = () => {
                     pagination={{
                         pageSize: 12,
                         responsive: true,
-                        showSizeChanger: false
+                        showSizeChanger: true,
+                        pageSizeOptions: ['6', '12', '24', '48'],
+                        showTotal: (total, range) => `${range[0]}-${range[1]} of ${total}`
                     }}
                 />
             ) : activeTab === 'families' ? (
@@ -589,21 +966,39 @@ const WaqfJadeed: React.FC = () => {
                                     <Panel
                                         key={family.id}
                                         header={
-                                            <Row justify="space-between" align="middle" style={{ width: '100%' }}>
-                                                <Col>
-                                                    <Text strong>{family.familyName}</Text>
+                                            <Row justify="space-between" align="middle" style={{ width: '100%' }} gutter={[8, 8]}>
+                                                <Col xs={24} sm={16} md={16}>
+                                                    <Text strong style={{ fontSize: 'clamp(14px, 3.5vw, 16px)' }}>{family.familyName}</Text>
                                                     <br />
-                                                    <Text type="secondary" style={{ fontSize: 12 }}>
+                                                    <Text type="secondary" style={{ fontSize: 'clamp(11px, 2.5vw, 12px)' }}>
                                                         {family.familyNumber ? <span>#{family.familyNumber} • </span> : ''}
                                                         Head: {getMemberData(family.headId)?.member.name || 'Unknown'} • {familyMembersCtx.length + familySpecialRecords.length} Cards
                                                     </Text>
                                                 </Col>
-                                                <Col style={{ textAlign: 'right' }}>
-                                                    <Text type="secondary" style={{ fontSize: 12 }}>Paid / Promise</Text>
-                                                    <div style={{ fontWeight: 500 }}>
+                                                <Col xs={24} sm={8} md={6} style={{ textAlign: 'right' }}>
+                                                    <Text type="secondary" style={{ fontSize: 'clamp(11px, 2.5vw, 12px)' }}>Paid / Promise</Text>
+                                                    <div style={{ fontWeight: 500, fontSize: 'clamp(12px, 3vw, 14px)' }}>
                                                         {familyTotalPaid.toLocaleString()} / {familyTotalPromise.toLocaleString()}
                                                     </div>
                                                     <Progress percent={familyPercent} steps={5} size="small" strokeColor="#52c41a" />
+                                                </Col>
+                                                <Col xs={24} sm={24} md={2} style={{ textAlign: 'right' }}>
+                                                    <Button
+                                                        type="text"
+                                                        icon={<FilePdfOutlined />}
+                                                        size="small"
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            handleExportFamilyPDF(
+                                                                family,
+                                                                familyMembersCtx,
+                                                                familySpecialRecords,
+                                                                familyTotalPromise,
+                                                                familyTotalPaid
+                                                            );
+                                                        }}
+                                                        title="Export to PDF"
+                                                    />
                                                 </Col>
                                             </Row>
                                         }
@@ -613,11 +1008,37 @@ const WaqfJadeed: React.FC = () => {
                                             size="small"
                                             dataSource={familyMembersCtx.filter(item => item !== null)}
                                             rowKey={(item) => item.member.id}
-                                            pagination={false}
-                                            scroll={{ x: 800 }}
-                                            columns={[
-                                                {
-                                                    title: 'Name',
+                                            pagination={{
+                                                pageSize: 10,
+                                                showSizeChanger: true,
+                                                showQuickJumper: true,
+                                                pageSizeOptions: ['5', '10', '20', '50'],
+                                                showTotal: (total, range) => `${range[0]}-${range[1]} of ${total} items`,
+                                                onChange: (pagination) => {
+                                                    setFamilyMembersCurrentPage(prev => ({
+                                                        ...prev,
+                                                        [family.id]: pagination.current || 1
+                                                    }));
+                                                    setFamilyMembersPageSize(prev => ({
+                                                        ...prev,
+                                                        [family.id]: pagination.pageSize || 10
+                                                    }));
+                                                }
+                                            }}
+                                            scroll={{ x: 'max-content' }}
+                                            columns={[{
+                                                title: '#',
+                                                key: 'serial',
+                                                width: 50,
+                                                render: (_, __, index) => {
+                                                    // Calculate serial number based on current page and page size
+                                                    const currentFamilyPage = familyMembersCurrentPage[family.id] || 1;
+                                                    const currentPageSize = familyMembersPageSize[family.id] || 10;
+                                                    return ((currentFamilyPage - 1) * currentPageSize + index + 1);
+                                                },
+                                            },
+                                            {
+                                                title: 'Name',
                                                     dataIndex: ['member', 'name'],
                                                     key: 'name',
                                                     width: 150,
@@ -693,20 +1114,50 @@ const WaqfJadeed: React.FC = () => {
                                                 size="small"
                                                 dataSource={familySpecialRecords}
                                                 rowKey="id"
-                                                pagination={false}
-                                                scroll={{ x: 800 }}
-                                                columns={[
-                                                    {
-                                                        title: 'Name',
+                                                pagination={{
+                                                    pageSize: 10,
+                                                    showSizeChanger: true,
+                                                    showQuickJumper: true,
+                                                    pageSizeOptions: ['5', '10', '20', '50'],
+                                                    showTotal: (total, range) => `${range[0]}-${range[1]} of ${total} items`,
+                                                    onChange: (pagination) => {
+                                                        setFamilySpecialCurrentPage(prev => ({
+                                                            ...prev,
+                                                            [family.id]: pagination.current || 1
+                                                        }));
+                                                        setFamilySpecialPageSize(prev => ({
+                                                            ...prev,
+                                                            [family.id]: pagination.pageSize || 10
+                                                        }));
+                                                    }
+                                                }}
+                                                scroll={{ x: 'max-content' }}
+                                                columns={[{
+                                                    title: '#',
+                                                    key: 'serial',
+                                                    width: 50,
+                                                    render: (_, __, index) => {
+                                                        // Calculate serial number based on current page and page size
+                                                        const currentSpecialPage = familySpecialCurrentPage[family.id] || 1;
+                                                        const currentSpecialPageSize = familySpecialPageSize[family.id] || 10;
+                                                        return ((currentSpecialPage - 1) * currentSpecialPageSize + index + 1);
+                                                    },
+                                                },
+                                                {
+                                                    title: 'Name',
                                                         dataIndex: 'name',
                                                         key: 'name',
                                                         width: 150,
-                                                        render: (name, record) => (
-                                                            <>
-                                                                {name}
-                                                                {record?.isDeceased && <Text type="secondary" style={{ fontSize: 12, marginLeft: 8 }}>(Deceased)</Text>}
-                                                            </>
-                                                        ),
+                                                        render: (name, record) => {
+                                                            const deceasedText = record?.isDeceased 
+                                                                ? (record.gender === 'female' ? ' (مرحومہ)' : ' (مرحوم)')
+                                                                : '';
+                                                            return (
+                                                                <>
+                                                                    <span style={{ direction: 'rtl', unicodeBidi: 'embed' }}>{getUrduName(name || '')}{deceasedText}</span>
+                                                                </>
+                                                            );
+                                                        },
                                                     },
                                                     {
                                                         title: 'Promise',
@@ -764,85 +1215,117 @@ const WaqfJadeed: React.FC = () => {
                 <div className="dashboard-view">
                     {/* Deceased Stats Cards with Amounts */}
                     <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
-                        <Col xs={24} sm={12} md={8}>
+                        <Col xs={24} sm={24} md={8}>
                             <Card hoverable>
                                 <Statistic
-                                    title="Deceased Males"
-                                    value={deceasedStats.deceasedMales}
-                                    suffix={` | Rs. ${deceasedStats.malePromiseAmount?.toLocaleString() || 0}`}
+                                    title={`Deceased Males (${deceasedStats.deceasedMales})`}
+                                    value={deceasedStats.malePaidAmount || 0}
+                                    prefix="Rs."
                                     precision={0}
+                                    valueStyle={{ fontSize: 'clamp(18px, 4.5vw, 28px)' }}
+                                    titleStyle={{ fontSize: 'clamp(12px, 3vw, 14px)' }}
                                 />
                                 <Progress
                                     percent={deceasedStats.deceasedMales > 0 ? Math.round((deceasedStats.malePaidAmount || 0) / (deceasedStats.malePromiseAmount || 1) * 100) : 0}
-                                    status="active"
-                                    strokeColor="#1890ff"
+                                    status={deceasedStats.malePaidAmount >= deceasedStats.malePromiseAmount && deceasedStats.malePromiseAmount > 0 ? 'success' : 'active'}
+                                    strokeColor={deceasedStats.malePaidAmount >= deceasedStats.malePromiseAmount && deceasedStats.malePromiseAmount > 0 ? '#52c41a' : '#1890ff'}
                                 />
-                                <div style={{ marginTop: 12, display: 'flex', justifyContent: 'space-between' }}>
-                                    <Text type="secondary" style={{ fontSize: '12px' }}>Paid: Rs. {(deceasedStats.malePaidAmount || 0).toLocaleString()}</Text>
-                                    <Text type="secondary" style={{ fontSize: '12px' }}>{deceasedStats.malePromiseAmount ? Math.round((deceasedStats.malePaidAmount || 0) / deceasedStats.malePromiseAmount * 100) + '%' : '0%'}</Text>
-                                </div>
-                            </Card>
-                        </Col>
-                        <Col xs={24} sm={12} md={8}>
-                            <Card hoverable>
-                                <Statistic
-                                    title="Deceased Females"
-                                    value={deceasedStats.deceasedFemales}
-                                    suffix={` | Rs. ${deceasedStats.femalePromiseAmount?.toLocaleString() || 0}`}
-                                    precision={0}
-                                />
-                                <Progress
-                                    percent={deceasedStats.deceasedFemales > 0 ? Math.round((deceasedStats.femalePaidAmount || 0) / (deceasedStats.femalePromiseAmount || 1) * 100) : 0}
-                                    status="active"
-                                    strokeColor="#1890ff"
-                                />
-                                <div style={{ marginTop: 12, display: 'flex', justifyContent: 'space-between' }}>
-                                    <Text type="secondary" style={{ fontSize: '12px' }}>Paid: Rs. {(deceasedStats.femalePaidAmount || 0).toLocaleString()}</Text>
-                                    <Text type="secondary" style={{ fontSize: '12px' }}>{deceasedStats.femalePromiseAmount ? Math.round((deceasedStats.femalePaidAmount || 0) / deceasedStats.femalePromiseAmount * 100) + '%' : '0%'}</Text>
+                                <div style={{ marginTop: 12, display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: 4 }}>
+                                    <Text type="secondary" style={{ fontSize: 'clamp(11px, 2.5vw, 12px)' }}>Promise: Rs. {(deceasedStats.malePromiseAmount || 0).toLocaleString()}</Text>
+                                    <Text type="secondary" style={{ fontSize: 'clamp(11px, 2.5vw, 12px)' }}>{deceasedStats.malePromiseAmount ? Math.round((deceasedStats.malePaidAmount || 0) / deceasedStats.malePromiseAmount * 100).toFixed(1) + '%' : '0%'}</Text>
                                 </div>
                             </Card>
                         </Col>
                         <Col xs={24} sm={24} md={8}>
                             <Card hoverable>
                                 <Statistic
-                                    title="Total Deceased"
-                                    value={deceasedStats.deceasedMales + deceasedStats.deceasedFemales}
-                                    suffix={` | Rs. ${(deceasedStats.malePromiseAmount + deceasedStats.femalePromiseAmount)?.toLocaleString() || 0}`}
+                                    title={`Deceased Females (${deceasedStats.deceasedFemales})`}
+                                    value={deceasedStats.femalePaidAmount || 0}
+                                    prefix="Rs."
                                     precision={0}
+                                    valueStyle={{ fontSize: 'clamp(18px, 4.5vw, 28px)' }}
+                                    titleStyle={{ fontSize: 'clamp(12px, 3vw, 14px)' }}
+                                />
+                                <Progress
+                                    percent={deceasedStats.deceasedFemales > 0 ? Math.round((deceasedStats.femalePaidAmount || 0) / (deceasedStats.femalePromiseAmount || 1) * 100) : 0}
+                                    status={deceasedStats.femalePaidAmount >= deceasedStats.femalePromiseAmount && deceasedStats.femalePromiseAmount > 0 ? 'success' : 'active'}
+                                    strokeColor={deceasedStats.femalePaidAmount >= deceasedStats.femalePromiseAmount && deceasedStats.femalePromiseAmount > 0 ? '#52c41a' : '#1890ff'}
+                                />
+                                <div style={{ marginTop: 12, display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: 4 }}>
+                                    <Text type="secondary" style={{ fontSize: 'clamp(11px, 2.5vw, 12px)' }}>Promise: Rs. {(deceasedStats.femalePromiseAmount || 0).toLocaleString()}</Text>
+                                    <Text type="secondary" style={{ fontSize: 'clamp(11px, 2.5vw, 12px)' }}>{deceasedStats.femalePromiseAmount ? Math.round((deceasedStats.femalePaidAmount || 0) / deceasedStats.femalePromiseAmount * 100).toFixed(1) + '%' : '0%'}</Text>
+                                </div>
+                            </Card>
+                        </Col>
+                        <Col xs={24} sm={24} md={8}>
+                            <Card hoverable>
+                                <Statistic
+                                    title={`Total Deceased (${deceasedStats.deceasedMales + deceasedStats.deceasedFemales})`}
+                                    value={deceasedStats.totalDeceasedPaid || 0}
+                                    prefix="Rs."
+                                    precision={0}
+                                    valueStyle={{ fontSize: 'clamp(18px, 4.5vw, 28px)' }}
+                                    titleStyle={{ fontSize: 'clamp(12px, 3vw, 14px)' }}
                                 />
                                 <Progress
                                     percent={deceasedStats.totalDeceasedPromise > 0 ? Math.round(deceasedStats.totalDeceasedPaid / deceasedStats.totalDeceasedPromise * 100) : 0}
-                                    status="active"
-                                    strokeColor="#1890ff"
+                                    status={deceasedStats.totalDeceasedPaid >= deceasedStats.totalDeceasedPromise && deceasedStats.totalDeceasedPromise > 0 ? 'success' : 'active'}
+                                    strokeColor={deceasedStats.totalDeceasedPaid >= deceasedStats.totalDeceasedPromise && deceasedStats.totalDeceasedPromise > 0 ? '#52c41a' : '#1890ff'}
                                 />
-                                <div style={{ marginTop: 12, display: 'flex', justifyContent: 'space-between' }}>
-                                    <Text type="secondary" style={{ fontSize: '12px' }}>Paid: Rs. {deceasedStats.totalDeceasedPaid?.toLocaleString()}</Text>
-                                    <Text type="secondary" style={{ fontSize: '12px' }}>{deceasedStats.totalDeceasedPromise ? Math.round(deceasedStats.totalDeceasedPaid / deceasedStats.totalDeceasedPromise * 100) + '%' : '0%'}</Text>
+                                <div style={{ marginTop: 12, display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: 4 }}>
+                                    <Text type="secondary" style={{ fontSize: 'clamp(11px, 2.5vw, 12px)' }}>Promise: Rs. {(deceasedStats.totalDeceasedPromise || 0).toLocaleString()}</Text>
+                                    <Text type="secondary" style={{ fontSize: 'clamp(11px, 2.5vw, 12px)' }}>{deceasedStats.totalDeceasedPromise ? Math.round(deceasedStats.totalDeceasedPaid / deceasedStats.totalDeceasedPromise * 100).toFixed(1) + '%' : '0%'}</Text>
+                                </div>
+                            </Card>
+                        </Col>
+                    </Row>
+
+                    {/* اضافی (Additional) Stats Card */}
+                    <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
+                        <Col xs={24} sm={24} md={24}>
+                            <Card hoverable>
+                                <Statistic
+                                    title={`اضافی (${azafiStats.count})`}
+                                    value={azafiStats.paidAmount || 0}
+                                    prefix="Rs."
+                                    precision={0}
+                                    valueStyle={{ fontSize: 'clamp(18px, 4.5vw, 28px)' }}
+                                />
+                                <Progress
+                                    percent={Math.round(azafiStats.percent)}
+                                    status={azafiStats.paidAmount >= azafiStats.promiseAmount && azafiStats.promiseAmount > 0 ? 'success' : 'active'}
+                                    strokeColor={azafiStats.paidAmount >= azafiStats.promiseAmount && azafiStats.promiseAmount > 0 ? '#52c41a' : '#1890ff'}
+                                />
+                                <div style={{ marginTop: 12, display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: 4 }}>
+                                    <Text type="secondary" style={{ fontSize: 'clamp(11px, 2.5vw, 12px)' }}>Promise: Rs. {(azafiStats.promiseAmount || 0).toLocaleString()}</Text>
+                                    <Text type="secondary" style={{ fontSize: 'clamp(11px, 2.5vw, 12px)' }}>{azafiStats.promiseAmount ? Math.round(azafiStats.percent).toFixed(1) + '%' : '0%'}</Text>
                                 </div>
                             </Card>
                         </Col>
                     </Row>
                     
                     <List
-                        grid={{ gutter: [16, 16], xs: 1, sm: 2, md: 3 }}
+                        grid={{ gutter: [16, 16], xs: 1, sm: 2, md: 2, lg: 3, xl: 4 }}
                         dataSource={tanzeemStats}
                         renderItem={(item) => (
                             <List.Item>
                                 <Card hoverable>
                                     <Statistic
-                                        title={item.name}
-                                        value={item.count}
-                                        suffix={` | Rs. ${item.promise.toLocaleString()}`}
+                                        title={`${item.name} (${item.count})`}
+                                        value={item.paid}
+                                        prefix="Rs."
                                         precision={0}
+                                        valueStyle={{ fontSize: 'clamp(18px, 4.5vw, 28px)' }}
+                                        titleStyle={{ fontSize: 'clamp(12px, 3vw, 14px)' }}
                                     />
                                     <Progress
                                         percent={Math.round(item.percent)}
                                         status={item.percent >= 100 ? 'success' : 'active'}
                                         strokeColor={item.percent >= 100 ? '#52c41a' : '#1890ff'}
                                     />
-                                    <div style={{ marginTop: 12, display: 'flex', justifyContent: 'space-between' }}>
-                                        <Text type="secondary" style={{ fontSize: '12px' }}>Paid: Rs. {item.paid.toLocaleString()}</Text>
-                                        <Text type="secondary" style={{ fontSize: '12px' }}>{item.percent.toFixed(1)}%</Text>
+                                    <div style={{ marginTop: 12, display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: 4 }}>
+                                        <Text type="secondary" style={{ fontSize: 'clamp(11px, 2.5vw, 12px)' }}>Promise: Rs. {item.promise.toLocaleString()}</Text>
+                                        <Text type="secondary" style={{ fontSize: 'clamp(11px, 2.5vw, 12px)' }}>{item.percent.toFixed(1)}%</Text>
                                     </div>
                                 </Card>
                             </List.Item>
@@ -855,18 +1338,18 @@ const WaqfJadeed: React.FC = () => {
             <Drawer
                 title={`Edit: ${editingMember ? editingMember.name : editingSpecial ? editingSpecial.name : ''}`}
                 placement="bottom"
-                height="70vh" // Good for mobile reachability
+                height="70vh"
                 onClose={() => setDrawerVisible(false)}
                 open={drawerVisible}
                 extra={
-                    <Button type="primary" onClick={handleSave} loading={submitting}>
+                    <Button type="primary" onClick={handleSave} loading={submitting} size="small">
                         Save
                     </Button>
                 }
             >
                 <Form form={form} layout="vertical">
                     <Row gutter={[16, 16]}>
-                        <Col xs={24} sm={12} md={6}>
+                        <Col xs={24} sm={12} md={12} lg={6}>
                             <Form.Item label="Promise">
                                 {isEditingPromise ? (
                                     <div style={{ display: 'flex', gap: 8 }}>
@@ -915,7 +1398,7 @@ const WaqfJadeed: React.FC = () => {
                                 </div>
                             </Form.Item>
                         </Col>
-                        <Col xs={24} sm={12} md={6}>
+                        <Col xs={24} sm={12} md={12} lg={6}>
                             <Form.Item label="Nagarpar">
                                 {isEditingPromise ? (
                                     <Form.Item name="nagarparAmount" noStyle>
@@ -936,7 +1419,7 @@ const WaqfJadeed: React.FC = () => {
                                 )}
                             </Form.Item>
                         </Col>
-                        <Col xs={24} sm={12} md={6}>
+                        <Col xs={24} sm={12} md={12} lg={6}>
                             <Form.Item label="Total Promise">
                                 <Title level={4} style={{ margin: 0, marginTop: 4 }}>
                                     {((editingMember
@@ -946,7 +1429,7 @@ const WaqfJadeed: React.FC = () => {
                                 </Title>
                             </Form.Item>
                         </Col>
-                        <Col xs={24} sm={12} md={6}>
+                        <Col xs={24} sm={12} md={12} lg={6}>
                             <Form.Item label="Total Paid">
                                 <Title level={4} style={{ margin: 0, marginTop: 4 }}>
                                     {editingMember
@@ -961,17 +1444,23 @@ const WaqfJadeed: React.FC = () => {
                 </Form>
 
                 <div style={{ marginTop: 24, padding: '16px 0', borderTop: '1px solid #f0f0f0' }}>
-                    <Title level={5}>Add Payment</Title>
-                    <Form form={paymentForm} layout="inline" onFinish={handleAddPayment}>
-                        <div style={{ display: 'flex', gap: 8, width: '100%', flexWrap: 'wrap' }}>
-                            <Form.Item name="amount" rules={[{ required: true, message: 'Req' }]} style={{ flex: 1, minWidth: 100, margin: 0 }}>
-                                <InputNumber placeholder="Amount" style={{ width: '100%' }} />
-                            </Form.Item>
-                            <Form.Item name="notes" style={{ flex: 2, minWidth: 150, margin: 0 }}>
-                                <Input placeholder="Ref/Receipt #" />
-                            </Form.Item>
-                            <Button type="primary" htmlType="submit" icon={<PlusOutlined />} loading={submitting}>Add</Button>
-                        </div>
+                    <Title level={5} style={{ fontSize: 'clamp(14px, 3.5vw, 16px)' }}>Add Payment</Title>
+                    <Form form={paymentForm} layout="vertical" onFinish={handleAddPayment}>
+                        <Row gutter={[8, 8]}>
+                            <Col xs={24} sm={12} md={8}>
+                                <Form.Item name="amount" rules={[{ required: true, message: 'Required' }]} style={{ margin: 0 }}>
+                                    <InputNumber placeholder="Amount" style={{ width: '100%' }} />
+                                </Form.Item>
+                            </Col>
+                            <Col xs={24} sm={12} md={10}>
+                                <Form.Item name="notes" style={{ margin: 0 }}>
+                                    <Input placeholder="Ref/Receipt #" />
+                                </Form.Item>
+                            </Col>
+                            <Col xs={24} sm={24} md={6}>
+                                <Button type="primary" htmlType="submit" icon={<PlusOutlined />} loading={submitting} block>Add</Button>
+                            </Col>
+                        </Row>
                     </Form>
                 </div>
 
@@ -1048,7 +1537,8 @@ const WaqfJadeed: React.FC = () => {
                     <Button key="close" onClick={() => setPrintingPayment(null)}>Close</Button>,
                     <Button key="print" type="primary" icon={<PrinterOutlined />} onClick={() => window.print()}>Print</Button>
                 ]}
-                width={800}
+                width="90%"
+                style={{ maxWidth: 800 }}
                 styles={{ body: { padding: 0 } }}
             >
                 {printingPayment && (
@@ -1088,9 +1578,11 @@ const WaqfJadeed: React.FC = () => {
                                 const val = e.target.value;
                                 if (val) specialForm.setFieldsValue({ name: val });
                             }}
+                            style={{ width: '100%' }}
                         >
-                            <Radio.Button value="Hazrat Muhammad (pbuh)">Hazrat Muhammad (pbuh)</Radio.Button>
-                            <Radio.Button value="Hazrat Messiah Maoud (as)">Hazrat Messiah Maoud (as)</Radio.Button>
+                            <Radio.Button value="Hazrat Muhammad (pbuh)" style={{ width: '33.33%', textAlign: 'center', fontSize: 'clamp(11px, 2.5vw, 12px)', direction: 'rtl' }}>حضرت محمد ﷺ</Radio.Button>
+                            <Radio.Button value="Hazrat Messiah Maoud (as)" style={{ width: '33.33%', textAlign: 'center', fontSize: 'clamp(11px, 2.5vw, 12px)', direction: 'rtl' }}>حضرت مسیح موعودؑ</Radio.Button>
+                            <Radio.Button value="اضافی" style={{ width: '33.33%', textAlign: 'center', fontSize: 'clamp(11px, 2.5vw, 12px)', direction: 'rtl' }}>اضافی</Radio.Button>
                         </Radio.Group>
                     </Form.Item>
 
@@ -1099,7 +1591,7 @@ const WaqfJadeed: React.FC = () => {
                     </Form.Item>
 
                     <Row gutter={16}>
-                        <Col span={12}>
+                        <Col xs={24} sm={12}>
                             <Form.Item name="gender" label="Gender" initialValue="male">
                                 <Radio.Group>
                                     <Radio value="male">Male</Radio>
@@ -1107,7 +1599,7 @@ const WaqfJadeed: React.FC = () => {
                                 </Radio.Group>
                             </Form.Item>
                         </Col>
-                        <Col span={12}>
+                        <Col xs={24} sm={12}>
                             <Form.Item name="isDeceased" valuePropName="checked" initialValue={false}>
                                 <Checkbox>Is Deceased?</Checkbox>
                             </Form.Item>
@@ -1115,7 +1607,7 @@ const WaqfJadeed: React.FC = () => {
                     </Row>
 
                     <Row gutter={16}>
-                        <Col span={12}>
+                        <Col xs={24} sm={12}>
                             <Form.Item name="promiseAmount" label="Promised Amount" initialValue={0}>
                                 <InputNumber
                                     style={{ width: '100%' }}
@@ -1124,7 +1616,7 @@ const WaqfJadeed: React.FC = () => {
                                 />
                             </Form.Item>
                         </Col>
-                        <Col span={12}>
+                        <Col xs={24} sm={12}>
                             <Form.Item name="nagarparAmount" label="Nagarpar Amount" initialValue={0}>
                                 <InputNumber
                                     style={{ width: '100%' }}
