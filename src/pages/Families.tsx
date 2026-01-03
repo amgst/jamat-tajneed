@@ -217,7 +217,7 @@ const Families: React.FC = () => {
             updatedAt: new Date().toISOString(),
           };
           // Only include familyNumber if it has a value (Firebase doesn't accept undefined)
-          if (formData.familyNumber !== undefined && formData.familyNumber !== null && formData.familyNumber !== '') {
+          if (formData.familyNumber !== undefined && formData.familyNumber !== null) {
             updatedFamily.familyNumber = Number(formData.familyNumber);
           } else {
             // Remove the field if it's empty
@@ -241,7 +241,7 @@ const Families: React.FC = () => {
           updatedAt: new Date().toISOString(),
         };
         // Only include familyNumber if it has a value (Firebase doesn't accept undefined)
-        if (formData.familyNumber !== undefined && formData.familyNumber !== null && formData.familyNumber !== '') {
+        if (formData.familyNumber !== undefined && formData.familyNumber !== null) {
           familyData.familyNumber = Number(formData.familyNumber);
         }
         await ApiService.createFamily(familyData);

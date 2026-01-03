@@ -840,43 +840,6 @@ const WaqfJadeed: React.FC = () => {
         }
     };
 
-    const renderMemberCard = (item: NonNullable<MemberData>) => (
-        <Card
-            hoverable
-            onClick={() => handleEdit(item.member)}
-            bodyStyle={{ padding: 12 }}
-            style={{ marginBottom: 16 }}
-        >
-            <Space style={{ width: '100%', marginBottom: 12 }} size="small">
-                <Avatar size={{ xs: 40, sm: 48, md: 56 }} icon={<UserOutlined />} src={item.member.profilePhoto} />
-                <div style={{ overflow: 'hidden', flex: 1, minWidth: 0 }}>
-                    <Text strong style={{ display: 'block', fontSize: 'clamp(14px, 3.5vw, 16px)' }} ellipsis>{item.member.name}</Text>
-                    <Text type="secondary" style={{ fontSize: 'clamp(11px, 2.5vw, 12px)' }}>
-                        {item.member.halqa || 'No Halqa'} • {item.member.tanzeem}
-                    </Text>
-                </div>
-            </Space>
-
-            <div style={{ background: '#f5f5f5', padding: 8, borderRadius: 4 }}>
-                <Row justify="space-between" style={{ marginBottom: 4 }}>
-                    <Text type="secondary" style={{ fontSize: 'clamp(11px, 2.5vw, 12px)' }}>Promise:</Text>
-                    <Text strong style={{ fontSize: 'clamp(12px, 3vw, 14px)' }}>{item.promise.toLocaleString()}</Text>
-                </Row>
-                <Row justify="space-between">
-                    <Text type="secondary" style={{ fontSize: 'clamp(11px, 2.5vw, 12px)' }}>Paid:</Text>
-                    <Text strong style={{ color: item.paid >= item.promise && item.promise > 0 ? 'green' : undefined, fontSize: 'clamp(12px, 3vw, 14px)' }}>
-                        {item.paid.toLocaleString()}
-                    </Text>
-                </Row>
-                <Progress
-                    percent={item.promise > 0 ? Math.min(100, Math.round((item.paid / item.promise) * 100)) : 0}
-                    size="small"
-                    showInfo={false}
-                    strokeColor={item.paid >= item.promise ? '#52c41a' : '#1890ff'}
-                />
-            </div>
-        </Card>
-    );
 
     return (
         <div style={{ margin: 0, padding: '0 8px', width: '100%', maxWidth: '100%', boxSizing: 'border-box', paddingBottom: 80 }} className="waqf-jadeed-container">

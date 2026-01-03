@@ -678,10 +678,10 @@ const FamilyDetails: React.FC = () => {
                         <div style={{ fontWeight: 500, display: 'flex', alignItems: 'center', gap: 8 }}>
                           <span>{member.name}</span>
                           {member.isDeceased && (
-                            <Tag color="red" size="small">Deceased</Tag>
+                            <Tag color="red">Deceased</Tag>
                           )}
                           {otherFamilyName && (
-                            <Tag color="orange" size="small">In: {otherFamilyName}</Tag>
+                            <Tag color="orange">In: {otherFamilyName}</Tag>
                           )}
                         </div>
                         <Text type="secondary" style={{ fontSize: '12px' }}>
