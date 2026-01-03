@@ -209,14 +209,20 @@ const Families: React.FC = () => {
       if (editingFamily) {
         const existingFamily = await ApiService.getFamily(editingFamily.id);
         if (existingFamily) {
-          const updatedFamily = {
+          const updatedFamily: any = {
             ...existingFamily,
             familyName: formData.familyName,
-            familyNumber: formData.familyNumber || undefined,
             headId: formData.headId,
             halqa: formData.halqa || '',
             updatedAt: new Date().toISOString(),
           };
+          // Only include familyNumber if it has a value (Firebase doesn't accept undefined)
+          if (formData.familyNumber !== undefined && formData.familyNumber !== null && formData.familyNumber !== '') {
+            updatedFamily.familyNumber = Number(formData.familyNumber);
+          } else {
+            // Remove the field if it's empty
+            delete updatedFamily.familyNumber;
+          }
           await ApiService.updateFamily(editingFamily.id, updatedFamily);
           message.success('Family updated successfully');
         } else {
@@ -225,9 +231,8 @@ const Families: React.FC = () => {
         }
       } else {
         // Original logic for adding a new family
-        const familyData = {
+        const familyData: any = {
           familyName: formData.familyName,
-          familyNumber: formData.familyNumber || undefined,
           headId: formData.headId,
           memberIds: [], // Will be updated when members are assigned
           totalMembers: 0,
@@ -235,6 +240,10 @@ const Families: React.FC = () => {
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
         };
+        // Only include familyNumber if it has a value (Firebase doesn't accept undefined)
+        if (formData.familyNumber !== undefined && formData.familyNumber !== null && formData.familyNumber !== '') {
+          familyData.familyNumber = Number(formData.familyNumber);
+        }
         await ApiService.createFamily(familyData);
         message.success('Family added successfully');
       }

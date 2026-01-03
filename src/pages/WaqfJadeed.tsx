@@ -21,7 +21,8 @@ import {
     Radio,
     Checkbox,
     App,
-    Table
+    Table,
+    Tag
 } from 'antd';
 
 const { Text, Title } = Typography;
@@ -42,12 +43,12 @@ import {
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { jsPDF } from 'jspdf';
-import autoTable from 'jspdf-autotable';
 import html2canvas from 'html2canvas';
 import { ApiService } from '../services/apiService';
 import type { Member, WaqfJadeedRecord, Family, Payment, WaqfJadeedSpecialRecord } from '../types';
 import { ReceiptTemplate } from '../components/ReceiptTemplate';
 import PaymentPlanManager from '../components/PaymentPlanManager';
+import { getTanzeemDisplayName } from '../utils/helpers';
 
 const WaqfJadeed: React.FC = () => {
     const { message } = App.useApp();
@@ -360,16 +361,16 @@ const WaqfJadeed: React.FC = () => {
                 return !member.isDeceased;
             })
             .map(member => {
-                const record = records.find(r => r.memberId === member.id);
-                return {
-                    member,
-                    record,
-                    promise: (record?.promiseAmount || 0) + (record?.nagarparAmount || 0),
-                    paid: record?.paidAmount || 0,
-                    originalPromise: record?.promiseAmount || 0,
-                    nagarpar: record?.nagarparAmount || 0
-                };
-            });
+            const record = records.find(r => r.memberId === member.id);
+            return {
+                member,
+                record,
+                promise: (record?.promiseAmount || 0) + (record?.nagarparAmount || 0),
+                paid: record?.paidAmount || 0,
+                originalPromise: record?.promiseAmount || 0,
+                nagarpar: record?.nagarparAmount || 0
+            };
+        });
 
         if (searchTerm) {
             const lower = searchTerm.toLowerCase();
@@ -401,10 +402,10 @@ const WaqfJadeed: React.FC = () => {
 
     // Initialize pagination states when families change
     useEffect(() => {
-        const initialMembersPageState = {};
-        const initialSpecialPageState = {};
-        const initialMembersPageSizeState = {};
-        const initialSpecialPageSizeState = {};
+        const initialMembersPageState: Record<string, number> = {};
+        const initialSpecialPageState: Record<string, number> = {};
+        const initialMembersPageSizeState: Record<string, number> = {};
+        const initialSpecialPageSizeState: Record<string, number> = {};
         
         families.forEach(family => {
             initialMembersPageState[family.id] = 1;
@@ -558,7 +559,7 @@ const WaqfJadeed: React.FC = () => {
             `;
             
             // Helper function to determine row color based on tanzeem and promise
-            const getRowColor = (tanzeem: string | undefined, promise: number, index: number): string => {
+            const getRowColor = (tanzeem: string | undefined, promise: number): string => {
                 const isAtfalOrNasirat = tanzeem === 'atfal' || tanzeem === 'nasirat' || tanzeem === 'saf-e-awal' || tanzeem === 'saf-e-awal-girls';
                 
                 if (isAtfalOrNasirat) {
@@ -581,7 +582,7 @@ const WaqfJadeed: React.FC = () => {
             };
             
             familyMembersCtx.forEach((item, index) => {
-                const rowColor = getRowColor(item.member.tanzeem, item.promise, index);
+                const rowColor = getRowColor(item.member.tanzeem, item.promise);
                 htmlContent += `
                     <tr style="background-color: ${rowColor};">
                         <td style="border: 1px solid #ddd; padding: 6px; text-align: center;">${index + 1}</td>
@@ -961,23 +962,161 @@ const WaqfJadeed: React.FC = () => {
 
             {/* Content */}
             {activeTab === 'members' ? (
-                <List
-                    grid={{ gutter: [16, 16], xs: 1, sm: 2, md: 2, lg: 3, xl: 4 }}
+                <Card>
+                    <Table
                     dataSource={filteredMemberData}
                     loading={loading}
-                    renderItem={(item) => (
-                        <List.Item>
-                            {renderMemberCard(item)}
-                        </List.Item>
-                    )}
+                        rowKey={(record) => record.member.id}
                     pagination={{
-                        pageSize: 12,
-                        responsive: true,
-                        showSizeChanger: true,
-                        pageSizeOptions: ['6', '12', '24', '48'],
-                        showTotal: (total, range) => `${range[0]}-${range[1]} of ${total}`
-                    }}
-                />
+                            pageSize: 20,
+                            showSizeChanger: true,
+                            pageSizeOptions: ['10', '20', '50', '100'],
+                            showTotal: (total, range) => `${range[0]}-${range[1]} of ${total} members`
+                        }}
+                        scroll={{ x: 'max-content' }}
+                        onRow={(record) => ({
+                            onClick: () => handleEdit(record.member),
+                            style: { cursor: 'pointer' }
+                        })}
+                        columns={[
+                            {
+                                title: '#',
+                                key: 'serial',
+                                width: 60,
+                                render: (_, __, index) => index + 1,
+                                sorter: false
+                            },
+                            {
+                                title: 'Photo',
+                                key: 'photo',
+                                width: 80,
+                                render: (_, record) => (
+                                    <Avatar 
+                                        size="large" 
+                                        icon={<UserOutlined />} 
+                                        src={record.member.profilePhoto} 
+                                    />
+                                ),
+                                sorter: false
+                            },
+                            {
+                                title: 'Name',
+                                key: 'name',
+                                dataIndex: ['member', 'name'],
+                                sorter: (a, b) => a.member.name.localeCompare(b.member.name),
+                                render: (_, record) => (
+                                    <div>
+                                        <Text strong style={{ fontSize: '14px' }}>{record.member.name}</Text>
+                                        {record.member.fatherName && (
+                                            <div>
+                                                <Text type="secondary" style={{ fontSize: '12px' }}>
+                                                    {record.member.fatherName}
+                                                </Text>
+                                            </div>
+                                        )}
+                                    </div>
+                                )
+                            },
+                            {
+                                title: 'Halqa',
+                                key: 'halqa',
+                                dataIndex: ['member', 'halqa'],
+                                sorter: (a, b) => (a.member.halqa || '').localeCompare(b.member.halqa || ''),
+                                render: (halqa) => halqa || <Text type="secondary">No Halqa</Text>
+                            },
+                            {
+                                title: 'Tanzeem',
+                                key: 'tanzeem',
+                                dataIndex: ['member', 'tanzeem'],
+                                sorter: (a, b) => a.member.tanzeem.localeCompare(b.member.tanzeem),
+                                filters: (() => {
+                                    // Get unique tanzeem values from filtered data
+                                    const uniqueTanzeems = Array.from(new Set(filteredMemberData.map(item => item.member.tanzeem)));
+                                    return uniqueTanzeems
+                                        .sort()
+                                        .map(tanzeem => ({
+                                            text: getTanzeemDisplayName(tanzeem),
+                                            value: tanzeem
+                                        }));
+                                })(),
+                                onFilter: (value, record) => record.member.tanzeem === value,
+                                render: (tanzeem) => (
+                                    <Tag color="blue">{getTanzeemDisplayName(tanzeem)}</Tag>
+                                )
+                            },
+                            {
+                                title: 'Promise',
+                                key: 'promise',
+                                sorter: (a, b) => a.promise - b.promise,
+                                render: (_, record) => (
+                                    <Text strong style={{ fontSize: '14px' }}>
+                                        Rs. {record.promise.toLocaleString()}
+                                    </Text>
+                                ),
+                                align: 'right'
+                            },
+                            {
+                                title: 'Paid',
+                                key: 'paid',
+                                sorter: (a, b) => a.paid - b.paid,
+                                render: (_, record) => (
+                                    <Text 
+                                        strong 
+                                        style={{ 
+                                            fontSize: '14px',
+                                            color: record.paid >= record.promise && record.promise > 0 ? '#52c41a' : undefined
+                                        }}
+                                    >
+                                        Rs. {record.paid.toLocaleString()}
+                                    </Text>
+                                ),
+                                align: 'right'
+                            },
+                            {
+                                title: 'Progress',
+                                key: 'progress',
+                                sorter: (a, b) => {
+                                    const aPercent = a.promise > 0 ? (a.paid / a.promise) * 100 : 0;
+                                    const bPercent = b.promise > 0 ? (b.paid / b.promise) * 100 : 0;
+                                    return aPercent - bPercent;
+                                },
+                                render: (_, record) => {
+                                    const percent = record.promise > 0 ? Math.min(100, Math.round((record.paid / record.promise) * 100)) : 0;
+                                    return (
+                                        <div>
+                                            <Progress
+                                                percent={percent}
+                                                size="small"
+                                                strokeColor={record.paid >= record.promise && record.promise > 0 ? '#52c41a' : '#1890ff'}
+                                                format={() => `${percent}%`}
+                                            />
+                                        </div>
+                                    );
+                                },
+                                width: 150
+                            },
+                            {
+                                title: 'Actions',
+                                key: 'actions',
+                                width: 100,
+                                fixed: 'right',
+                                render: (_, record) => (
+                                    <Button
+                                        type="link"
+                                        icon={<EditOutlined />}
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleEdit(record.member);
+                                        }}
+                                    >
+                                        Edit
+                                    </Button>
+                                ),
+                                sorter: false
+                            }
+                        ]}
+                    />
+                </Card>
             ) : activeTab === 'families' ? (
                 <div className="family-list">
                     {loading ? <p>Loading...</p> : (
@@ -1055,14 +1194,14 @@ const WaqfJadeed: React.FC = () => {
                                                 showQuickJumper: true,
                                                 pageSizeOptions: ['5', '10', '20', '50'],
                                                 showTotal: (total, range) => `${range[0]}-${range[1]} of ${total} items`,
-                                                onChange: (pagination) => {
+                                                onChange: (page: number, pageSize: number) => {
                                                     setFamilyMembersCurrentPage(prev => ({
                                                         ...prev,
-                                                        [family.id]: pagination.current || 1
+                                                        [family.id]: page || 1
                                                     }));
                                                     setFamilyMembersPageSize(prev => ({
                                                         ...prev,
-                                                        [family.id]: pagination.pageSize || 10
+                                                        [family.id]: pageSize || 10
                                                     }));
                                                 }
                                             }}
@@ -1161,14 +1300,14 @@ const WaqfJadeed: React.FC = () => {
                                                     showQuickJumper: true,
                                                     pageSizeOptions: ['5', '10', '20', '50'],
                                                     showTotal: (total, range) => `${range[0]}-${range[1]} of ${total} items`,
-                                                    onChange: (pagination) => {
+                                                    onChange: (page: number, pageSize: number) => {
                                                         setFamilySpecialCurrentPage(prev => ({
                                                             ...prev,
-                                                            [family.id]: pagination.current || 1
+                                                            [family.id]: page || 1
                                                         }));
                                                         setFamilySpecialPageSize(prev => ({
                                                             ...prev,
-                                                            [family.id]: pagination.pageSize || 10
+                                                            [family.id]: pageSize || 10
                                                         }));
                                                     }
                                                 }}
@@ -1259,12 +1398,11 @@ const WaqfJadeed: React.FC = () => {
                         <Col xs={24} sm={24} md={8}>
                             <Card hoverable>
                                 <Statistic
-                                    title={`Deceased Males (${deceasedStats.deceasedMales})`}
+                                    title={<span style={{ fontSize: 'clamp(12px, 3vw, 14px)' }}>{`Deceased Males (${deceasedStats.deceasedMales})`}</span>}
                                     value={deceasedStats.malePaidAmount || 0}
                                     prefix="Rs."
                                     precision={0}
                                     valueStyle={{ fontSize: 'clamp(18px, 4.5vw, 28px)' }}
-                                    titleStyle={{ fontSize: 'clamp(12px, 3vw, 14px)' }}
                                 />
                                 <Progress
                                     percent={deceasedStats.deceasedMales > 0 ? Math.round((deceasedStats.malePaidAmount || 0) / (deceasedStats.malePromiseAmount || 1) * 100) : 0}
@@ -1280,12 +1418,11 @@ const WaqfJadeed: React.FC = () => {
                         <Col xs={24} sm={24} md={8}>
                             <Card hoverable>
                                 <Statistic
-                                    title={`Deceased Females (${deceasedStats.deceasedFemales})`}
+                                    title={<span style={{ fontSize: 'clamp(12px, 3vw, 14px)' }}>{`Deceased Females (${deceasedStats.deceasedFemales})`}</span>}
                                     value={deceasedStats.femalePaidAmount || 0}
                                     prefix="Rs."
                                     precision={0}
                                     valueStyle={{ fontSize: 'clamp(18px, 4.5vw, 28px)' }}
-                                    titleStyle={{ fontSize: 'clamp(12px, 3vw, 14px)' }}
                                 />
                                 <Progress
                                     percent={deceasedStats.deceasedFemales > 0 ? Math.round((deceasedStats.femalePaidAmount || 0) / (deceasedStats.femalePromiseAmount || 1) * 100) : 0}
@@ -1301,12 +1438,11 @@ const WaqfJadeed: React.FC = () => {
                         <Col xs={24} sm={24} md={8}>
                             <Card hoverable>
                                 <Statistic
-                                    title={`Total Deceased (${deceasedStats.deceasedMales + deceasedStats.deceasedFemales})`}
+                                    title={<span style={{ fontSize: 'clamp(12px, 3vw, 14px)' }}>{`Total Deceased (${deceasedStats.deceasedMales + deceasedStats.deceasedFemales})`}</span>}
                                     value={deceasedStats.totalDeceasedPaid || 0}
                                     prefix="Rs."
                                     precision={0}
                                     valueStyle={{ fontSize: 'clamp(18px, 4.5vw, 28px)' }}
-                                    titleStyle={{ fontSize: 'clamp(12px, 3vw, 14px)' }}
                                 />
                                 <Progress
                                     percent={deceasedStats.totalDeceasedPromise > 0 ? Math.round(deceasedStats.totalDeceasedPaid / deceasedStats.totalDeceasedPromise * 100) : 0}
@@ -1352,12 +1488,11 @@ const WaqfJadeed: React.FC = () => {
                             <List.Item>
                                 <Card hoverable>
                                     <Statistic
-                                        title={`${item.name} (${item.count})`}
+                                        title={<span style={{ fontSize: 'clamp(12px, 3vw, 14px)' }}>{`${item.name} (${item.count})`}</span>}
                                         value={item.paid}
                                         prefix="Rs."
                                         precision={0}
                                         valueStyle={{ fontSize: 'clamp(18px, 4.5vw, 28px)' }}
-                                        titleStyle={{ fontSize: 'clamp(12px, 3vw, 14px)' }}
                                     />
                                     <Progress
                                         percent={Math.round(item.percent)}
@@ -1490,13 +1625,13 @@ const WaqfJadeed: React.FC = () => {
                         <Row gutter={[8, 8]}>
                             <Col xs={24} sm={12} md={8}>
                                 <Form.Item name="amount" rules={[{ required: true, message: 'Required' }]} style={{ margin: 0 }}>
-                                    <InputNumber placeholder="Amount" style={{ width: '100%' }} />
-                                </Form.Item>
+                                <InputNumber placeholder="Amount" style={{ width: '100%' }} />
+                            </Form.Item>
                             </Col>
                             <Col xs={24} sm={12} md={10}>
                                 <Form.Item name="notes" style={{ margin: 0 }}>
-                                    <Input placeholder="Ref/Receipt #" />
-                                </Form.Item>
+                                <Input placeholder="Ref/Receipt #" />
+                            </Form.Item>
                             </Col>
                             <Col xs={24} sm={24} md={6}>
                                 <Button type="primary" htmlType="submit" icon={<PlusOutlined />} loading={submitting} block>Add</Button>

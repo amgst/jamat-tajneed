@@ -49,6 +49,7 @@ const FamilyDetails: React.FC = () => {
   const [family, setFamily] = useState<Family | null>(null);
   const [familyMembers, setFamilyMembers] = useState<Member[]>([]);
   const [allMembers, setAllMembers] = useState<Member[]>([]);
+  const [allFamilies, setAllFamilies] = useState<Family[]>([]);
   const [loading, setLoading] = useState(true);
   const [addMemberModalVisible, setAddMemberModalVisible] = useState(false);
   const [memberDetailModalVisible, setMemberDetailModalVisible] = useState(false);
@@ -75,6 +76,7 @@ const FamilyDetails: React.FC = () => {
       if (familyData) {
         setFamily(familyData);
         setAllMembers(allMembersData);
+        setAllFamilies(familiesData);
         // Get family members and sort them
         const members = allMembersData.filter((member: Member) =>
           familyData.memberIds.includes(member.id)
@@ -303,7 +305,21 @@ const FamilyDetails: React.FC = () => {
 
   // Get available members (not in current family)
   const getAvailableMembers = () => {
-    return allMembers.filter(member => !family?.memberIds.includes(member.id));
+    if (!family) return allMembers;
+    
+    // Return all members that are not in the current family
+    // This includes members with no family, members in other families, and deceased members
+    const available = allMembers.filter(member => !family.memberIds.includes(member.id));
+    
+    // Sort by name for easier selection
+    return available.sort((a, b) => a.name.localeCompare(b.name));
+  };
+
+  // Get the family name for a member (if they're in another family)
+  const getMemberFamilyName = (memberId: string): string | null => {
+    if (!family) return null;
+    const memberFamily = allFamilies.find(f => f.memberIds.includes(memberId) && f.id !== family.id);
+    return memberFamily ? memberFamily.familyName : null;
   };
 
   const getFamilyHead = () => {
@@ -641,31 +657,41 @@ const FamilyDetails: React.FC = () => {
               mode="multiple"
               placeholder="Select members to add to this family"
               style={{ width: '100%' }}
-              optionFilterProp="children"
+              optionFilterProp="label"
+              showSearch
               filterOption={(input, option) => {
-                const children = option?.label || option?.children;
-                return typeof children === 'string'
-                  ? children.toLowerCase().includes(input.toLowerCase())
-                  : false;
+                const label = option?.label as string;
+                return label ? label.toLowerCase().includes(input.toLowerCase()) : false;
               }}
             >
-              {getAvailableMembers().map(member => (
-                <Option key={member.id} value={member.id}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <Avatar
-                      size="small"
-                      src={member.profilePhoto || undefined}
-                      icon={<UserOutlined />}
-                    />
-                    <div>
-                      <div style={{ fontWeight: 500 }}>{member.name}</div>
-                      <Text type="secondary" style={{ fontSize: '12px' }}>
-                        {member.age} yrs • {getTanzeemDisplayName(member.tanzeem)} • {member.phone}
-                      </Text>
+              {getAvailableMembers().map(member => {
+                const otherFamilyName = getMemberFamilyName(member.id);
+                return (
+                  <Option key={member.id} value={member.id} label={member.name}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <Avatar
+                        size="small"
+                        src={member.profilePhoto || undefined}
+                        icon={<UserOutlined />}
+                      />
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontWeight: 500, display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <span>{member.name}</span>
+                          {member.isDeceased && (
+                            <Tag color="red" size="small">Deceased</Tag>
+                          )}
+                          {otherFamilyName && (
+                            <Tag color="orange" size="small">In: {otherFamilyName}</Tag>
+                          )}
+                        </div>
+                        <Text type="secondary" style={{ fontSize: '12px' }}>
+                          {member.age} yrs • {getTanzeemDisplayName(member.tanzeem)} • {member.phone || 'No phone'}
+                        </Text>
+                      </div>
                     </div>
-                  </div>
-                </Option>
-              ))}
+                  </Option>
+                );
+              })}
             </Select>
           </Form.Item>
 
