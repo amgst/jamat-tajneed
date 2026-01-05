@@ -107,11 +107,51 @@ const WaqfJadeed: React.FC = () => {
             ]);
             setMembers(membersData);
             setFamilies(familiesData);
-            setRecords(recordsData);
-            setSpecialRecords(Array.isArray(specialData) ? specialData : []);
+            // Filter records to ensure they match the selected year (in case API returns wrong data)
+            const filteredRecords = Array.isArray(recordsData) 
+                ? recordsData.filter(r => {
+                    // Check if year matches
+                    if (r.year !== selectedYear) {
+                        console.warn(`Record for member ${r.memberId} has year ${r.year} but selected year is ${selectedYear}`);
+                        return false;
+                    }
+                    return true;
+                })
+                : [];
+            setRecords(filteredRecords);
+            // Filter special records to ensure they match the selected year
+            const filteredSpecial = Array.isArray(specialData)
+                ? specialData.filter(r => {
+                    // Check if year matches
+                    if (r.year !== selectedYear) {
+                        console.warn(`Special record ${r.id} has year ${r.year} but selected year is ${selectedYear}`);
+                        return false;
+                    }
+                    return true;
+                })
+                : [];
+            setSpecialRecords(filteredSpecial);
             setPrevRecords(prevRecordsData);
             setPrevSpecialRecords(Array.isArray(prevSpecialData) ? prevSpecialData : []);
+            
+            // Debug logging
+            const totalPromise = filteredRecords.reduce((sum, r) => sum + (r.promiseAmount || 0) + (r.nagarparAmount || 0), 0) + 
+                               filteredSpecial.reduce((sum, r) => sum + (r.promiseAmount || 0) + (r.nagarparAmount || 0), 0);
+            console.log(`Loaded data for year ${selectedYear}:`, {
+                recordsCount: filteredRecords.length,
+                specialRecordsCount: filteredSpecial.length,
+                totalPromise: totalPromise,
+                rawRecordsCount: Array.isArray(recordsData) ? recordsData.length : 0,
+                rawSpecialCount: Array.isArray(specialData) ? specialData.length : 0
+            });
+            
+            // Warn user if no records found but raw data exists
+            if (filteredRecords.length === 0 && Array.isArray(recordsData) && recordsData.length > 0) {
+                const yearsInData = [...new Set(recordsData.map(r => r.year).filter(Boolean))];
+                console.warn(`No records found for year ${selectedYear}. Records exist for years:`, yearsInData);
+            }
         } catch (error) {
+            console.error('Error loading data:', error);
             message.error('Failed to load data');
         } finally {
             setLoading(false);
