@@ -7,14 +7,8 @@ const STORAGE_KEYS = {
   AUTH_USER: 'tajneed_auth_user'
 };
 
-// Mock admin user
-const MOCK_ADMIN: AuthUser = {
-  uid: 'admin-123',
-  email: 'admin@tajneed.com',
-  displayName: 'System Administrator'
-};
-
-const ADMIN_PASSWORD = 'admin';
+// SECURITY: Hardcoded credentials removed. This application uses Firebase Authentication exclusively.
+// Local storage authentication functions are disabled for security.
 
 // Helper functions for localStorage
 const getFromStorage = <T>(key: string): T[] => {
@@ -274,20 +268,15 @@ if (shouldForceInit) {
   }
 }
 
-// Auth Services
+// Auth Services - DISABLED FOR SECURITY
+// This application uses Firebase Authentication exclusively.
+// This function is disabled to prevent security vulnerabilities from hardcoded credentials.
 export const signIn = async (email: string, password: string): Promise<AuthUser> => {
-  return new Promise((resolve, reject) => {
-    setTimeout(() => {
-      if (email === 'admin' && password === ADMIN_PASSWORD) {
-        localStorage.setItem(STORAGE_KEYS.AUTH_USER, JSON.stringify(MOCK_ADMIN));
-        resolve(MOCK_ADMIN);
-      } else {
-        reject(new Error('Invalid username or password'));
-      }
-    }, 1000); // Simulate network delay
-  });
+  throw new Error('Local authentication is disabled. Please use Firebase Authentication.');
 };
 
+// NOTE: These functions are for data storage only, not authentication.
+// Authentication is handled by Firebase Auth via AuthContext.
 export const logout = async (): Promise<void> => {
   return new Promise((resolve) => {
     setTimeout(() => {
@@ -297,6 +286,8 @@ export const logout = async (): Promise<void> => {
   });
 };
 
+// NOTE: This function is for data storage only, not authentication.
+// Authentication state is managed by Firebase Auth via AuthContext.
 export const onAuthChange = (callback: (user: AuthUser | null) => void): (() => void) => {
   // Check for existing user
   const storedUser = localStorage.getItem(STORAGE_KEYS.AUTH_USER);

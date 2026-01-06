@@ -8,7 +8,9 @@ const useFileStorage = import.meta.env.VITE_USE_FILE_STORAGE === 'true';
 // Determine which storage to use (priority: file > json)
 const storageServices = useFileStorage ? fileServices : jsonServices;
 
-// Auth services
+// SECURITY WARNING: Auth services are disabled. This application uses Firebase Authentication exclusively.
+// These exports are kept for backward compatibility but will throw errors if called.
+// Use AuthContext (Firebase Auth) instead.
 export const signIn = storageServices.signIn;
 export const logout = storageServices.logout;
 export const onAuthChange = storageServices.onAuthChange;
