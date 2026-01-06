@@ -42,6 +42,7 @@ import { ApiService } from '../services/apiService';
 import type { Member, TahreqJadeedRecord, Family, Payment, TahreqJadeedSpecialRecord } from '../types';
 import { ReceiptTemplate } from '../components/ReceiptTemplate';
 import PaymentPlanManager from '../components/PaymentPlanManager';
+import { getTanzeemDisplayName } from '../utils/helpers';
 
 const TahreqJadeed: React.FC = () => {
     const { message } = App.useApp();
@@ -373,6 +374,35 @@ const TahreqJadeed: React.FC = () => {
         });
     }, [families, searchTerm]);
 
+    // Group members by tanzeem for Tanzeem Wise view
+    const tanzeemGroupedData = useMemo(() => {
+        const tanzeemOrder = ['ansar', 'lajna', 'khuddam', 'atfal', 'nasirat', 'saf-e-awal', 'saf-e-awal-girls'];
+        const grouped: Record<string, typeof filteredMemberData> = {};
+
+        filteredMemberData.forEach(item => {
+            const tanzeem = item.member.tanzeem || 'Unknown';
+            if (!grouped[tanzeem]) {
+                grouped[tanzeem] = [];
+            }
+            grouped[tanzeem].push(item);
+        });
+
+        // Sort tanzeem groups by predefined order
+        return tanzeemOrder
+            .filter(t => grouped[t])
+            .map(tanzeem => ({
+                tanzeem,
+                members: grouped[tanzeem],
+                totalPromise: grouped[tanzeem].reduce((sum, m) => sum + m.promise, 0),
+                totalPaid: grouped[tanzeem].reduce((sum, m) => sum + m.paid, 0),
+                count: grouped[tanzeem].length
+            }))
+            .map(group => ({
+                ...group,
+                percent: group.totalPromise > 0 ? Math.round((group.totalPaid / group.totalPromise) * 100) : 0
+            }));
+    }, [filteredMemberData]);
+
 
     // Stats
     const stats = useMemo(() => {
@@ -479,6 +509,7 @@ const TahreqJadeed: React.FC = () => {
                 <Tabs activeKey={activeTab} onChange={setActiveTab} style={{ marginTop: 12 }}>
                     <Tabs.TabPane tab="Members" key="members" />
                     <Tabs.TabPane tab="Family Wise" key="families" />
+                    <Tabs.TabPane tab="Tanzeem Wise" key="tanzeem" />
                     <Tabs.TabPane tab="Dashboard" key="dashboard" />
                 </Tabs>
             </Card>
@@ -634,6 +665,48 @@ const TahreqJadeed: React.FC = () => {
                                                 )}
                                             />
                                         </div>
+                                    </Panel>
+                                );
+                            })}
+                        </Collapse>
+                    )}
+                </div>
+            ) : activeTab === 'tanzeem' ? (
+                <div className="tanzeem-list">
+                    {loading ? <p>Loading...</p> : (
+                        <Collapse defaultActiveKey={[]} ghost>
+                            {tanzeemGroupedData.map(group => {
+                                return (
+                                    <Panel
+                                        key={group.tanzeem}
+                                        header={
+                                            <Row justify="space-between" align="middle" style={{ width: '100%' }}>
+                                                <Col>
+                                                    <Text strong>{getTanzeemDisplayName(group.tanzeem as any)}</Text>
+                                                    <br />
+                                                    <Text type="secondary" style={{ fontSize: 12 }}>
+                                                        {group.count} Members
+                                                    </Text>
+                                                </Col>
+                                                <Col style={{ textAlign: 'right' }}>
+                                                    <Text type="secondary" style={{ fontSize: 12 }}>Paid / Promise</Text>
+                                                    <div style={{ fontWeight: 500 }}>
+                                                        {group.totalPaid.toLocaleString()} / {group.totalPromise.toLocaleString()}
+                                                    </div>
+                                                    <Progress percent={group.percent} steps={5} size="small" strokeColor="#52c41a" />
+                                                </Col>
+                                            </Row>
+                                        }
+                                    >
+                                        <List
+                                            grid={{ gutter: 16, xs: 1, sm: 2, lg: 3 }}
+                                            dataSource={group.members}
+                                            renderItem={(item: any) => (
+                                                <List.Item>
+                                                    {renderMemberCard(item)}
+                                                </List.Item>
+                                            )}
+                                        />
                                     </Panel>
                                 );
                             })}

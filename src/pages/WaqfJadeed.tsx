@@ -89,6 +89,8 @@ const WaqfJadeed: React.FC = () => {
     const [familySpecialCurrentPage, setFamilySpecialCurrentPage] = useState<Record<string, number>>({});
     const [familyMembersPageSize, setFamilyMembersPageSize] = useState<Record<string, number>>({});
     const [familySpecialPageSize, setFamilySpecialPageSize] = useState<Record<string, number>>({});
+    const [tanzeemMembersCurrentPage, setTanzeemMembersCurrentPage] = useState<Record<string, number>>({});
+    const [tanzeemMembersPageSize, setTanzeemMembersPageSize] = useState<Record<string, number>>({});
 
     useEffect(() => {
         loadData();
@@ -440,6 +442,35 @@ const WaqfJadeed: React.FC = () => {
         });
     }, [families, searchTerm]);
 
+    // Group members by tanzeem for Tanzeem Wise view
+    const tanzeemGroupedData = useMemo(() => {
+        const tanzeemOrder = ['ansar', 'lajna', 'khuddam', 'atfal', 'nasirat', 'saf-e-awal', 'saf-e-awal-girls'];
+        const grouped: Record<string, typeof filteredMemberData> = {};
+
+        filteredMemberData.forEach(item => {
+            const tanzeem = item.member.tanzeem || 'Unknown';
+            if (!grouped[tanzeem]) {
+                grouped[tanzeem] = [];
+            }
+            grouped[tanzeem].push(item);
+        });
+
+        // Sort tanzeem groups by predefined order
+        return tanzeemOrder
+            .filter(t => grouped[t])
+            .map(tanzeem => ({
+                tanzeem,
+                members: grouped[tanzeem],
+                totalPromise: grouped[tanzeem].reduce((sum, m) => sum + m.promise, 0),
+                totalPaid: grouped[tanzeem].reduce((sum, m) => sum + m.paid, 0),
+                count: grouped[tanzeem].length
+            }))
+            .map(group => ({
+                ...group,
+                percent: group.totalPromise > 0 ? Math.round((group.totalPaid / group.totalPromise) * 100) : 0
+            }));
+    }, [filteredMemberData]);
+
     // Initialize pagination states when families change
     useEffect(() => {
         const initialMembersPageState: Record<string, number> = {};
@@ -459,6 +490,20 @@ const WaqfJadeed: React.FC = () => {
         setFamilyMembersPageSize(initialMembersPageSizeState);
         setFamilySpecialPageSize(initialSpecialPageSizeState);
     }, [families]);
+
+    // Initialize pagination states when tanzeem groups change
+    useEffect(() => {
+        const initialTanzeemPageState: Record<string, number> = {};
+        const initialTanzeemPageSizeState: Record<string, number> = {};
+        
+        tanzeemGroupedData.forEach(group => {
+            initialTanzeemPageState[group.tanzeem] = 1;
+            initialTanzeemPageSizeState[group.tanzeem] = 10;
+        });
+        
+        setTanzeemMembersCurrentPage(prev => ({ ...prev, ...initialTanzeemPageState }));
+        setTanzeemMembersPageSize(prev => ({ ...prev, ...initialTanzeemPageSizeState }));
+    }, [tanzeemGroupedData]);
 
 
     // Stats
@@ -927,6 +972,7 @@ const WaqfJadeed: React.FC = () => {
                 <Tabs activeKey={activeTab} onChange={setActiveTab} style={{ marginTop: 12 }} type="card">
                     <Tabs.TabPane tab="Members" key="members" />
                     <Tabs.TabPane tab="Family Wise" key="families" />
+                    <Tabs.TabPane tab="Tanzeem Wise" key="tanzeem" />
                     <Tabs.TabPane tab="Dashboard" key="dashboard" />
                 </Tabs>
             </Card>
@@ -1387,6 +1433,135 @@ const WaqfJadeed: React.FC = () => {
                                                 ]}
                                             />
                                         </div>
+                                    </Panel>
+                                );
+                            })}
+                        </Collapse>
+                    )}
+                </div>
+            ) : activeTab === 'tanzeem' ? (
+                <div className="tanzeem-list">
+                    {loading ? <p>Loading...</p> : (
+                        <Collapse defaultActiveKey={[]} ghost>
+                            {tanzeemGroupedData.map(group => {
+                                return (
+                                    <Panel
+                                        key={group.tanzeem}
+                                        header={
+                                            <Row justify="space-between" align="middle" style={{ width: '100%' }} gutter={[8, 8]}>
+                                                <Col xs={24} sm={16} md={16}>
+                                                    <Text strong style={{ fontSize: 'clamp(14px, 3.5vw, 16px)' }}>
+                                                        {getTanzeemDisplayName(group.tanzeem as any)}
+                                                    </Text>
+                                                    <br />
+                                                    <Text type="secondary" style={{ fontSize: 'clamp(11px, 2.5vw, 12px)' }}>
+                                                        {group.count} Members
+                                                    </Text>
+                                                </Col>
+                                                <Col xs={24} sm={8} md={6} style={{ textAlign: 'right' }}>
+                                                    <Text type="secondary" style={{ fontSize: 'clamp(11px, 2.5vw, 12px)' }}>Paid / Promise</Text>
+                                                    <div style={{ fontWeight: 500, fontSize: 'clamp(12px, 3vw, 14px)' }}>
+                                                        {group.totalPaid.toLocaleString()} / {group.totalPromise.toLocaleString()}
+                                                    </div>
+                                                    <Progress percent={group.percent} steps={5} size="small" strokeColor="#52c41a" />
+                                                </Col>
+                                            </Row>
+                                        }
+                                    >
+                                        {/* Table for Tanzeem Members */}
+                                        <Table
+                                            size="small"
+                                            dataSource={group.members.filter(item => item !== null)}
+                                            rowKey={(item) => item.member.id}
+                                            pagination={{
+                                                pageSize: 10,
+                                                showSizeChanger: true,
+                                                showQuickJumper: true,
+                                                pageSizeOptions: ['5', '10', '20', '50'],
+                                                showTotal: (total, range) => `${range[0]}-${range[1]} of ${total} items`,
+                                                onChange: (page: number, pageSize: number) => {
+                                                    setTanzeemMembersCurrentPage(prev => ({
+                                                        ...prev,
+                                                        [group.tanzeem]: page || 1
+                                                    }));
+                                                    setTanzeemMembersPageSize(prev => ({
+                                                        ...prev,
+                                                        [group.tanzeem]: pageSize || 10
+                                                    }));
+                                                }
+                                            }}
+                                            scroll={{ x: 'max-content' }}
+                                            columns={[{
+                                                title: '#',
+                                                key: 'serial',
+                                                width: 50,
+                                                render: (_, __, index) => {
+                                                    const currentPage = tanzeemMembersCurrentPage[group.tanzeem] || 1;
+                                                    const currentPageSize = tanzeemMembersPageSize[group.tanzeem] || 10;
+                                                    return ((currentPage - 1) * currentPageSize + index + 1);
+                                                },
+                                            },
+                                            {
+                                                title: 'Name',
+                                                dataIndex: ['member', 'name'],
+                                                key: 'name',
+                                                width: 150,
+                                                render: (name, record) => (
+                                                    <a onClick={() => handleEdit(record.member)} style={{ cursor: 'pointer' }}>
+                                                        {name}
+                                                    </a>
+                                                ),
+                                            },
+                                            {
+                                                title: 'Halqa',
+                                                key: 'halqa',
+                                                dataIndex: ['member', 'halqa'],
+                                                width: 120,
+                                                render: (halqa) => halqa || <Text type="secondary">No Halqa</Text>
+                                            },
+                                            {
+                                                title: 'Promise',
+                                                key: 'promise',
+                                                width: 100,
+                                                render: (_, record) => record?.promise?.toLocaleString() || '0',
+                                            },
+                                            {
+                                                title: 'Paid',
+                                                key: 'paid',
+                                                width: 100,
+                                                render: (_, record) => (
+                                                    <span style={{ color: record?.paid >= record?.promise && record?.promise > 0 ? 'green' : 'inherit' }}>
+                                                        {(record?.paid || 0).toLocaleString()}
+                                                    </span>
+                                                ),
+                                            },
+                                            {
+                                                title: 'Progress',
+                                                key: 'progress',
+                                                width: 120,
+                                                render: (_, record) => (
+                                                    <div style={{ width: '100px' }}>
+                                                        <Progress
+                                                            percent={record?.promise > 0 ? Math.min(100, Math.round(((record?.paid || 0) / record?.promise) * 100)) : 0}
+                                                            size="small"
+                                                            showInfo={false}
+                                                            strokeColor={record?.paid >= record?.promise ? '#52c41a' : '#1890ff'}
+                                                        />
+                                                    </div>
+                                                ),
+                                            },
+                                            {
+                                                title: 'Actions',
+                                                key: 'actions',
+                                                width: 80,
+                                                render: (_, record) => (
+                                                    <Space size="small">
+                                                        <Button size="small" icon={<EditOutlined />} onClick={() => handleEdit(record.member)} />
+                                                    </Space>
+                                                ),
+                                            },
+                                            ]}
+                                        />
                                     </Panel>
                                 );
                             })}
