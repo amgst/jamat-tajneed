@@ -793,6 +793,8 @@ const WaqfJadeed: React.FC = () => {
             const canvas = await html2canvas(printDiv, {
                 scale: 2,
                 useCORS: true,
+                logging: false
+                useCORS: true,
                 logging: false,
                 backgroundColor: '#ffffff',
                 onclone: (clonedDoc) => {
@@ -827,6 +829,192 @@ const WaqfJadeed: React.FC = () => {
             }
             
             pdf.save(`${family.familyName.replace(/\s+/g, '_')}_waqf_${selectedYear}.pdf`);
+            message.success({ content: 'PDF generated successfully with Urdu support!', key: 'pdf-export' });
+        } catch (error) {
+            console.error('Error generating PDF:', error);
+            message.error({ content: 'Failed to generate PDF', key: 'pdf-export' });
+        }
+    };
+
+    const handleExportTanzeemPDF = async (group: typeof tanzeemGroupedData[0]) => {
+        try {
+            message.loading({ content: 'Generating PDF with Urdu support...', key: 'pdf-export', duration: 0 });
+            
+            // Create a temporary HTML element with proper Urdu rendering
+            const printDiv = document.createElement('div');
+            printDiv.style.position = 'absolute';
+            printDiv.style.left = '-9999px';
+            printDiv.style.width = '210mm'; // A4 width
+            printDiv.style.padding = '20px';
+            printDiv.style.fontFamily = 'Arial, "Noto Sans Arabic", "Al Qalam Taj Nastaleeq", sans-serif';
+            printDiv.style.direction = 'rtl';
+            printDiv.style.unicodeBidi = 'embed';
+            printDiv.style.backgroundColor = 'white';
+            printDiv.style.color = 'black';
+            
+            const tanzeemDisplayName = getTanzeemDisplayName(group.tanzeem as any);
+            
+            // Build HTML content
+            let htmlContent = `
+                <div style="text-align: center; margin-bottom: 20px;">
+                    <h1 style="font-size: 24px; margin: 0; font-weight: bold;">${tanzeemDisplayName} - Waqf-e-Jadeed ${selectedYear}</h1>
+                </div>
+                <div style="margin-bottom: 15px; font-size: 12px; direction: rtl; text-align: right;">
+                    <p style="margin: 5px 0;">
+                        <strong>تنظیم:</strong> ${tanzeemDisplayName} |
+                        <strong>کل اراکین:</strong> ${group.count}
+                    </p>
+                    <p style="margin: 5px 0;">
+                        <strong>کل وعدہ شدہ رقم:</strong> روپے ${group.totalPromise.toLocaleString()} |
+                        <strong>کل ادا شدہ رقم:</strong> روپے ${group.totalPaid.toLocaleString()} |
+                        <strong>پیش رفت:</strong> ${group.percent}%
+                    </p>
+                </div>
+
+                <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 10px;" dir="rtl">
+                    <thead>
+                        <tr style="background-color: #1890ff; color: white;">
+                            <th style="border: 1px solid #ddd; padding: 8px; text-align: center; direction: rtl;">نمبر</th>
+                            <th style="border: 1px solid #ddd; padding: 8px; text-align: right; direction: rtl;">نام</th>
+                            <th style="border: 1px solid #ddd; padding: 8px; text-align: right; direction: rtl;">حلقہ</th>
+                            <th style="border: 1px solid #ddd; padding: 8px; text-align: center; direction: rtl;">وعدہ + نگرپار</th>
+                            <th style="border: 1px solid #ddd; padding: 8px; text-align: center; direction: rtl;">ادا شدہ</th>
+                            <th style="border: 1px solid #ddd; padding: 8px; text-align: center; direction: rtl;">پیش رفت</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+            
+            // Helper function to determine row color based on tanzeem and promise
+            const getRowColor = (tanzeem: string | undefined, promise: number): string => {
+                const isAtfalOrNasirat = tanzeem === 'atfal' || tanzeem === 'nasirat' || tanzeem === 'saf-e-awal' || tanzeem === 'saf-e-awal-girls';
+                
+                if (isAtfalOrNasirat) {
+                    // Atfal/Nasirat/Saf-e-Awal: Light blue if >= 1000, Yellow if < 1000
+                    if (promise >= 1000) {
+                        return '#e6f7ff'; // Light blue - consistent color
+                    } else {
+                        return '#fff7e6'; // Light yellow/orange - consistent color
+                    }
+                } else {
+                    // Others (Khuddam, Lajna, Ansar): Stage 1 (>=5000) or Stage 2 (>=2500)
+                    if (promise >= 5000) {
+                        return '#f6ffed'; // Light green (Stage 1) - consistent color
+                    } else if (promise >= 2500) {
+                        return '#fff1f0'; // Light red/pink (Stage 2) - consistent color
+                    } else {
+                        return '#ffffff'; // Default white - consistent color
+                    }
+                }
+            };
+            
+            group.members.forEach((item, index) => {
+                const rowColor = getRowColor(item.member.tanzeem, item.promise);
+                htmlContent += `
+                    <tr style="background-color: ${rowColor};">
+                        <td style="border: 1px solid #ddd; padding: 6px; text-align: center;">${index + 1}</td>
+                        <td style="border: 1px solid #ddd; padding: 6px; text-align: right; direction: rtl; unicode-bidi: embed;">${item.member.name}</td>
+                        <td style="border: 1px solid #ddd; padding: 6px; text-align: right; direction: rtl; unicode-bidi: embed;">${item.member.halqa || 'N/A'}</td>
+                        <td style="border: 1px solid #ddd; padding: 6px; text-align: center;">Rs. ${item.promise.toLocaleString()}</td>
+                        <td style="border: 1px solid #ddd; padding: 6px; text-align: center;">Rs. ${item.paid.toLocaleString()}</td>
+                        <td style="border: 1px solid #ddd; padding: 6px; text-align: center;">${item.promise > 0 ? Math.round((item.paid / item.promise) * 100) : 0}%</td>
+                    </tr>
+                `;
+            });
+            
+            htmlContent += '</tbody></table>';
+            
+            // Add footer notes with color legend in Urdu
+            htmlContent += `
+<div style="margin-top: 30px; padding: 15px; background-color: #fafafa; border: 1px solid #ddd; border-radius: 5px; font-size: 10px; direction: rtl; text-align: right;">
+    <h4 style="margin: 0 0 10px 0; font-size: 12px; font-weight: bold; text-align: center; direction: rtl;">
+        وعدہ کی ہدایات اور رنگوں کی وضاحت
+    </h4>
+
+    <div style="margin-bottom: 10px; direction: rtl;">
+        <p style="margin: 5px 0; direction: rtl;">
+            <strong>اطفال اور ناصرات کے لیے:</strong>
+        </p>
+
+        <div style="display: inline-block; width: 20px; height: 15px; background-color: #e6f7ff; border: 1px solid #91d5ff; margin-left: 8px; vertical-align: middle;"></div>
+        <span style="margin-left: 20px; direction: rtl;">
+            اچھا وعدہ: کم از کم 1,000 روپے یا اس سے زیادہ
+        </span>
+
+        <br style="margin-top: 5px;">
+
+        <div style="display: inline-block; width: 20px; height: 15px; background-color: #fff7e6; border: 1px solid #ffd591; margin-left: 8px; vertical-align: middle; margin-top: 5px;"></div>
+        <span style="margin-left: 20px; direction: rtl;">
+            کم از کم سے کم: 1,000 روپے سے کم
+        </span>
+    </div>
+
+    <div style="margin-top: 10px; direction: rtl;">
+        <p style="margin: 5px 0; direction: rtl;">
+            <strong>دیگر افراد کے لیے (خدام، لجنہ، انصار وغیرہ):</strong>
+        </p>
+
+        <div style="display: inline-block; width: 20px; height: 15px; background-color: #f6ffed; border: 1px solid #b7eb8f; margin-left: 8px; vertical-align: middle;"></div>
+        <span style="margin-left: 20px; direction: rtl;">
+            پہلا معیار: 5,000 روپے یا اس سے زیادہ
+        </span>
+
+        <br style="margin-top: 5px;">
+
+        <div style="display: inline-block; width: 20px; height: 15px; background-color: #fff1f0; border: 1px solid #ffccc7; margin-left: 8px; vertical-align: middle; margin-top: 5px;"></div>
+        <span style="margin-left: 20px; direction: rtl;">
+            دوسرا معیار: 2,500 روپے یا اس سے زیادہ (لیکن 5,000 روپے سے کم)
+        </span>
+
+        <br style="margin-top: 5px;">
+
+        <div style="display: inline-block; width: 20px; height: 15px; background-color: #ffffff; border: 1px solid #d9d9d9; margin-left: 8px; vertical-align: middle; margin-top: 5px;"></div>
+        <span style="margin-left: 20px; direction: rtl;">
+            دوسرے معیار سے کم: 2,500 روپے سے کم
+        </span>
+    </div>
+</div>
+
+                </div>
+                <div style="margin-top: 15px; font-size: 10px; text-align: center; color: #666; direction: rtl;">
+                    <p>تیار کیا گیا: ${new Date().toLocaleDateString()}</p>
+                </div>
+            `;
+            
+            printDiv.innerHTML = htmlContent;
+            document.body.appendChild(printDiv);
+            
+            // Convert to canvas with high quality
+            const canvas = await html2canvas(printDiv, {
+                scale: 2,
+                useCORS: true,
+                logging: false
+            });
+            
+            // Remove temporary element
+            document.body.removeChild(printDiv);
+            
+            // Convert canvas to PDF
+            const imgData = canvas.toDataURL('image/png');
+            const pdf = new jsPDF('p', 'mm', 'a4');
+            const imgWidth = 210; // A4 width in mm
+            const pageHeight = 297; // A4 height in mm
+            const imgHeight = (canvas.height * imgWidth) / canvas.width;
+            let heightLeft = imgHeight;
+            let position = 0;
+            
+            pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+            heightLeft -= pageHeight;
+            
+            while (heightLeft > 0) {
+                position = heightLeft - imgHeight;
+                pdf.addPage();
+                pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+                heightLeft -= pageHeight;
+            }
+            
+            const tanzeemFileName = tanzeemDisplayName.replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_]/g, '');
+            pdf.save(`${tanzeemFileName}_waqf_${selectedYear}.pdf`);
             message.success({ content: 'PDF generated successfully with Urdu support!', key: 'pdf-export' });
         } catch (error) {
             console.error('Error generating PDF:', error);
@@ -1465,6 +1653,18 @@ const WaqfJadeed: React.FC = () => {
                                                     </div>
                                                     <Progress percent={group.percent} steps={5} size="small" strokeColor="#52c41a" />
                                                 </Col>
+                                                <Col xs={24} sm={24} md={2} style={{ textAlign: 'right' }}>
+                                                    <Button
+                                                        type="text"
+                                                        icon={<FilePdfOutlined />}
+                                                        size="small"
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            handleExportTanzeemPDF(group);
+                                                        }}
+                                                        title="Export to PDF"
+                                                    />
+                                                </Col>
                                             </Row>
                                         }
                                     >
@@ -1474,10 +1674,11 @@ const WaqfJadeed: React.FC = () => {
                                             dataSource={group.members.filter(item => item !== null)}
                                             rowKey={(item) => item.member.id}
                                             pagination={{
-                                                pageSize: 10,
+                                                current: tanzeemMembersCurrentPage[group.tanzeem] || 1,
+                                                pageSize: tanzeemMembersPageSize[group.tanzeem] || 10,
                                                 showSizeChanger: true,
                                                 showQuickJumper: true,
-                                                pageSizeOptions: ['5', '10', '20', '50'],
+                                                pageSizeOptions: ['5', '10', '20', '50', '100'],
                                                 showTotal: (total, range) => `${range[0]}-${range[1]} of ${total} items`,
                                                 onChange: (page: number, pageSize: number) => {
                                                     setTanzeemMembersCurrentPage(prev => ({
@@ -1487,6 +1688,16 @@ const WaqfJadeed: React.FC = () => {
                                                     setTanzeemMembersPageSize(prev => ({
                                                         ...prev,
                                                         [group.tanzeem]: pageSize || 10
+                                                    }));
+                                                },
+                                                onShowSizeChange: (current: number, size: number) => {
+                                                    setTanzeemMembersCurrentPage(prev => ({
+                                                        ...prev,
+                                                        [group.tanzeem]: 1
+                                                    }));
+                                                    setTanzeemMembersPageSize(prev => ({
+                                                        ...prev,
+                                                        [group.tanzeem]: size || 10
                                                     }));
                                                 }
                                             }}
