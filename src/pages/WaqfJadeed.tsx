@@ -49,6 +49,7 @@ import type { Member, WaqfJadeedRecord, Family, Payment, WaqfJadeedSpecialRecord
 import { ReceiptTemplate } from '../components/ReceiptTemplate';
 import PaymentPlanManager from '../components/PaymentPlanManager';
 import { getTanzeemDisplayName } from '../utils/helpers';
+import { validateNumber, sanitizeInput, validateName } from '../utils/validation';
 
 const WaqfJadeed: React.FC = () => {
     const { message } = App.useApp();
@@ -201,13 +202,31 @@ const WaqfJadeed: React.FC = () => {
         setSubmitting(true);
         try {
             const values = await form.validateFields();
+            
+            // Validate and sanitize numeric inputs
+            
+            const promiseAmount = values.promiseAmount || 0;
+            const nagarparAmount = values.nagarparAmount || 0;
+            
+            if (!validateNumber(promiseAmount, 0, 10000000)) {
+                message.error('Promise amount must be between 0 and 10,000,000');
+                setSubmitting(false);
+                return;
+            }
+            
+            if (!validateNumber(nagarparAmount, 0, 10000000)) {
+                message.error('Nagarpar amount must be between 0 and 10,000,000');
+                setSubmitting(false);
+                return;
+            }
+            
             if (editingMember) {
                 // Member update
                 const payload = {
                     memberId: editingMember.id,
                     year: selectedYear,
-                    promiseAmount: values.promiseAmount,
-                    nagarparAmount: values.nagarparAmount,
+                    promiseAmount: Math.round(promiseAmount),
+                    nagarparAmount: Math.round(nagarparAmount),
                 };
 
                 const savedRecord = await ApiService.saveWaqfJadeedRecord(payload);
@@ -218,8 +237,8 @@ const WaqfJadeed: React.FC = () => {
                 // Special record update
                 const payload = {
                     ...editingSpecial,
-                    promiseAmount: values.promiseAmount,
-                    nagarparAmount: values.nagarparAmount,
+                    promiseAmount: Math.round(promiseAmount),
+                    nagarparAmount: Math.round(nagarparAmount),
                 };
                 const saved = await ApiService.saveWaqfJadeedSpecialRecord(payload);
                 setSpecialRecords(prev => {
@@ -249,13 +268,22 @@ const WaqfJadeed: React.FC = () => {
             if (!editingMember && !editingSpecial) return;
             setSubmitting(true);
 
+            // Validate payment amount
+            
+            const amount = values.amount || 0;
+            if (!validateNumber(amount, 1, 10000000)) {
+                message.error('Payment amount must be between 1 and 10,000,000');
+                setSubmitting(false);
+                return;
+            }
+
             if (editingMember) {
                 const payload = {
                     memberId: editingMember.id,
                     year: selectedYear,
-                    amount: values.amount,
+                    amount: Math.round(amount),
                     date: dayjs().toISOString(),
-                    notes: values.notes
+                    notes: values.notes ? sanitizeInput(values.notes, { maxLength: 500 }) : ''
                 };
 
                 const updatedRecord = await ApiService.addWaqfJadeedPayment(payload);
@@ -265,9 +293,9 @@ const WaqfJadeed: React.FC = () => {
             } else if (editingSpecial) {
                 const payload = {
                     specialId: editingSpecial.id,
-                    amount: values.amount,
+                    amount: Math.round(amount),
                     date: dayjs().toISOString(),
-                    notes: values.notes
+                    notes: values.notes ? sanitizeInput(values.notes, { maxLength: 500 }) : ''
                 };
                 const updatedRecord = await ApiService.addWaqfJadeedSpecialPayment(payload);
                 if (updatedRecord) {
@@ -335,15 +363,40 @@ const WaqfJadeed: React.FC = () => {
         setSubmitting(true);
         try {
             const values = await specialForm.validateFields();
+            
+            // Validate and sanitize input
+            
+            const name = sanitizeInput(values.name || '', { maxLength: 100 });
+            if (!name || !validateName(name)) {
+                message.error('Name is required and must be valid');
+                setSubmitting(false);
+                return;
+            }
+            
+            const promiseAmount = values.promiseAmount || 0;
+            const nagarparAmount = values.nagarparAmount || 0;
+            
+            if (!validateNumber(promiseAmount, 0, 10000000)) {
+                message.error('Promise amount must be between 0 and 10,000,000');
+                setSubmitting(false);
+                return;
+            }
+            
+            if (!validateNumber(nagarparAmount, 0, 10000000)) {
+                message.error('Nagarpar amount must be between 0 and 10,000,000');
+                setSubmitting(false);
+                return;
+            }
+            
             const payload = {
                 id: values.id,
                 familyId: activeFamilyId,
                 year: selectedYear,
-                name: values.name,
+                name: name,
                 gender: values.gender,
                 isDeceased: !!values.isDeceased, // Ensure boolean
-                promiseAmount: values.promiseAmount || 0,
-                nagarparAmount: values.nagarparAmount || 0,
+                promiseAmount: Math.round(promiseAmount),
+                nagarparAmount: Math.round(nagarparAmount),
             };
             const saved = await ApiService.saveWaqfJadeedSpecialRecord(payload);
 
@@ -792,8 +845,6 @@ const WaqfJadeed: React.FC = () => {
             // Convert to canvas with high quality
             const canvas = await html2canvas(printDiv, {
                 scale: 2,
-                useCORS: true,
-                logging: false
                 useCORS: true,
                 logging: false,
                 backgroundColor: '#ffffff',
@@ -1690,7 +1741,7 @@ const WaqfJadeed: React.FC = () => {
                                                         [group.tanzeem]: pageSize || 10
                                                     }));
                                                 },
-                                                onShowSizeChange: (current: number, size: number) => {
+                                                onShowSizeChange: (_current: number, size: number) => {
                                                     setTanzeemMembersCurrentPage(prev => ({
                                                         ...prev,
                                                         [group.tanzeem]: 1

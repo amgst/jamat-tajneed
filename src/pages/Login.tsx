@@ -37,8 +37,22 @@ const Login: React.FC = () => {
       setTimeout(() => navigate(from, { replace: true }), 100);
     } catch (err: any) {
       console.error(err);
-      if (err.code === 'auth/invalid-credential') {
-        setError('Invalid email or password.');
+      
+      if (err.code === 'auth/too-many-requests' || err.code === 'auth/too-many-requests') {
+        const resetTime = err.rateLimitInfo?.resetTime;
+        if (resetTime) {
+          const minutesUntilReset = Math.ceil((resetTime - Date.now()) / (1000 * 60));
+          setError(`Too many failed login attempts. Please try again in ${minutesUntilReset} minute(s).`);
+        } else {
+          setError('Too many failed login attempts. Please try again later.');
+        }
+      } else if (err.code === 'auth/invalid-credential') {
+        const remainingAttempts = err.rateLimitInfo?.remainingAttempts;
+        if (remainingAttempts !== undefined && remainingAttempts > 0) {
+          setError(`Invalid email or password. ${remainingAttempts} attempt(s) remaining.`);
+        } else {
+          setError('Invalid email or password.');
+        }
       } else {
         setError('Failed to sign in. Please check your connection.');
       }

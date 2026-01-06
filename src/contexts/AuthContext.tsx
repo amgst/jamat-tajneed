@@ -6,6 +6,7 @@ import {
 } from 'firebase/auth';
 import { auth } from '../lib/firebase';
 import type { AuthUser } from '../types';
+import { checkRateLimit, recordFailedAttempt, recordSuccess, getClientIdentifier } from '../utils/rateLimiter';
 
 export interface AuthContextType {
   user: AuthUser | null;
@@ -39,10 +40,45 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const login = async (email: string, pass: string) => {
     setLoading(true);
+    
+    // Check rate limiting
+    const identifier = getClientIdentifier();
+    const rateLimitCheck = checkRateLimit(identifier);
+    
+    if (!rateLimitCheck.allowed) {
+      setLoading(false);
+      const error = new Error('Too many failed login attempts. Please try again later.');
+      (error as any).code = 'auth/too-many-requests';
+      (error as any).rateLimitInfo = {
+        blocked: rateLimitCheck.blocked,
+        resetTime: rateLimitCheck.resetTime,
+        remainingAttempts: rateLimitCheck.remainingAttempts
+      };
+      throw error;
+    }
+    
     try {
       await signInWithEmailAndPassword(auth, email, pass);
-    } catch (error) {
+      // Success - reset rate limit
+      recordSuccess(identifier);
+    } catch (error: any) {
       setLoading(false);
+      // Record failed attempt
+      recordFailedAttempt(identifier);
+      
+      // Check if blocked after this attempt
+      const newRateLimitCheck = checkRateLimit(identifier);
+      if (newRateLimitCheck.blocked) {
+        const rateLimitError = new Error('Too many failed login attempts. Your account is temporarily blocked.');
+        (rateLimitError as any).code = 'auth/too-many-requests';
+        (rateLimitError as any).rateLimitInfo = {
+          blocked: true,
+          resetTime: newRateLimitCheck.resetTime,
+          remainingAttempts: 0
+        };
+        throw rateLimitError;
+      }
+      
       throw error;
     }
   };

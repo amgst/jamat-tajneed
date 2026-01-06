@@ -271,7 +271,7 @@ if (shouldForceInit) {
 // Auth Services - DISABLED FOR SECURITY
 // This application uses Firebase Authentication exclusively.
 // This function is disabled to prevent security vulnerabilities from hardcoded credentials.
-export const signIn = async (email: string, password: string): Promise<AuthUser> => {
+export const signIn = async (_email: string, _password: string): Promise<AuthUser> => {
   throw new Error('Local authentication is disabled. Please use Firebase Authentication.');
 };
 

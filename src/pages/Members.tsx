@@ -46,6 +46,7 @@ import {
   exportToCSV
 } from '../utils/helpers';
 import { processImageFile, generateAvatarFromName } from '../utils/imageUtils';
+import { validateMemberData, sanitizeMemberData } from '../utils/validation';
 
 const { Option } = Select;
 const { Text } = Typography;
@@ -263,7 +264,8 @@ const Members: React.FC = () => {
       const age = calculateAge(formData.dateOfBirth.format('YYYY-MM-DD'));
       const tanzeem = determineTanzeem(age, formData.gender);
 
-      const memberData: any = {
+      // Prepare member data
+      const memberDataRaw: any = {
         name: formData.name,
         fatherName: formData.fatherName || '',
         husbandName: formData.husbandName || '',
@@ -285,8 +287,19 @@ const Members: React.FC = () => {
 
       // Only add dateOfDeath if it has a value (Firebase doesn't accept undefined)
       if (formData.dateOfDeath) {
-        memberData.dateOfDeath = formData.dateOfDeath.format('YYYY-MM-DD');
+        memberDataRaw.dateOfDeath = formData.dateOfDeath.format('YYYY-MM-DD');
       }
+
+      // Validate and sanitize input
+      const validation = validateMemberData(memberDataRaw);
+      
+      if (!validation.valid) {
+        message.error(`Validation failed: ${validation.errors.join(', ')}`);
+        return;
+      }
+
+      // Sanitize all input data
+      const memberData = sanitizeMemberData(memberDataRaw);
 
       if (editingMember) {
         await ApiService.updateMember(editingMember.id, memberData);

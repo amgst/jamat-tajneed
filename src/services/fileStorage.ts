@@ -117,12 +117,12 @@ const initializeSampleData = async () => {
 // Auth Services - DISABLED FOR SECURITY
 // This application uses Firebase Authentication exclusively.
 // These functions are disabled to prevent security vulnerabilities from hardcoded credentials.
-export const signIn = async (pin: string): Promise<AuthUser> => {
+export const signIn = async (_pin: string): Promise<AuthUser> => {
   throw new Error('Local authentication is disabled. Please use Firebase Authentication.');
 };
 
 // Legacy signIn function - DISABLED FOR SECURITY
-export const signInWithCredentials = async (email: string, password: string): Promise<AuthUser> => {
+export const signInWithCredentials = async (_email: string, _password: string): Promise<AuthUser> => {
   throw new Error('Local authentication is disabled. Please use Firebase Authentication.');
 };
 
