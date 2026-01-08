@@ -31,13 +31,13 @@ export const determineTanzeem = (age: number, gender: 'male' | 'female'): Tanzee
  */
 export const getTanzeemDisplayName = (tanzeem: Tanzeem): string => {
   const names: Record<Tanzeem, string> = {
-    'saf-e-awal': 'Saf-e-Awal',
-    'saf-e-awal-girls': 'Saf-e-Awal (Girls)',
-    'atfal': 'Atfal',
+    'saf-e-awal': 'اطفال- صف اول',
+    'saf-e-awal-girls': 'اطفال- صف اول (Girls)',
+    'atfal': 'اطفال',
     'nasirat': 'Nasirat',
-    'khuddam': 'Khuddam',
-    'lajna': 'Lajna',
-    'ansar': 'Ansar'
+    'khuddam': 'خدام الحمدیہ',
+    'lajna': 'لجنہ',
+    'ansar': 'انصار اللہ'
   };
   return names[tanzeem];
 };
