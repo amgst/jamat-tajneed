@@ -34,7 +34,7 @@ export const getTanzeemDisplayName = (tanzeem: Tanzeem): string => {
     'saf-e-awal': 'اطفال- صف اول',
     'saf-e-awal-girls': 'اطفال- صف اول (Girls)',
     'atfal': 'اطفال',
-    'nasirat': 'Nasirat',
+    'nasirat': 'ناصرات',
     'khuddam': 'خدام الحمدیہ',
     'lajna': 'لجنہ',
     'ansar': 'انصار اللہ'

@@ -725,7 +725,7 @@ const WaqfJadeed: React.FC = () => {
                     <tr style="background-color: ${rowColor};">
                         <td style="border: 1px solid #ddd; padding: 6px; text-align: center;">${index + 1}</td>
                         <td style="border: 1px solid #ddd; padding: 6px; text-align: right; direction: rtl; unicode-bidi: embed;">${item.member.name}</td>
-                        <td style="border: 1px solid #ddd; padding: 6px; text-align: right; direction: rtl; unicode-bidi: embed;">${item.member.tanzeem || ''}</td>
+                        <td style="border: 1px solid #ddd; padding: 6px; text-align: right; direction: rtl; unicode-bidi: embed;">${getTanzeemDisplayName(item.member.tanzeem as any) || ''}</td>
                         <td style="border: 1px solid #ddd; padding: 6px; text-align: right; direction: rtl; unicode-bidi: embed;">${family.halqa || ''}</td>
                         <td style="border: 1px solid #ddd; padding: 6px; text-align: center;">Rs. ${item.promise.toLocaleString()}</td>
                         <td style="border: 1px solid #ddd; padding: 6px; text-align: center;">Rs. ${item.paid.toLocaleString()}</td>
