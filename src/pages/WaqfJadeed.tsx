@@ -49,7 +49,6 @@ import type { Member, WaqfJadeedRecord, Family, Payment, WaqfJadeedSpecialRecord
 import { ReceiptTemplate } from '../components/ReceiptTemplate';
 import PaymentPlanManager from '../components/PaymentPlanManager';
 import { getTanzeemDisplayName } from '../utils/helpers';
-import { validateNumber, sanitizeInput, validateName } from '../utils/validation';
 
 const WaqfJadeed: React.FC = () => {
     const { message } = App.useApp();
@@ -65,6 +64,9 @@ const WaqfJadeed: React.FC = () => {
     const [selectedYear, setSelectedYear] = useState<number>(2026);
     const [searchTerm, setSearchTerm] = useState('');
     const [activeTab, setActiveTab] = useState('families');
+
+    // Target amount state (stored per year in localStorage)
+    const [targetAmount, setTargetAmount] = useState<number>(0);
 
     // Drawer & Edit State
     const [drawerVisible, setDrawerVisible] = useState(false);
@@ -95,7 +97,22 @@ const WaqfJadeed: React.FC = () => {
 
     useEffect(() => {
         loadData();
+        // Load target amount for selected year from localStorage
+        const savedTarget = localStorage.getItem(`waqf_target_${selectedYear}`);
+        if (savedTarget) {
+            setTargetAmount(parseFloat(savedTarget) || 0);
+        } else {
+            setTargetAmount(0);
+        }
     }, [selectedYear]);
+
+    // Handler to save target amount
+    const handleTargetChange = (value: number | null) => {
+        const target = value || 0;
+        setTargetAmount(target);
+        localStorage.setItem(`waqf_target_${selectedYear}`, target.toString());
+        message.success('Target amount saved');
+    };
 
     const loadData = async () => {
         setLoading(true);
@@ -111,7 +128,7 @@ const WaqfJadeed: React.FC = () => {
             setMembers(membersData);
             setFamilies(familiesData);
             // Filter records to ensure they match the selected year (in case API returns wrong data)
-            const filteredRecords = Array.isArray(recordsData) 
+            const filteredRecords = Array.isArray(recordsData)
                 ? recordsData.filter(r => {
                     // Check if year matches
                     if (r.year !== selectedYear) {
@@ -136,10 +153,10 @@ const WaqfJadeed: React.FC = () => {
             setSpecialRecords(filteredSpecial);
             setPrevRecords(prevRecordsData);
             setPrevSpecialRecords(Array.isArray(prevSpecialData) ? prevSpecialData : []);
-            
+
             // Debug logging
-            const totalPromise = filteredRecords.reduce((sum, r) => sum + (r.promiseAmount || 0) + (r.nagarparAmount || 0), 0) + 
-                               filteredSpecial.reduce((sum, r) => sum + (r.promiseAmount || 0) + (r.nagarparAmount || 0), 0);
+            const totalPromise = filteredRecords.reduce((sum, r) => sum + (r.promiseAmount || 0) + (r.nagarparAmount || 0), 0) +
+                filteredSpecial.reduce((sum, r) => sum + (r.promiseAmount || 0) + (r.nagarparAmount || 0), 0);
             console.log(`Loaded data for year ${selectedYear}:`, {
                 recordsCount: filteredRecords.length,
                 specialRecordsCount: filteredSpecial.length,
@@ -147,7 +164,7 @@ const WaqfJadeed: React.FC = () => {
                 rawRecordsCount: Array.isArray(recordsData) ? recordsData.length : 0,
                 rawSpecialCount: Array.isArray(specialData) ? specialData.length : 0
             });
-            
+
             // Warn user if no records found but raw data exists
             if (filteredRecords.length === 0 && Array.isArray(recordsData) && recordsData.length > 0) {
                 const yearsInData = [...new Set(recordsData.map(r => r.year).filter(Boolean))];
@@ -202,31 +219,13 @@ const WaqfJadeed: React.FC = () => {
         setSubmitting(true);
         try {
             const values = await form.validateFields();
-            
-            // Validate and sanitize numeric inputs
-            
-            const promiseAmount = values.promiseAmount || 0;
-            const nagarparAmount = values.nagarparAmount || 0;
-            
-            if (!validateNumber(promiseAmount, 0, 10000000)) {
-                message.error('Promise amount must be between 0 and 10,000,000');
-                setSubmitting(false);
-                return;
-            }
-            
-            if (!validateNumber(nagarparAmount, 0, 10000000)) {
-                message.error('Nagarpar amount must be between 0 and 10,000,000');
-                setSubmitting(false);
-                return;
-            }
-            
             if (editingMember) {
                 // Member update
                 const payload = {
                     memberId: editingMember.id,
                     year: selectedYear,
-                    promiseAmount: Math.round(promiseAmount),
-                    nagarparAmount: Math.round(nagarparAmount),
+                    promiseAmount: values.promiseAmount,
+                    nagarparAmount: values.nagarparAmount,
                 };
 
                 const savedRecord = await ApiService.saveWaqfJadeedRecord(payload);
@@ -237,8 +236,8 @@ const WaqfJadeed: React.FC = () => {
                 // Special record update
                 const payload = {
                     ...editingSpecial,
-                    promiseAmount: Math.round(promiseAmount),
-                    nagarparAmount: Math.round(nagarparAmount),
+                    promiseAmount: values.promiseAmount,
+                    nagarparAmount: values.nagarparAmount,
                 };
                 const saved = await ApiService.saveWaqfJadeedSpecialRecord(payload);
                 setSpecialRecords(prev => {
@@ -268,22 +267,13 @@ const WaqfJadeed: React.FC = () => {
             if (!editingMember && !editingSpecial) return;
             setSubmitting(true);
 
-            // Validate payment amount
-            
-            const amount = values.amount || 0;
-            if (!validateNumber(amount, 1, 10000000)) {
-                message.error('Payment amount must be between 1 and 10,000,000');
-                setSubmitting(false);
-                return;
-            }
-
             if (editingMember) {
                 const payload = {
                     memberId: editingMember.id,
                     year: selectedYear,
-                    amount: Math.round(amount),
+                    amount: values.amount,
                     date: dayjs().toISOString(),
-                    notes: values.notes ? sanitizeInput(values.notes, { maxLength: 500 }) : ''
+                    notes: values.notes
                 };
 
                 const updatedRecord = await ApiService.addWaqfJadeedPayment(payload);
@@ -293,9 +283,9 @@ const WaqfJadeed: React.FC = () => {
             } else if (editingSpecial) {
                 const payload = {
                     specialId: editingSpecial.id,
-                    amount: Math.round(amount),
+                    amount: values.amount,
                     date: dayjs().toISOString(),
-                    notes: values.notes ? sanitizeInput(values.notes, { maxLength: 500 }) : ''
+                    notes: values.notes
                 };
                 const updatedRecord = await ApiService.addWaqfJadeedSpecialPayment(payload);
                 if (updatedRecord) {
@@ -363,40 +353,15 @@ const WaqfJadeed: React.FC = () => {
         setSubmitting(true);
         try {
             const values = await specialForm.validateFields();
-            
-            // Validate and sanitize input
-            
-            const name = sanitizeInput(values.name || '', { maxLength: 100 });
-            if (!name || !validateName(name)) {
-                message.error('Name is required and must be valid');
-                setSubmitting(false);
-                return;
-            }
-            
-            const promiseAmount = values.promiseAmount || 0;
-            const nagarparAmount = values.nagarparAmount || 0;
-            
-            if (!validateNumber(promiseAmount, 0, 10000000)) {
-                message.error('Promise amount must be between 0 and 10,000,000');
-                setSubmitting(false);
-                return;
-            }
-            
-            if (!validateNumber(nagarparAmount, 0, 10000000)) {
-                message.error('Nagarpar amount must be between 0 and 10,000,000');
-                setSubmitting(false);
-                return;
-            }
-            
             const payload = {
                 id: values.id,
                 familyId: activeFamilyId,
                 year: selectedYear,
-                name: name,
+                name: values.name,
                 gender: values.gender,
                 isDeceased: !!values.isDeceased, // Ensure boolean
-                promiseAmount: Math.round(promiseAmount),
-                nagarparAmount: Math.round(nagarparAmount),
+                promiseAmount: values.promiseAmount || 0,
+                nagarparAmount: values.nagarparAmount || 0,
             };
             const saved = await ApiService.saveWaqfJadeedSpecialRecord(payload);
 
@@ -456,16 +421,16 @@ const WaqfJadeed: React.FC = () => {
                 return !member.isDeceased;
             })
             .map(member => {
-            const record = records.find(r => r.memberId === member.id);
-            return {
-                member,
-                record,
-                promise: (record?.promiseAmount || 0) + (record?.nagarparAmount || 0),
-                paid: record?.paidAmount || 0,
-                originalPromise: record?.promiseAmount || 0,
-                nagarpar: record?.nagarparAmount || 0
-            };
-        });
+                const record = records.find(r => r.memberId === member.id);
+                return {
+                    member,
+                    record,
+                    promise: (record?.promiseAmount || 0) + (record?.nagarparAmount || 0),
+                    paid: record?.paidAmount || 0,
+                    originalPromise: record?.promiseAmount || 0,
+                    nagarpar: record?.nagarparAmount || 0
+                };
+            });
 
         if (searchTerm) {
             const lower = searchTerm.toLowerCase();
@@ -530,14 +495,14 @@ const WaqfJadeed: React.FC = () => {
         const initialSpecialPageState: Record<string, number> = {};
         const initialMembersPageSizeState: Record<string, number> = {};
         const initialSpecialPageSizeState: Record<string, number> = {};
-        
+
         families.forEach(family => {
             initialMembersPageState[family.id] = 1;
             initialSpecialPageState[family.id] = 1;
             initialMembersPageSizeState[family.id] = 10;
             initialSpecialPageSizeState[family.id] = 10;
         });
-        
+
         setFamilyMembersCurrentPage(initialMembersPageState);
         setFamilySpecialCurrentPage(initialSpecialPageState);
         setFamilyMembersPageSize(initialMembersPageSizeState);
@@ -548,12 +513,12 @@ const WaqfJadeed: React.FC = () => {
     useEffect(() => {
         const initialTanzeemPageState: Record<string, number> = {};
         const initialTanzeemPageSizeState: Record<string, number> = {};
-        
+
         tanzeemGroupedData.forEach(group => {
             initialTanzeemPageState[group.tanzeem] = 1;
             initialTanzeemPageSizeState[group.tanzeem] = 10;
         });
-        
+
         setTanzeemMembersCurrentPage(prev => ({ ...prev, ...initialTanzeemPageState }));
         setTanzeemMembersPageSize(prev => ({ ...prev, ...initialTanzeemPageSizeState }));
     }, [tanzeemGroupedData]);
@@ -598,16 +563,16 @@ const WaqfJadeed: React.FC = () => {
     const deceasedStats = useMemo(() => {
         const deceasedMaleRecords = specialRecords.filter(r => r.isDeceased && r.gender === 'male');
         const deceasedFemaleRecords = specialRecords.filter(r => r.isDeceased && r.gender === 'female');
-        
+
         const malePromiseAmount = deceasedMaleRecords.reduce((sum, r) => sum + (r.promiseAmount || 0) + (r.nagarparAmount || 0), 0);
         const malePaidAmount = deceasedMaleRecords.reduce((sum, r) => sum + (r.paidAmount || 0), 0);
-        
+
         const femalePromiseAmount = deceasedFemaleRecords.reduce((sum, r) => sum + (r.promiseAmount || 0) + (r.nagarparAmount || 0), 0);
         const femalePaidAmount = deceasedFemaleRecords.reduce((sum, r) => sum + (r.paidAmount || 0), 0);
-        
+
         const totalDeceasedPromise = malePromiseAmount + femalePromiseAmount;
         const totalDeceasedPaid = malePaidAmount + femalePaidAmount;
-        
+
         return {
             deceasedMales: deceasedMaleRecords.length,
             deceasedFemales: deceasedFemaleRecords.length,
@@ -623,10 +588,10 @@ const WaqfJadeed: React.FC = () => {
     // اضافی (Additional) Stats
     const azafiStats = useMemo(() => {
         const azafiRecords = specialRecords.filter(r => r.name === 'اضافی');
-        
+
         const azafiPromiseAmount = azafiRecords.reduce((sum, r) => sum + (r.promiseAmount || 0) + (r.nagarparAmount || 0), 0);
         const azafiPaidAmount = azafiRecords.reduce((sum, r) => sum + (r.paidAmount || 0), 0);
-        
+
         return {
             count: azafiRecords.length,
             promiseAmount: azafiPromiseAmount,
@@ -634,6 +599,29 @@ const WaqfJadeed: React.FC = () => {
             percent: azafiPromiseAmount > 0 ? (azafiPaidAmount / azafiPromiseAmount) * 100 : 0
         };
     }, [specialRecords]);
+
+    // Target Section Calculations
+    const targetSectionStats = useMemo(() => {
+        // Calculate Total Received: Ansar + Lajna + Khuddam + all deceased
+        const ansarPaid = tanzeemStats.find(t => t.name === 'ansar')?.paid || 0;
+        const lajnaPaid = tanzeemStats.find(t => t.name === 'lajna')?.paid || 0;
+        const khuddamPaid = tanzeemStats.find(t => t.name === 'khuddam')?.paid || 0;
+        const totalDeceasedPaid = deceasedStats.totalDeceasedPaid || 0;
+        const totalReceived = ansarPaid + lajnaPaid + khuddamPaid + totalDeceasedPaid;
+
+        // Calculate Dafar Atfal: Atfal + Saf-e-Awal boys + Saf-e-Awal girls + Nasirat
+        const atfalPaid = tanzeemStats.find(t => t.name === 'atfal')?.paid || 0;
+        const safEawalPaid = tanzeemStats.find(t => t.name === 'saf-e-awal')?.paid || 0;
+        const safEawalGirlsPaid = tanzeemStats.find(t => t.name === 'saf-e-awal-girls')?.paid || 0;
+        const nasiratPaid = tanzeemStats.find(t => t.name === 'nasirat')?.paid || 0;
+        const dafarAtfalTotal = atfalPaid + safEawalPaid + safEawalGirlsPaid + nasiratPaid;
+
+        return {
+            totalReceived,
+            dafarAtfalTotal,
+            remainingFromTarget: targetAmount > 0 ? targetAmount - totalReceived : 0
+        };
+    }, [tanzeemStats, deceasedStats, targetAmount]);
 
     // Helper function to convert English names to Urdu for display
     const getUrduName = (name: string): string => {
@@ -648,7 +636,7 @@ const WaqfJadeed: React.FC = () => {
     const handleExportFamilyPDF = async (family: Family, familyMembersCtx: NonNullable<MemberData>[], familySpecialRecords: WaqfJadeedSpecialRecord[], familyTotalPromise: number, familyTotalPaid: number) => {
         try {
             message.loading({ content: 'Generating PDF with Urdu support...', key: 'pdf-export', duration: 0 });
-            
+
             // Create a temporary HTML element with proper Urdu rendering
             const printDiv = document.createElement('div');
             printDiv.style.position = 'absolute';
@@ -660,11 +648,11 @@ const WaqfJadeed: React.FC = () => {
             printDiv.style.unicodeBidi = 'embed';
             printDiv.style.backgroundColor = 'white';
             printDiv.style.color = 'black';
-            
+
             // Get family head data
             const familyHead = getMemberData(family.headId);
             const headPhone = familyHead?.member.phone || 'N/A';
-            
+
             // Build HTML content
             let htmlContent = `
                 <div style="text-align: center; margin-bottom: 20px;">
@@ -695,11 +683,11 @@ const WaqfJadeed: React.FC = () => {
                     </thead>
                     <tbody>
             `;
-            
+
             // Helper function to determine row color based on tanzeem and promise
             const getRowColor = (tanzeem: string | undefined, promise: number): string => {
                 const isAtfalOrNasirat = tanzeem === 'atfal' || tanzeem === 'nasirat' || tanzeem === 'saf-e-awal' || tanzeem === 'saf-e-awal-girls';
-                
+
                 if (isAtfalOrNasirat) {
                     // Atfal/Nasirat/Saf-e-Awal: Light blue if >= 1000, Yellow if < 1000
                     if (promise >= 1000) {
@@ -718,14 +706,14 @@ const WaqfJadeed: React.FC = () => {
                     }
                 }
             };
-            
+
             familyMembersCtx.forEach((item, index) => {
                 const rowColor = getRowColor(item.member.tanzeem, item.promise);
                 htmlContent += `
                     <tr style="background-color: ${rowColor};">
                         <td style="border: 1px solid #ddd; padding: 6px; text-align: center;">${index + 1}</td>
                         <td style="border: 1px solid #ddd; padding: 6px; text-align: right; direction: rtl; unicode-bidi: embed;">${item.member.name}</td>
-                        <td style="border: 1px solid #ddd; padding: 6px; text-align: right; direction: rtl; unicode-bidi: embed;">${getTanzeemDisplayName(item.member.tanzeem as any) || ''}</td>
+                        <td style="border: 1px solid #ddd; padding: 6px; text-align: right; direction: rtl; unicode-bidi: embed;">${item.member.tanzeem || ''}</td>
                         <td style="border: 1px solid #ddd; padding: 6px; text-align: right; direction: rtl; unicode-bidi: embed;">${family.halqa || ''}</td>
                         <td style="border: 1px solid #ddd; padding: 6px; text-align: center;">Rs. ${item.promise.toLocaleString()}</td>
                         <td style="border: 1px solid #ddd; padding: 6px; text-align: center;">Rs. ${item.paid.toLocaleString()}</td>
@@ -733,9 +721,9 @@ const WaqfJadeed: React.FC = () => {
                     </tr>
                 `;
             });
-            
+
             htmlContent += '</tbody></table>';
-            
+
             // Add special records if any
             if (familySpecialRecords.length > 0) {
                 htmlContent += `
@@ -753,20 +741,20 @@ const WaqfJadeed: React.FC = () => {
                         </thead>
                         <tbody>
                 `;
-                
+
                 familySpecialRecords.forEach((record, index) => {
                     const totalPromise = (record.promiseAmount || 0) + (record.nagarparAmount || 0);
                     const rowColor = index % 2 === 0 ? '#ffffff' : '#faf0e6';
-                    
+
                     // Convert English names to Urdu for display
                     const displayName = getUrduName(record.name);
-                    
+
                     // Get deceased text based on gender
                     let deceasedText = '';
                     if (record.isDeceased) {
                         deceasedText = record.gender === 'female' ? ' (مرحومہ)' : ' (مرحوم)';
                     }
-                    
+
                     htmlContent += `
                         <tr style="background-color: ${rowColor};">
                             <td style="border: 1px solid #ddd; padding: 6px; text-align: center;">${index + 1}</td>
@@ -778,10 +766,10 @@ const WaqfJadeed: React.FC = () => {
                         </tr>
                     `;
                 });
-                
+
                 htmlContent += '</tbody></table>';
             }
-            
+
             // Add footer notes with color legend in Urdu
             htmlContent += `
 <div style="margin-top: 30px; padding: 15px; background-color: #fafafa; border: 1px solid #ddd; border-radius: 5px; font-size: 10px; direction: rtl; text-align: right;">
@@ -838,10 +826,10 @@ const WaqfJadeed: React.FC = () => {
                     <p>تیار کیا گیا: ${new Date().toLocaleDateString()}</p>
                 </div>
             `;
-            
+
             printDiv.innerHTML = htmlContent;
             document.body.appendChild(printDiv);
-            
+
             // Convert to canvas with high quality
             const canvas = await html2canvas(printDiv, {
                 scale: 2,
@@ -856,10 +844,10 @@ const WaqfJadeed: React.FC = () => {
                     }
                 }
             });
-            
+
             // Remove temporary element
             document.body.removeChild(printDiv);
-            
+
             // Convert canvas to PDF
             const imgData = canvas.toDataURL('image/png');
             const pdf = new jsPDF('p', 'mm', 'a4');
@@ -868,204 +856,18 @@ const WaqfJadeed: React.FC = () => {
             const imgHeight = (canvas.height * imgWidth) / canvas.width;
             let heightLeft = imgHeight;
             let position = 0;
-            
+
             pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
             heightLeft -= pageHeight;
-            
+
             while (heightLeft > 0) {
                 position = heightLeft - imgHeight;
                 pdf.addPage();
                 pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
                 heightLeft -= pageHeight;
             }
-            
+
             pdf.save(`${family.familyName.replace(/\s+/g, '_')}_waqf_${selectedYear}.pdf`);
-            message.success({ content: 'PDF generated successfully with Urdu support!', key: 'pdf-export' });
-        } catch (error) {
-            console.error('Error generating PDF:', error);
-            message.error({ content: 'Failed to generate PDF', key: 'pdf-export' });
-        }
-    };
-
-    const handleExportTanzeemPDF = async (group: typeof tanzeemGroupedData[0]) => {
-        try {
-            message.loading({ content: 'Generating PDF with Urdu support...', key: 'pdf-export', duration: 0 });
-            
-            // Create a temporary HTML element with proper Urdu rendering
-            const printDiv = document.createElement('div');
-            printDiv.style.position = 'absolute';
-            printDiv.style.left = '-9999px';
-            printDiv.style.width = '210mm'; // A4 width
-            printDiv.style.padding = '20px';
-            printDiv.style.fontFamily = 'Arial, "Noto Sans Arabic", "Al Qalam Taj Nastaleeq", sans-serif';
-            printDiv.style.direction = 'rtl';
-            printDiv.style.unicodeBidi = 'embed';
-            printDiv.style.backgroundColor = 'white';
-            printDiv.style.color = 'black';
-            
-            const tanzeemDisplayName = getTanzeemDisplayName(group.tanzeem as any);
-            
-            // Build HTML content
-            let htmlContent = `
-                <div style="text-align: center; margin-bottom: 20px;">
-                    <h1 style="font-size: 24px; margin: 0; font-weight: bold;">${tanzeemDisplayName} - Waqf-e-Jadeed ${selectedYear}</h1>
-                </div>
-                <div style="margin-bottom: 15px; font-size: 12px; direction: rtl; text-align: right;">
-                    <p style="margin: 5px 0;">
-                        <strong>تنظیم:</strong> ${tanzeemDisplayName} |
-                        <strong>کل اراکین:</strong> ${group.count}
-                    </p>
-                    <p style="margin: 5px 0;">
-                        <strong>کل وعدہ شدہ رقم:</strong> روپے ${group.totalPromise.toLocaleString()} |
-                        <strong>کل ادا شدہ رقم:</strong> روپے ${group.totalPaid.toLocaleString()} |
-                        <strong>پیش رفت:</strong> ${group.percent}%
-                    </p>
-                </div>
-
-                <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 10px;" dir="rtl">
-                    <thead>
-                        <tr style="background-color: #1890ff; color: white;">
-                            <th style="border: 1px solid #ddd; padding: 8px; text-align: center; direction: rtl;">نمبر</th>
-                            <th style="border: 1px solid #ddd; padding: 8px; text-align: right; direction: rtl;">نام</th>
-                            <th style="border: 1px solid #ddd; padding: 8px; text-align: right; direction: rtl;">حلقہ</th>
-                            <th style="border: 1px solid #ddd; padding: 8px; text-align: center; direction: rtl;">وعدہ + نگرپار</th>
-                            <th style="border: 1px solid #ddd; padding: 8px; text-align: center; direction: rtl;">ادا شدہ</th>
-                            <th style="border: 1px solid #ddd; padding: 8px; text-align: center; direction: rtl;">پیش رفت</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-            `;
-            
-            // Helper function to determine row color based on tanzeem and promise
-            const getRowColor = (tanzeem: string | undefined, promise: number): string => {
-                const isAtfalOrNasirat = tanzeem === 'atfal' || tanzeem === 'nasirat' || tanzeem === 'saf-e-awal' || tanzeem === 'saf-e-awal-girls';
-                
-                if (isAtfalOrNasirat) {
-                    // Atfal/Nasirat/Saf-e-Awal: Light blue if >= 1000, Yellow if < 1000
-                    if (promise >= 1000) {
-                        return '#e6f7ff'; // Light blue - consistent color
-                    } else {
-                        return '#fff7e6'; // Light yellow/orange - consistent color
-                    }
-                } else {
-                    // Others (Khuddam, Lajna, Ansar): Stage 1 (>=5000) or Stage 2 (>=2500)
-                    if (promise >= 5000) {
-                        return '#f6ffed'; // Light green (Stage 1) - consistent color
-                    } else if (promise >= 2500) {
-                        return '#fff1f0'; // Light red/pink (Stage 2) - consistent color
-                    } else {
-                        return '#ffffff'; // Default white - consistent color
-                    }
-                }
-            };
-            
-            group.members.forEach((item, index) => {
-                const rowColor = getRowColor(item.member.tanzeem, item.promise);
-                htmlContent += `
-                    <tr style="background-color: ${rowColor};">
-                        <td style="border: 1px solid #ddd; padding: 6px; text-align: center;">${index + 1}</td>
-                        <td style="border: 1px solid #ddd; padding: 6px; text-align: right; direction: rtl; unicode-bidi: embed;">${item.member.name}</td>
-                        <td style="border: 1px solid #ddd; padding: 6px; text-align: right; direction: rtl; unicode-bidi: embed;">${item.member.halqa || 'N/A'}</td>
-                        <td style="border: 1px solid #ddd; padding: 6px; text-align: center;">Rs. ${item.promise.toLocaleString()}</td>
-                        <td style="border: 1px solid #ddd; padding: 6px; text-align: center;">Rs. ${item.paid.toLocaleString()}</td>
-                        <td style="border: 1px solid #ddd; padding: 6px; text-align: center;">${item.promise > 0 ? Math.round((item.paid / item.promise) * 100) : 0}%</td>
-                    </tr>
-                `;
-            });
-            
-            htmlContent += '</tbody></table>';
-            
-            // Add footer notes with color legend in Urdu
-            htmlContent += `
-<div style="margin-top: 30px; padding: 15px; background-color: #fafafa; border: 1px solid #ddd; border-radius: 5px; font-size: 10px; direction: rtl; text-align: right;">
-    <h4 style="margin: 0 0 10px 0; font-size: 12px; font-weight: bold; text-align: center; direction: rtl;">
-        وعدہ کی ہدایات اور رنگوں کی وضاحت
-    </h4>
-
-    <div style="margin-bottom: 10px; direction: rtl;">
-        <p style="margin: 5px 0; direction: rtl;">
-            <strong>اطفال اور ناصرات کے لیے:</strong>
-        </p>
-
-        <div style="display: inline-block; width: 20px; height: 15px; background-color: #e6f7ff; border: 1px solid #91d5ff; margin-left: 8px; vertical-align: middle;"></div>
-        <span style="margin-left: 20px; direction: rtl;">
-            اچھا وعدہ: کم از کم 1,000 روپے یا اس سے زیادہ
-        </span>
-
-        <br style="margin-top: 5px;">
-
-        <div style="display: inline-block; width: 20px; height: 15px; background-color: #fff7e6; border: 1px solid #ffd591; margin-left: 8px; vertical-align: middle; margin-top: 5px;"></div>
-        <span style="margin-left: 20px; direction: rtl;">
-            کم از کم سے کم: 1,000 روپے سے کم
-        </span>
-    </div>
-
-    <div style="margin-top: 10px; direction: rtl;">
-        <p style="margin: 5px 0; direction: rtl;">
-            <strong>دیگر افراد کے لیے (خدام، لجنہ، انصار وغیرہ):</strong>
-        </p>
-
-        <div style="display: inline-block; width: 20px; height: 15px; background-color: #f6ffed; border: 1px solid #b7eb8f; margin-left: 8px; vertical-align: middle;"></div>
-        <span style="margin-left: 20px; direction: rtl;">
-            پہلا معیار: 5,000 روپے یا اس سے زیادہ
-        </span>
-
-        <br style="margin-top: 5px;">
-
-        <div style="display: inline-block; width: 20px; height: 15px; background-color: #fff1f0; border: 1px solid #ffccc7; margin-left: 8px; vertical-align: middle; margin-top: 5px;"></div>
-        <span style="margin-left: 20px; direction: rtl;">
-            دوسرا معیار: 2,500 روپے یا اس سے زیادہ (لیکن 5,000 روپے سے کم)
-        </span>
-
-        <br style="margin-top: 5px;">
-
-        <div style="display: inline-block; width: 20px; height: 15px; background-color: #ffffff; border: 1px solid #d9d9d9; margin-left: 8px; vertical-align: middle; margin-top: 5px;"></div>
-        <span style="margin-left: 20px; direction: rtl;">
-            دوسرے معیار سے کم: 2,500 روپے سے کم
-        </span>
-    </div>
-</div>
-
-                </div>
-                <div style="margin-top: 15px; font-size: 10px; text-align: center; color: #666; direction: rtl;">
-                    <p>تیار کیا گیا: ${new Date().toLocaleDateString()}</p>
-                </div>
-            `;
-            
-            printDiv.innerHTML = htmlContent;
-            document.body.appendChild(printDiv);
-            
-            // Convert to canvas with high quality
-            const canvas = await html2canvas(printDiv, {
-                scale: 2,
-                useCORS: true,
-                logging: false
-            });
-            
-            // Remove temporary element
-            document.body.removeChild(printDiv);
-            
-            // Convert canvas to PDF
-            const imgData = canvas.toDataURL('image/png');
-            const pdf = new jsPDF('p', 'mm', 'a4');
-            const imgWidth = 210; // A4 width in mm
-            const pageHeight = 297; // A4 height in mm
-            const imgHeight = (canvas.height * imgWidth) / canvas.width;
-            let heightLeft = imgHeight;
-            let position = 0;
-            
-            pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-            heightLeft -= pageHeight;
-            
-            while (heightLeft > 0) {
-                position = heightLeft - imgHeight;
-                pdf.addPage();
-                pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-                heightLeft -= pageHeight;
-            }
-            
-            const tanzeemFileName = tanzeemDisplayName.replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_]/g, '');
-            pdf.save(`${tanzeemFileName}_waqf_${selectedYear}.pdf`);
             message.success({ content: 'PDF generated successfully with Urdu support!', key: 'pdf-export' });
         } catch (error) {
             console.error('Error generating PDF:', error);
@@ -1077,25 +879,25 @@ const WaqfJadeed: React.FC = () => {
         try {
             setLoading(true);
             message.loading({ content: 'Copying names from 2025 to 2026...', key: 'copying', duration: 0 });
-            
+
             // Get 2025 records
             const records2025 = await ApiService.getWaqfJadeedRecords(2025);
-            
+
             // Get 2026 records to check what already exists
             const records2026 = await ApiService.getWaqfJadeedRecords(2026);
             const existing2026MemberIds = new Set(records2026.map(r => r.memberId));
-            
+
             // Copy only names (create records with 0 promise and 0 paid)
             let copiedMembers = 0;
             let skippedMembers = 0;
-            
+
             for (const record2025 of records2025) {
                 // Skip if already exists in 2026
                 if (existing2026MemberIds.has(record2025.memberId)) {
                     skippedMembers++;
                     continue;
                 }
-                
+
                 // Create new record with 0 promise and 0 paid
                 await ApiService.saveWaqfJadeedRecord({
                     memberId: record2025.memberId,
@@ -1105,28 +907,28 @@ const WaqfJadeed: React.FC = () => {
                 });
                 copiedMembers++;
             }
-            
+
             // Copy special records (including deceased and اضافی)
             const special2025 = await ApiService.getWaqfJadeedSpecialRecords(2025);
             const special2026 = await ApiService.getWaqfJadeedSpecialRecords(2026);
-            
+
             // Check by name and familyId combination to avoid duplicates (year is already 2026 for existing records)
             const existing2026SpecialKeys = new Set(
                 special2026.map(r => `${r.familyId || 'no-family'}_${r.name || 'no-name'}`)
             );
-            
+
             let copiedSpecial = 0;
             let skippedSpecial = 0;
-            
+
             for (const special2025Record of special2025) {
                 const key = `${special2025Record.familyId || 'no-family'}_${special2025Record.name || 'no-name'}`;
-                
+
                 // Skip if already exists in 2026
                 if (existing2026SpecialKeys.has(key)) {
                     skippedSpecial++;
                     continue;
                 }
-                
+
                 try {
                     // Create new record without the old ID so it gets a new one
                     const { id, payments, paidAmount, ...specialDataWithoutId } = special2025Record;
@@ -1144,16 +946,16 @@ const WaqfJadeed: React.FC = () => {
                     skippedSpecial++;
                 }
             }
-            
+
             const totalCopied = copiedMembers + copiedSpecial;
             const totalSkipped = skippedMembers + skippedSpecial;
-            
-            message.success({ 
-                content: `Copied ${totalCopied} names (${copiedMembers} members, ${copiedSpecial} special) from 2025 to 2026. ${totalSkipped} already existed.`, 
+
+            message.success({
+                content: `Copied ${totalCopied} names (${copiedMembers} members, ${copiedSpecial} special) from 2025 to 2026. ${totalSkipped} already existed.`,
                 key: 'copying',
                 duration: 5
             });
-            
+
             // Reload data
             await loadData();
         } catch (error) {
@@ -1213,6 +1015,7 @@ const WaqfJadeed: React.FC = () => {
                     <Tabs.TabPane tab="Family Wise" key="families" />
                     <Tabs.TabPane tab="Tanzeem Wise" key="tanzeem" />
                     <Tabs.TabPane tab="Dashboard" key="dashboard" />
+                    <Tabs.TabPane tab="About" key="about" />
                 </Tabs>
             </Card>
 
@@ -1252,10 +1055,10 @@ const WaqfJadeed: React.FC = () => {
             {activeTab === 'members' ? (
                 <Card>
                     <Table
-                    dataSource={filteredMemberData}
-                    loading={loading}
+                        dataSource={filteredMemberData}
+                        loading={loading}
                         rowKey={(record) => record.member.id}
-                    pagination={{
+                        pagination={{
                             pageSize: 20,
                             showSizeChanger: true,
                             pageSizeOptions: ['10', '20', '50', '100'],
@@ -1279,10 +1082,10 @@ const WaqfJadeed: React.FC = () => {
                                 key: 'photo',
                                 width: 80,
                                 render: (_, record) => (
-                                    <Avatar 
-                                        size="large" 
-                                        icon={<UserOutlined />} 
-                                        src={record.member.profilePhoto} 
+                                    <Avatar
+                                        size="large"
+                                        icon={<UserOutlined />}
+                                        src={record.member.profilePhoto}
                                     />
                                 ),
                                 sorter: false
@@ -1348,9 +1151,9 @@ const WaqfJadeed: React.FC = () => {
                                 key: 'paid',
                                 sorter: (a, b) => a.paid - b.paid,
                                 render: (_, record) => (
-                                    <Text 
-                                        strong 
-                                        style={{ 
+                                    <Text
+                                        strong
+                                        style={{
                                             fontSize: '14px',
                                             color: record.paid >= record.promise && record.promise > 0 ? '#52c41a' : undefined
                                         }}
@@ -1507,56 +1310,56 @@ const WaqfJadeed: React.FC = () => {
                                             },
                                             {
                                                 title: 'Name',
-                                                    dataIndex: ['member', 'name'],
-                                                    key: 'name',
-                                                    width: 150,
-                                                    render: (name, record) => (
-                                                        <a onClick={() => handleEdit(record.member)} style={{ cursor: 'pointer' }}>
-                                                            {name}
-                                                        </a>
-                                                    ),
-                                                },
-                                                {
-                                                    title: 'Promise',
-                                                    key: 'promise',
-                                                    width: 100,
-                                                    render: (_, record) => record?.promise?.toLocaleString() || '0',
-                                                },
-                                                {
-                                                    title: 'Paid',
-                                                    key: 'paid',
-                                                    width: 100,
-                                                    render: (_, record) => (
-                                                        <span style={{ color: record?.paid >= record?.promise && record?.promise > 0 ? 'green' : 'inherit' }}>
-                                                            {(record?.paid || 0).toLocaleString()}
-                                                        </span>
-                                                    ),
-                                                },
-                                                {
-                                                    title: 'Progress',
-                                                    key: 'progress',
-                                                    width: 120,
-                                                    render: (_, record) => (
-                                                        <div style={{ width: '100px' }}>
-                                                            <Progress
-                                                                percent={record?.promise > 0 ? Math.min(100, Math.round(((record?.paid || 0) / record?.promise) * 100)) : 0}
-                                                                size="small"
-                                                                showInfo={false}
-                                                                strokeColor={record?.paid >= record?.promise ? '#52c41a' : '#1890ff'}
-                                                            />
-                                                        </div>
-                                                    ),
-                                                },
-                                                {
-                                                    title: 'Actions',
-                                                    key: 'actions',
-                                                    width: 80,
-                                                    render: (_, record) => (
-                                                        <Space size="small">
-                                                            <Button size="small" icon={<EditOutlined />} onClick={() => handleEdit(record.member)} />
-                                                        </Space>
-                                                    ),
-                                                },
+                                                dataIndex: ['member', 'name'],
+                                                key: 'name',
+                                                width: 150,
+                                                render: (name, record) => (
+                                                    <a onClick={() => handleEdit(record.member)} style={{ cursor: 'pointer' }}>
+                                                        {name}
+                                                    </a>
+                                                ),
+                                            },
+                                            {
+                                                title: 'Promise',
+                                                key: 'promise',
+                                                width: 100,
+                                                render: (_, record) => record?.promise?.toLocaleString() || '0',
+                                            },
+                                            {
+                                                title: 'Paid',
+                                                key: 'paid',
+                                                width: 100,
+                                                render: (_, record) => (
+                                                    <span style={{ color: record?.paid >= record?.promise && record?.promise > 0 ? 'green' : 'inherit' }}>
+                                                        {(record?.paid || 0).toLocaleString()}
+                                                    </span>
+                                                ),
+                                            },
+                                            {
+                                                title: 'Progress',
+                                                key: 'progress',
+                                                width: 120,
+                                                render: (_, record) => (
+                                                    <div style={{ width: '100px' }}>
+                                                        <Progress
+                                                            percent={record?.promise > 0 ? Math.min(100, Math.round(((record?.paid || 0) / record?.promise) * 100)) : 0}
+                                                            size="small"
+                                                            showInfo={false}
+                                                            strokeColor={record?.paid >= record?.promise ? '#52c41a' : '#1890ff'}
+                                                        />
+                                                    </div>
+                                                ),
+                                            },
+                                            {
+                                                title: 'Actions',
+                                                key: 'actions',
+                                                width: 80,
+                                                render: (_, record) => (
+                                                    <Space size="small">
+                                                        <Button size="small" icon={<EditOutlined />} onClick={() => handleEdit(record.member)} />
+                                                    </Space>
+                                                ),
+                                            },
                                             ]}
                                         />
 
@@ -1613,62 +1416,62 @@ const WaqfJadeed: React.FC = () => {
                                                 },
                                                 {
                                                     title: 'Name',
-                                                        dataIndex: 'name',
-                                                        key: 'name',
-                                                        width: 150,
-                                                        render: (name, record) => {
-                                                            const deceasedText = record?.isDeceased 
-                                                                ? (record.gender === 'female' ? ' (مرحومہ)' : ' (مرحوم)')
-                                                                : '';
-                                                            return (
-                                                                <>
-                                                                    <span style={{ direction: 'rtl', unicodeBidi: 'embed' }}>{getUrduName(name || '')}{deceasedText}</span>
-                                                                </>
-                                                            );
-                                                        },
+                                                    dataIndex: 'name',
+                                                    key: 'name',
+                                                    width: 150,
+                                                    render: (name, record) => {
+                                                        const deceasedText = record?.isDeceased
+                                                            ? (record.gender === 'female' ? ' (مرحومہ)' : ' (مرحوم)')
+                                                            : '';
+                                                        return (
+                                                            <>
+                                                                <span style={{ direction: 'rtl', unicodeBidi: 'embed' }}>{getUrduName(name || '')}{deceasedText}</span>
+                                                            </>
+                                                        );
                                                     },
-                                                    {
-                                                        title: 'Promise',
-                                                        key: 'promise',
-                                                        width: 100,
-                                                        render: (_, record) => ((record?.promiseAmount || 0) + (record?.nagarparAmount || 0)).toLocaleString(),
+                                                },
+                                                {
+                                                    title: 'Promise',
+                                                    key: 'promise',
+                                                    width: 100,
+                                                    render: (_, record) => ((record?.promiseAmount || 0) + (record?.nagarparAmount || 0)).toLocaleString(),
+                                                },
+                                                {
+                                                    title: 'Paid',
+                                                    key: 'paid',
+                                                    width: 100,
+                                                    render: (_, record) => record?.paidAmount?.toLocaleString() || '0',
+                                                },
+                                                {
+                                                    title: 'Progress',
+                                                    key: 'progress',
+                                                    width: 120,
+                                                    render: (_, record) => {
+                                                        const totalPromise = (record?.promiseAmount || 0) + (record?.nagarparAmount || 0);
+                                                        const percent = totalPromise > 0 ? Math.round((record?.paidAmount || 0) / totalPromise * 100) : 0;
+                                                        return (
+                                                            <div style={{ width: '100px' }}>
+                                                                <Progress
+                                                                    percent={percent}
+                                                                    size="small"
+                                                                    showInfo={false}
+                                                                    strokeColor={(record?.paidAmount || 0) >= totalPromise ? '#52c41a' : '#1890ff'}
+                                                                />
+                                                            </div>
+                                                        );
                                                     },
-                                                    {
-                                                        title: 'Paid',
-                                                        key: 'paid',
-                                                        width: 100,
-                                                        render: (_, record) => record?.paidAmount?.toLocaleString() || '0',
-                                                    },
-                                                    {
-                                                        title: 'Progress',
-                                                        key: 'progress',
-                                                        width: 120,
-                                                        render: (_, record) => {
-                                                            const totalPromise = (record?.promiseAmount || 0) + (record?.nagarparAmount || 0);
-                                                            const percent = totalPromise > 0 ? Math.round((record?.paidAmount || 0) / totalPromise * 100) : 0;
-                                                            return (
-                                                                <div style={{ width: '100px' }}>
-                                                                    <Progress
-                                                                        percent={percent}
-                                                                        size="small"
-                                                                        showInfo={false}
-                                                                        strokeColor={(record?.paidAmount || 0) >= totalPromise ? '#52c41a' : '#1890ff'}
-                                                                    />
-                                                                </div>
-                                                            );
-                                                        },
-                                                    },
-                                                    {
-                                                        title: 'Actions',
-                                                        key: 'actions',
-                                                        width: 100,
-                                                        render: (_, record) => (
-                                                            <Space size="small">
-                                                                <Button size="small" icon={<EditOutlined />} onClick={() => handleEditSpecial(record)} />
-                                                                <Button size="small" icon={<DeleteOutlined />} danger onClick={() => handleDeleteSpecial(record.id)} />
-                                                            </Space>
-                                                        ),
-                                                    },
+                                                },
+                                                {
+                                                    title: 'Actions',
+                                                    key: 'actions',
+                                                    width: 100,
+                                                    render: (_, record) => (
+                                                        <Space size="small">
+                                                            <Button size="small" icon={<EditOutlined />} onClick={() => handleEditSpecial(record)} />
+                                                            <Button size="small" icon={<DeleteOutlined />} danger onClick={() => handleDeleteSpecial(record.id)} />
+                                                        </Space>
+                                                    ),
+                                                },
                                                 ]}
                                             />
                                         </div>
@@ -1704,18 +1507,6 @@ const WaqfJadeed: React.FC = () => {
                                                     </div>
                                                     <Progress percent={group.percent} steps={5} size="small" strokeColor="#52c41a" />
                                                 </Col>
-                                                <Col xs={24} sm={24} md={2} style={{ textAlign: 'right' }}>
-                                                    <Button
-                                                        type="text"
-                                                        icon={<FilePdfOutlined />}
-                                                        size="small"
-                                                        onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            handleExportTanzeemPDF(group);
-                                                        }}
-                                                        title="Export to PDF"
-                                                    />
-                                                </Col>
                                             </Row>
                                         }
                                     >
@@ -1725,11 +1516,10 @@ const WaqfJadeed: React.FC = () => {
                                             dataSource={group.members.filter(item => item !== null)}
                                             rowKey={(item) => item.member.id}
                                             pagination={{
-                                                current: tanzeemMembersCurrentPage[group.tanzeem] || 1,
-                                                pageSize: tanzeemMembersPageSize[group.tanzeem] || 10,
+                                                pageSize: 10,
                                                 showSizeChanger: true,
                                                 showQuickJumper: true,
-                                                pageSizeOptions: ['5', '10', '20', '50', '100'],
+                                                pageSizeOptions: ['5', '10', '20', '50'],
                                                 showTotal: (total, range) => `${range[0]}-${range[1]} of ${total} items`,
                                                 onChange: (page: number, pageSize: number) => {
                                                     setTanzeemMembersCurrentPage(prev => ({
@@ -1739,16 +1529,6 @@ const WaqfJadeed: React.FC = () => {
                                                     setTanzeemMembersPageSize(prev => ({
                                                         ...prev,
                                                         [group.tanzeem]: pageSize || 10
-                                                    }));
-                                                },
-                                                onShowSizeChange: (_current: number, size: number) => {
-                                                    setTanzeemMembersCurrentPage(prev => ({
-                                                        ...prev,
-                                                        [group.tanzeem]: 1
-                                                    }));
-                                                    setTanzeemMembersPageSize(prev => ({
-                                                        ...prev,
-                                                        [group.tanzeem]: size || 10
                                                     }));
                                                 }
                                             }}
@@ -1830,9 +1610,85 @@ const WaqfJadeed: React.FC = () => {
                         </Collapse>
                     )}
                 </div>
-            ) : (
+            ) : activeTab === 'dashboard' ? (
                 // Dashboard Tab (Tanzeem Wise)
                 <div className="dashboard-view">
+                    {/* Target Section */}
+                    <Card title={<Title level={4} style={{ margin: 0 }}>Target</Title>} style={{ marginBottom: 16 }}>
+                        <Row gutter={[16, 16]}>
+                            <Col xs={24} sm={12} md={6}>
+                                <div>
+                                    <Text type="secondary" style={{ fontSize: 'clamp(12px, 2.5vw, 14px)', display: 'block', marginBottom: 8 }}>Target Amount</Text>
+                                    <InputNumber
+                                        value={targetAmount}
+                                        onChange={handleTargetChange}
+                                        addonBefore="Rs."
+                                        style={{ width: '100%' }}
+                                        formatter={(value) => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
+                                        parser={(value) => value!.replace(/\$\s?|(,*)/g, '') as any}
+                                        min={0}
+                                        precision={0}
+                                        size="large"
+                                    />
+                                </div>
+                            </Col>
+                            <Col xs={24} sm={12} md={6}>
+                                <Card bodyStyle={{ padding: 16 }}>
+                                    <Statistic
+                                        title="Total Received"
+                                        value={targetSectionStats.totalReceived}
+                                        prefix="Rs."
+                                        precision={0}
+                                        valueStyle={{ fontSize: 'clamp(18px, 4vw, 28px)' }}
+                                    />
+                                    <div style={{ marginTop: 8 }}>
+                                        <Text type="secondary" style={{ fontSize: 'clamp(11px, 2.5vw, 12px)' }}>
+                                            (Ansar + Lajna + Khuddam + Deceased)
+                                        </Text>
+                                    </div>
+                                </Card>
+                            </Col>
+                            <Col xs={24} sm={12} md={6}>
+                                <Card bodyStyle={{ padding: 16 }}>
+                                    <Statistic
+                                        title="Remaining"
+                                        value={targetSectionStats.remainingFromTarget}
+                                        prefix="Rs."
+                                        precision={0}
+                                        valueStyle={{
+                                            fontSize: 'clamp(18px, 4vw, 28px)',
+                                            color: targetSectionStats.remainingFromTarget >= 0 ? '#3f8600' : '#cf1322'
+                                        }}
+                                    />
+                                    <div style={{ marginTop: 8 }}>
+                                        <Text type="secondary" style={{ fontSize: 'clamp(11px, 2.5vw, 12px)' }}>
+                                            (Target - Total Received)
+                                        </Text>
+                                    </div>
+                                </Card>
+                            </Col>
+                            <Col xs={24} sm={12} md={6}>
+                                <Card bodyStyle={{ padding: 16 }}>
+                                    <div style={{ marginBottom: 8 }}>
+                                        <Title level={5} style={{ margin: 0, fontSize: 'clamp(14px, 3vw, 16px)' }}>دفتر اطفال</Title>
+                                    </div>
+                                    <Statistic
+                                        title="Total"
+                                        value={targetSectionStats.dafarAtfalTotal}
+                                        prefix="Rs."
+                                        precision={0}
+                                        valueStyle={{ fontSize: 'clamp(18px, 4vw, 28px)' }}
+                                    />
+                                    <div style={{ marginTop: 8 }}>
+                                        <Text type="secondary" style={{ fontSize: 'clamp(11px, 2.5vw, 12px)' }}>
+                                            (Atfal + Saf-e-Awal Boys + Saf-e-Awal Girls + Nasirat)
+                                        </Text>
+                                    </div>
+                                </Card>
+                            </Col>
+                        </Row>
+                    </Card>
+
                     {/* Deceased Stats Cards with Amounts */}
                     <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
                         <Col xs={24} sm={24} md={8}>
@@ -1920,35 +1776,287 @@ const WaqfJadeed: React.FC = () => {
                             </Card>
                         </Col>
                     </Row>
-                    
-                    <List
-                        grid={{ gutter: [16, 16], xs: 1, sm: 2, md: 2, lg: 3, xl: 4 }}
-                        dataSource={tanzeemStats}
-                        renderItem={(item) => (
-                            <List.Item>
-                                <Card hoverable>
-                                    <Statistic
-                                        title={<span style={{ fontSize: 'clamp(12px, 3vw, 14px)' }}>{`${item.name} (${item.count})`}</span>}
-                                        value={item.paid}
-                                        prefix="Rs."
-                                        precision={0}
-                                        valueStyle={{ fontSize: 'clamp(18px, 4.5vw, 28px)' }}
-                                    />
-                                    <Progress
-                                        percent={Math.round(item.percent)}
-                                        status={item.percent >= 100 ? 'success' : 'active'}
-                                        strokeColor={item.percent >= 100 ? '#52c41a' : '#1890ff'}
-                                    />
-                                    <div style={{ marginTop: 12, display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: 4 }}>
-                                        <Text type="secondary" style={{ fontSize: 'clamp(11px, 2.5vw, 12px)' }}>Promise: Rs. {item.promise.toLocaleString()}</Text>
-                                        <Text type="secondary" style={{ fontSize: 'clamp(11px, 2.5vw, 12px)' }}>{item.percent.toFixed(1)}%</Text>
-                                    </div>
-                                </Card>
-                            </List.Item>
-                        )}
-                    />
+
+                    {/* Target - Tanzeem Wise Totals */}
+                    <Card
+                        title="Target (Tanzeem Wise Totals)"
+                        style={{ marginBottom: 16 }}
+                        bodyStyle={{ padding: 16 }}
+                    >
+                        <List
+                            grid={{ gutter: [16, 16], xs: 1, sm: 2, md: 2, lg: 3, xl: 4 }}
+                            dataSource={tanzeemStats}
+                            renderItem={(item) => {
+                                const displayName =
+                                    item.name === 'Unknown'
+                                        ? 'Unknown'
+                                        : getTanzeemDisplayName(item.name as any);
+
+                                return (
+                                    <List.Item>
+                                        <Card hoverable>
+                                            <Statistic
+                                                title={
+                                                    <span style={{ fontSize: 'clamp(12px, 3vw, 14px)' }}>
+                                                        {`${displayName} (${item.count})`}
+                                                    </span>
+                                                }
+                                                value={item.paid}
+                                                prefix="Rs."
+                                                precision={0}
+                                                valueStyle={{ fontSize: 'clamp(18px, 4.5vw, 28px)' }}
+                                            />
+                                            <Progress
+                                                percent={Math.round(item.percent)}
+                                                status={item.percent >= 100 ? 'success' : 'active'}
+                                                strokeColor={item.percent >= 100 ? '#52c41a' : '#1890ff'}
+                                            />
+                                            <div
+                                                style={{
+                                                    marginTop: 12,
+                                                    display: 'flex',
+                                                    justifyContent: 'space-between',
+                                                    flexWrap: 'wrap',
+                                                    gap: 4
+                                                }}
+                                            >
+                                                <Text
+                                                    type="secondary"
+                                                    style={{ fontSize: 'clamp(11px, 2.5vw, 12px)' }}
+                                                >
+                                                    Promise: Rs. {item.promise.toLocaleString()}
+                                                </Text>
+                                                <Text
+                                                    type="secondary"
+                                                    style={{ fontSize: 'clamp(11px, 2.5vw, 12px)' }}
+                                                >
+                                                    {item.percent.toFixed(1)}%
+                                                </Text>
+                                            </div>
+                                        </Card>
+                                    </List.Item>
+                                );
+                            }}
+                        />
+                    </Card>
                 </div>
-            )}
+            ) : activeTab === 'about' ? (
+                <div className="about-view">
+                    <Card>
+                        <Title level={2} style={{ marginBottom: 24 }}>About Waqf-e-Jadeed System</Title>
+
+                        <div style={{ marginBottom: 32 }}>
+                            <Title level={3} style={{ marginBottom: 16 }}>تنظیم کی تقسیم (Tanzeem Division)</Title>
+                            <Card style={{ marginBottom: 16 }}>
+                                <Title level={4} style={{ marginBottom: 12 }}>How Tanzeems are Divided:</Title>
+                                <div style={{ lineHeight: 1.8, fontSize: '14px' }}>
+                                    <p><strong>Members are automatically assigned to tanzeems based on their age and gender:</strong></p>
+                                    <ul style={{ paddingLeft: 20 }}>
+                                        <li><strong>Boys:</strong>
+                                            <ul style={{ paddingLeft: 20, marginTop: 8 }}>
+                                                <li>Under 7 years → <strong>اطفال- صف اول</strong> (Saf-e-Awal)</li>
+                                                <li>7 to 15 years → <strong>اطفال</strong> (Atfal)</li>
+                                                <li>15 to 40 years → <strong>خدام الحمدیہ</strong> (Khuddam)</li>
+                                                <li>40+ years → <strong>انصار اللہ</strong> (Ansar)</li>
+                                            </ul>
+                                        </li>
+                                        <li style={{ marginTop: 12 }}><strong>Girls:</strong>
+                                            <ul style={{ paddingLeft: 20, marginTop: 8 }}>
+                                                <li>Under 7 years → <strong>اطفال- صف اول (Girls)</strong> (Saf-e-Awal Girls)</li>
+                                                <li>7 to 15 years → <strong>ناصرات</strong> (Nasirat)</li>
+                                                <li>15+ years → <strong>لجنہ</strong> (Lajna)</li>
+                                            </ul>
+                                        </li>
+                                    </ul>
+                                    <p style={{ marginTop: 16, fontStyle: 'italic', color: '#666' }}>
+                                        Note: Age is calculated from the member's date of birth. The system automatically updates tanzeem assignments when members reach age thresholds.
+                                    </p>
+                                </div>
+                            </Card>
+                        </div>
+
+                        <div style={{ marginBottom: 32 }}>
+                            <Title level={3} style={{ marginBottom: 16 }}>کل جمع (Total Calculations)</Title>
+
+                            <Card style={{ marginBottom: 16 }}>
+                                <Title level={4} style={{ marginBottom: 12 }}>Total Promise Calculation:</Title>
+                                <div style={{ lineHeight: 1.8, fontSize: '14px' }}>
+                                    <p>The <strong>Total Promise</strong> includes:</p>
+                                    <ul style={{ paddingLeft: 20 }}>
+                                        <li>Promise Amount (وعدہ شدہ رقم) from all members</li>
+                                        <li>Nagar Parkar Amount (نگرپارکر) from all members</li>
+                                        <li>Special records (خصوصی ریکارڈ) including deceased members</li>
+                                    </ul>
+                                    <p style={{ marginTop: 12, fontFamily: 'monospace', backgroundColor: '#f5f5f5', padding: '8px', borderRadius: '4px' }}>
+                                        Total Promise = Σ(Promise Amount + Nagar Parkar Amount) for all members + Special records
+                                    </p>
+                                </div>
+                            </Card>
+
+                            <Card style={{ marginBottom: 16 }}>
+                                <Title level={4} style={{ marginBottom: 12 }}>Total Paid Calculation:</Title>
+                                <div style={{ lineHeight: 1.8, fontSize: '14px' }}>
+                                    <p>The <strong>Total Paid</strong> includes:</p>
+                                    <ul style={{ paddingLeft: 20 }}>
+                                        <li>All payment amounts (ادا شدہ رقم) recorded for members</li>
+                                        <li>Payments from special records</li>
+                                        <li>Multiple payments per member are summed together</li>
+                                    </ul>
+                                    <p style={{ marginTop: 12, fontFamily: 'monospace', backgroundColor: '#f5f5f5', padding: '8px', borderRadius: '4px' }}>
+                                        Total Paid = Σ(All Payment Amounts) for all members + Special records
+                                    </p>
+                                </div>
+                            </Card>
+
+                            <Card style={{ marginBottom: 16 }}>
+                                <Title level={4} style={{ marginBottom: 12 }}>Collection Progress:</Title>
+                                <div style={{ lineHeight: 1.8, fontSize: '14px' }}>
+                                    <p>The progress percentage is calculated as:</p>
+                                    <p style={{ marginTop: 12, fontFamily: 'monospace', backgroundColor: '#f5f5f5', padding: '8px', borderRadius: '4px' }}>
+                                        Progress % = (Total Paid / Total Promise) × 100
+                                    </p>
+                                    <p style={{ marginTop: 12 }}>This shows what percentage of the total promise has been collected.</p>
+                                </div>
+                            </Card>
+                        </div>
+
+                        <div style={{ marginBottom: 32 }}>
+                            <Title level={3} style={{ marginBottom: 16 }}>Target Section Calculations</Title>
+
+                            <Card style={{ marginBottom: 16 }}>
+                                <Title level={4} style={{ marginBottom: 12 }}>Total Received:</Title>
+                                <div style={{ lineHeight: 1.8, fontSize: '14px' }}>
+                                    <p>The <strong>Total Received</strong> in the Target section includes paid amounts from:</p>
+                                    <ul style={{ paddingLeft: 20 }}>
+                                        <li><strong>انصار اللہ</strong> (Ansar) - Men 40+ years</li>
+                                        <li><strong>لجنہ</strong> (Lajna) - Women 15+ years</li>
+                                        <li><strong>خدام الحمدیہ</strong> (Khuddam) - Men 15-40 years</li>
+                                        <li><strong>All Deceased Members</strong> (متوفی اراکین) - Both male and female</li>
+                                    </ul>
+                                    <p style={{ marginTop: 12, fontFamily: 'monospace', backgroundColor: '#f5f5f5', padding: '8px', borderRadius: '4px' }}>
+                                        Total Received = Ansar Paid + Lajna Paid + Khuddam Paid + Total Deceased Paid
+                                    </p>
+                                </div>
+                            </Card>
+
+                            <Card style={{ marginBottom: 16 }}>
+                                <Title level={4} style={{ marginBottom: 12 }}>دفتر اطفال (Dafar Atfal):</Title>
+                                <div style={{ lineHeight: 1.8, fontSize: '14px' }}>
+                                    <p>The <strong>دفتر اطفال</strong> total includes paid amounts from:</p>
+                                    <ul style={{ paddingLeft: 20 }}>
+                                        <li><strong>اطفال</strong> (Atfal) - Boys 7-15 years</li>
+                                        <li><strong>اطفال- صف اول</strong> (Saf-e-Awal) - Boys under 7 years</li>
+                                        <li><strong>اطفال- صف اول (Girls)</strong> (Saf-e-Awal Girls) - Girls under 7 years</li>
+                                        <li><strong>ناصرات</strong> (Nasirat) - Girls 7-15 years</li>
+                                    </ul>
+                                    <p style={{ marginTop: 12, fontFamily: 'monospace', backgroundColor: '#f5f5f5', padding: '8px', borderRadius: '4px' }}>
+                                        Dafar Atfal Total = Atfal Paid + Saf-e-Awal Paid + Saf-e-Awal Girls Paid + Nasirat Paid
+                                    </p>
+                                </div>
+                            </Card>
+
+                            <Card style={{ marginBottom: 16 }}>
+                                <Title level={4} style={{ marginBottom: 12 }}>Remaining from Target:</Title>
+                                <div style={{ lineHeight: 1.8, fontSize: '14px' }}>
+                                    <p>This shows how much remains to be collected to reach the target:</p>
+                                    <p style={{ marginTop: 12, fontFamily: 'monospace', backgroundColor: '#f5f5f5', padding: '8px', borderRadius: '4px' }}>
+                                        Remaining = Target Amount - Total Received
+                                    </p>
+                                    <p style={{ marginTop: 12 }}>
+                                        <strong>Note:</strong> The remaining amount is displayed in green if positive (target not yet reached)
+                                        or red if negative (target exceeded).
+                                    </p>
+                                </div>
+                            </Card>
+                        </div>
+
+                        <div style={{ marginBottom: 32 }}>
+                            <Title level={3} style={{ marginBottom: 16 }}>Special Records</Title>
+
+                            <Card style={{ marginBottom: 16 }}>
+                                <Title level={4} style={{ marginBottom: 12 }}>Deceased Members (متوفی اراکین):</Title>
+                                <div style={{ lineHeight: 1.8, fontSize: '14px' }}>
+                                    <p>Deceased members are tracked separately and included in:</p>
+                                    <ul style={{ paddingLeft: 20 }}>
+                                        <li>Total Promise calculations</li>
+                                        <li>Total Paid calculations</li>
+                                        <li>Total Received in Target section</li>
+                                    </ul>
+                                    <p style={{ marginTop: 12 }}>They are displayed separately in the Dashboard with male and female breakdowns.</p>
+                                </div>
+                            </Card>
+
+                            <Card style={{ marginBottom: 16 }}>
+                                <Title level={4} style={{ marginBottom: 12 }}>اضافی (Additional Records):</Title>
+                                <div style={{ lineHeight: 1.8, fontSize: '14px' }}>
+                                    <p>Special records marked as "اضافی" (Additional) are included in:</p>
+                                    <ul style={{ paddingLeft: 20 }}>
+                                        <li>Total Promise calculations</li>
+                                        <li>Total Paid calculations</li>
+                                    </ul>
+                                    <p style={{ marginTop: 12 }}>These are displayed separately in the Dashboard.</p>
+                                </div>
+                            </Card>
+                        </div>
+
+                        <div style={{ marginBottom: 32 }}>
+                            <Title level={3} style={{ marginBottom: 16 }}>Tanzeem Wise Statistics</Title>
+
+                            <Card style={{ marginBottom: 16 }}>
+                                <Title level={4} style={{ marginBottom: 12 }}>How Tanzeem Stats are Calculated:</Title>
+                                <div style={{ lineHeight: 1.8, fontSize: '14px' }}>
+                                    <p>For each tanzeem, the system calculates:</p>
+                                    <ul style={{ paddingLeft: 20 }}>
+                                        <li><strong>Promise:</strong> Sum of (Promise Amount + Nagar Parkar Amount) for all members in that tanzeem</li>
+                                        <li><strong>Paid:</strong> Sum of all payment amounts for members in that tanzeem</li>
+                                        <li><strong>Count:</strong> Total number of members in that tanzeem</li>
+                                        <li><strong>Percent:</strong> (Paid / Promise) × 100</li>
+                                    </ul>
+                                    <p style={{ marginTop: 12 }}>Tanzeem statistics are displayed in both the "Tanzeem Wise" tab and the "Dashboard" tab.</p>
+                                </div>
+                            </Card>
+                        </div>
+
+                        <div style={{ marginBottom: 32 }}>
+                            <Title level={3} style={{ marginBottom: 16 }}>Family Wise Calculations</Title>
+
+                            <Card style={{ marginBottom: 16 }}>
+                                <Title level={4} style={{ marginBottom: 12 }}>Family Totals:</Title>
+                                <div style={{ lineHeight: 1.8, fontSize: '14px' }}>
+                                    <p>Each family's totals include:</p>
+                                    <ul style={{ paddingLeft: 20 }}>
+                                        <li>Promise amounts from all family members (excluding deceased)</li>
+                                        <li>Promise amounts from special records linked to the family</li>
+                                        <li>Paid amounts from all family members</li>
+                                        <li>Paid amounts from special records</li>
+                                    </ul>
+                                    <p style={{ marginTop: 12, fontFamily: 'monospace', backgroundColor: '#f5f5f5', padding: '8px', borderRadius: '4px' }}>
+                                        Family Total Promise = Σ(Member Promises) + Σ(Special Record Promises)
+                                    </p>
+                                    <p style={{ marginTop: 8, fontFamily: 'monospace', backgroundColor: '#f5f5f5', padding: '8px', borderRadius: '4px' }}>
+                                        Family Total Paid = Σ(Member Payments) + Σ(Special Record Payments)
+                                    </p>
+                                </div>
+                            </Card>
+                        </div>
+
+                        <div style={{ marginBottom: 16 }}>
+                            <Card>
+                                <Title level={4} style={{ marginBottom: 12 }}>Important Notes:</Title>
+                                <div style={{ lineHeight: 1.8, fontSize: '14px' }}>
+                                    <ul style={{ paddingLeft: 20 }}>
+                                        <li>All amounts are displayed in Pakistani Rupees (Rs.)</li>
+                                        <li>Percentages are rounded to the nearest whole number</li>
+                                        <li>Target amounts are saved per year and persist across sessions</li>
+                                        <li>Deceased members are excluded from family member lists but included in totals</li>
+                                        <li>The system automatically updates tanzeem assignments based on current age</li>
+                                    </ul>
+                                </div>
+                            </Card>
+                        </div>
+                    </Card>
+                </div>
+            ) : null}
 
             {/* Edit Drawer */}
             <Drawer
@@ -1973,7 +2081,7 @@ const WaqfJadeed: React.FC = () => {
                                             <InputNumber
                                                 style={{ width: '100%' }}
                                                 formatter={value => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
-                                                parser={value => value!.replace(/\$\s?|(,*)/g, '')}
+                                                parser={value => value!.replace(/\$\s?|(,*)/g, '') as any}
                                                 size="large"
                                                 autoFocus
                                             />
@@ -2021,7 +2129,7 @@ const WaqfJadeed: React.FC = () => {
                                         <InputNumber
                                             style={{ width: '100%' }}
                                             formatter={value => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
-                                            parser={value => value!.replace(/\$\s?|(,*)/g, '')}
+                                            parser={value => value!.replace(/\$\s?|(,*)/g, '') as any}
                                             size="large"
                                         />
                                     </Form.Item>
@@ -2065,13 +2173,13 @@ const WaqfJadeed: React.FC = () => {
                         <Row gutter={[8, 8]}>
                             <Col xs={24} sm={12} md={8}>
                                 <Form.Item name="amount" rules={[{ required: true, message: 'Required' }]} style={{ margin: 0 }}>
-                                <InputNumber placeholder="Amount" style={{ width: '100%' }} />
-                            </Form.Item>
+                                    <InputNumber placeholder="Amount" style={{ width: '100%' }} />
+                                </Form.Item>
                             </Col>
                             <Col xs={24} sm={12} md={10}>
                                 <Form.Item name="notes" style={{ margin: 0 }}>
-                                <Input placeholder="Ref/Receipt #" />
-                            </Form.Item>
+                                    <Input placeholder="Ref/Receipt #" />
+                                </Form.Item>
                             </Col>
                             <Col xs={24} sm={24} md={6}>
                                 <Button type="primary" htmlType="submit" icon={<PlusOutlined />} loading={submitting} block>Add</Button>
@@ -2228,7 +2336,7 @@ const WaqfJadeed: React.FC = () => {
                                 <InputNumber
                                     style={{ width: '100%' }}
                                     formatter={value => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
-                                    parser={value => value!.replace(/\$\s?|(,*)/g, '')}
+                                    parser={value => value!.replace(/\$\s?|(,*)/g, '') as any}
                                 />
                             </Form.Item>
                         </Col>
@@ -2237,7 +2345,7 @@ const WaqfJadeed: React.FC = () => {
                                 <InputNumber
                                     style={{ width: '100%' }}
                                     formatter={value => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
-                                    parser={value => value!.replace(/\$\s?|(,*)/g, '')}
+                                    parser={value => value!.replace(/\$\s?|(,*)/g, '') as any}
                                 />
                             </Form.Item>
                         </Col>
