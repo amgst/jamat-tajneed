@@ -648,6 +648,24 @@ export class ApiService {
     return { ...snap.data(), id: snap.id };
   }
 
+  // --- Global Settings / Targets ---
+
+  static async getTargetAmount(year: number): Promise<number> {
+    const docId = `waqf_target_${year}`;
+    const snap = await getDoc(doc(db, 'settings', docId));
+    if (!snap.exists()) return 0;
+    return snap.data().amount || 0;
+  }
+
+  static async saveTargetAmount(year: number, amount: number): Promise<void> {
+    const docId = `waqf_target_${year}`;
+    await setDoc(doc(db, 'settings', docId), {
+      amount,
+      year,
+      updatedAt: new Date().toISOString()
+    });
+  }
+
   // --- Multi-year Comparison Data ---
 
   static async getMultiYearComparisonData(years: number[]): Promise<any> {
