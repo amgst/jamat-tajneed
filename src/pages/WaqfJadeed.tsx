@@ -97,21 +97,40 @@ const WaqfJadeed: React.FC = () => {
 
     useEffect(() => {
         loadData();
-        // Load target amount for selected year from localStorage
-        const savedTarget = localStorage.getItem(`waqf_target_${selectedYear}`);
-        if (savedTarget) {
-            setTargetAmount(parseFloat(savedTarget) || 0);
-        } else {
-            setTargetAmount(0);
-        }
+    }, [selectedYear]);
+
+    useEffect(() => {
+        const loadTarget = async () => {
+            try {
+                const target = await ApiService.getTargetAmount(selectedYear);
+                setTargetAmount(target);
+            } catch (error) {
+                console.error('Failed to load target:', error);
+            }
+        };
+        loadTarget();
     }, [selectedYear]);
 
     // Handler to save target amount
+    // Handler to save target amount with debounce
+    const saveTargetRef = React.useRef<NodeJS.Timeout | null>(null);
+
     const handleTargetChange = (value: number | null) => {
         const target = value || 0;
         setTargetAmount(target);
-        localStorage.setItem(`waqf_target_${selectedYear}`, target.toString());
-        message.success('Target amount saved');
+
+        if (saveTargetRef.current) {
+            clearTimeout(saveTargetRef.current);
+        }
+
+        saveTargetRef.current = setTimeout(async () => {
+            try {
+                await ApiService.saveTargetAmount(selectedYear, target);
+                message.success({ content: 'Target saved', key: 'target-save', duration: 2 });
+            } catch (error) {
+                console.error('Failed to save target:', error);
+            }
+        }, 1000);
     };
 
     const loadData = async () => {
@@ -619,7 +638,8 @@ const WaqfJadeed: React.FC = () => {
         return {
             totalReceived,
             dafarAtfalTotal,
-            remainingFromTarget: targetAmount > 0 ? targetAmount - totalReceived : 0
+            remainingFromTarget: targetAmount > 0 ? targetAmount - totalReceived : 0,
+            receivedPercent: targetAmount > 0 ? (totalReceived / targetAmount) * 100 : 0
         };
     }, [tanzeemStats, deceasedStats, targetAmount]);
 
@@ -1642,9 +1662,20 @@ const WaqfJadeed: React.FC = () => {
                                         valueStyle={{ fontSize: 'clamp(18px, 4vw, 28px)' }}
                                     />
                                     <div style={{ marginTop: 8 }}>
-                                        <Text type="secondary" style={{ fontSize: 'clamp(11px, 2.5vw, 12px)' }}>
-                                            (Ansar + Lajna + Khuddam + Deceased)
-                                        </Text>
+                                        <Progress
+                                            percent={Math.round(targetSectionStats.receivedPercent)}
+                                            size="small"
+                                            status={targetSectionStats.receivedPercent >= 100 ? "success" : "active"}
+                                            strokeColor={targetSectionStats.receivedPercent >= 100 ? "#52c41a" : "#1890ff"}
+                                        />
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 4 }}>
+                                            <Text type="secondary" style={{ fontSize: 'clamp(11px, 2.5vw, 12px)' }}>
+                                                (Ansar + Lajna + Khuddam + Deceased)
+                                            </Text>
+                                            <Text type="secondary" style={{ fontSize: 'clamp(11px, 2.5vw, 12px)', fontWeight: 'bold' }}>
+                                                {targetSectionStats.receivedPercent.toFixed(1)}%
+                                            </Text>
+                                        </div>
                                     </div>
                                 </Card>
                             </Col>
