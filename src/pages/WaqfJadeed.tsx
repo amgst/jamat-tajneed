@@ -343,29 +343,36 @@ const WaqfJadeed: React.FC = () => {
                 receiptNo: values.receiptNo
             };
 
+            console.log('Submitting Payment Data:', paymentData);
+            console.log('Editing Mode:', paymentEditingId ? 'UPDATE' : 'CREATE');
+
             if (paymentEditingId) {
                 if (editingMember) {
+                    console.log('Updating Member Payment');
                     await ApiService.updateWaqfJadeedPayment(paymentData as any);
                     message.success('Payment updated');
                 } else if (editingSpecial) {
+                    console.log('Updating Special Payment');
                     await ApiService.updateWaqfJadeedSpecialPayment(paymentData as any);
                     message.success('Payment updated');
                 }
                 setPaymentEditingId(null);
             } else {
                 if (editingMember) {
+                    console.log('Adding Member Payment');
                     await ApiService.addWaqfJadeedPayment(paymentData as any);
                     message.success('Payment added');
                 } else if (editingSpecial) {
+                    console.log('Adding Special Payment');
                     await ApiService.addWaqfJadeedSpecialPayment(paymentData as any);
                     message.success('Payment added');
                 }
             }
 
             paymentForm.resetFields();
-            loadData();
+            await loadData();
         } catch (error) {
-            console.error(error);
+            console.error('Payment Operation Failed:', error);
             message.error(paymentEditingId ? 'Failed to update payment' : 'Failed to add payment');
         } finally {
             setSubmitting(false);
