@@ -2245,8 +2245,8 @@ const WaqfJadeed: React.FC = () => {
                     {/* Notes field removed as per request */}
                 </Form>
 
-                <div style={{ marginTop: 24, padding: '16px 0', borderTop: '1px solid #f0f0f0' }}>
-                    <Title level={5} style={{ fontSize: 'clamp(14px, 3.5vw, 16px)' }}>Add Payment</Title>
+                <div id="payment-form-container" style={{ marginTop: 24, padding: 16, border: paymentEditingId ? '2px solid #1890ff' : '1px solid #f0f0f0', borderRadius: 8, background: '#fafafa' }}>
+                    <Title level={5} style={{ fontSize: 'clamp(14px, 3.5vw, 16px)' }}>{paymentEditingId ? 'Edit Payment' : 'Add New Payment'}</Title>
                     <Form form={paymentForm} layout="vertical" onFinish={handleAddPayment}>
                         <Row gutter={[8, 8]}>
                             <Col xs={24} sm={12} md={6}>
