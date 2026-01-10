@@ -39,7 +39,10 @@ import {
     EditOutlined,
     PrinterOutlined,
     FilePdfOutlined,
-    CopyOutlined
+    CopyOutlined,
+    SaveOutlined,
+    DownloadOutlined,
+    TeamOutlined
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { jsPDF } from 'jspdf';
@@ -48,7 +51,7 @@ import { ApiService } from '../services/apiService';
 import type { Member, WaqfJadeedRecord, Family, Payment, WaqfJadeedSpecialRecord, ReceiptBook } from '../types';
 import { ReceiptTemplate } from '../components/ReceiptTemplate';
 import PaymentPlanManager from '../components/PaymentPlanManager';
-import { getTanzeemDisplayName } from '../utils/helpers';
+import { getTanzeemDisplayName, calculateAge, determineTanzeem, getTanzeemUrduName } from '../utils/helpers';
 
 const WaqfJadeed: React.FC = () => {
     const { message } = App.useApp();
