@@ -2321,6 +2321,11 @@ const WaqfJadeed: React.FC = () => {
                                                 receiptNo: item.receiptNo,
                                                 notes: item.notes
                                             });
+                                            // Scroll form into view
+                                            const formElement = document.getElementById('payment-form-container');
+                                            if (formElement) {
+                                                formElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                            }
                                         }}
                                     />
                                     <Button
