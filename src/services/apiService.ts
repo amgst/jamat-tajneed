@@ -225,8 +225,19 @@ export class ApiService {
     });
 
     await this.recalculatePaidAmount(record.id);
-
     return this.getWaqfJadeedRecordById(record.id);
+  }
+
+  static async updateWaqfJadeedPayment(data: { id: string; waqfJadeedId: string; amount: number; date: string; notes?: string; bookId?: string; bookNo?: string; receiptNo?: number }): Promise<void> {
+    await updateDoc(doc(db, 'waqfJadeedPayments', data.id), {
+      amount: data.amount,
+      date: data.date,
+      notes: data.notes || '',
+      bookId: data.bookId || null,
+      bookNo: data.bookNo || null,
+      receiptNo: data.receiptNo || null
+    });
+    await this.recalculatePaidAmount(data.waqfJadeedId);
   }
 
   static async deleteWaqfJadeedPayment(id: string) {
@@ -313,6 +324,18 @@ export class ApiService {
 
     await this.recalculateSpecialPaidAmount(data.specialId);
     return this.getWaqfJadeedSpecialRecordById(data.specialId);
+  }
+
+  static async updateWaqfJadeedSpecialPayment(data: { id: string; specialId: string; amount: number; date: string; notes?: string; bookId?: string; bookNo?: string; receiptNo?: number }): Promise<void> {
+    await updateDoc(doc(db, 'waqfJadeedPayments', data.id), {
+      amount: data.amount,
+      date: data.date,
+      notes: data.notes || '',
+      bookId: data.bookId || null,
+      bookNo: data.bookNo || null,
+      receiptNo: data.receiptNo || null
+    });
+    await this.recalculateSpecialPaidAmount(data.specialId);
   }
 
   static async recalculateSpecialPaidAmount(specialId: string) {

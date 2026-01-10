@@ -13,6 +13,8 @@ interface ReceiptTemplateProps {
         amount: number;
         year: number;
         type: 'Waqf-e-Jadeed' | 'Waqf-e-Jadeed (Special)' | 'Tahreq Jadeed' | 'Tahreq Jadeed (Special)';
+        bookNo?: string;
+        receiptNoDisplay?: string | number; // differentiated from receiptNo (system ID)
     }
 }
 
@@ -32,7 +34,9 @@ export const ReceiptTemplate = React.forwardRef<HTMLDivElement, ReceiptTemplateP
                 <Col span={12}>
                     <div>
                         <Text type="secondary" style={{ fontSize: 12 }}>RECEIPT NO</Text>
-                        <div style={{ fontWeight: 'bold' }}>#{data.receiptNo}</div>
+                        <div style={{ fontWeight: 'bold' }}>
+                            {data.bookNo ? `Book: ${data.bookNo} - Rcpt: ${data.receiptNoDisplay}` : `#${data.receiptNo}`}
+                        </div>
                     </div>
                 </Col>
                 <Col span={12} style={{ textAlign: 'right' }}>
