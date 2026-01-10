@@ -5,7 +5,8 @@ import {
   Col,
   Statistic,
   Typography,
-  Button
+  Button,
+  Tooltip
 } from 'antd';
 import {
   UserOutlined,
@@ -17,7 +18,8 @@ import {
   HomeOutlined,
   PlusOutlined,
   StarOutlined,
-  HeartOutlined
+  HeartOutlined,
+  InfoCircleOutlined
 } from '@ant-design/icons';
 import { Column, Pie, Bar } from '@ant-design/charts';
 import { ApiService } from '../services/apiService';
@@ -82,7 +84,11 @@ const Dashboard: React.FC = () => {
         <Col xs={24} sm={12} md={6}>
           <Card>
             <Statistic
-              title="Total Members"
+              title={
+                <Tooltip title="Total active members currently in the database">
+                  <span>Total Members <InfoCircleOutlined style={{ fontSize: '12px', marginLeft: '4px' }} /></span>
+                </Tooltip>
+              }
               value={stats?.totalMembers || 0}
               prefix={<UserOutlined style={{ color: '#1890ff' }} />}
               valueStyle={{ color: '#1890ff' }}
@@ -92,7 +98,11 @@ const Dashboard: React.FC = () => {
         <Col xs={24} sm={12} md={6}>
           <Card>
             <Statistic
-              title="Total Families"
+              title={
+                <Tooltip title="Total number of registered families">
+                  <span>Total Families <InfoCircleOutlined style={{ fontSize: '12px', marginLeft: '4px' }} /></span>
+                </Tooltip>
+              }
               value={stats?.totalFamilies || 0}
               prefix={<TeamOutlined style={{ color: '#52c41a' }} />}
               valueStyle={{ color: '#52c41a' }}
@@ -126,7 +136,11 @@ const Dashboard: React.FC = () => {
         <Col xs={24} sm={12} md={6}>
           <Card>
             <Statistic
-              title="Religious Data"
+              title={
+                <Tooltip title="Members who have submitted religious education data">
+                  <span>Religious Data <InfoCircleOutlined style={{ fontSize: '12px', marginLeft: '4px' }} /></span>
+                </Tooltip>
+              }
               value={stats?.membersWithReligiousData || 0}
               prefix={<BookOutlined style={{ color: '#722ed1' }} />}
               valueStyle={{ color: '#722ed1' }}
@@ -137,7 +151,11 @@ const Dashboard: React.FC = () => {
         <Col xs={24} sm={12} md={6}>
           <Card>
             <Statistic
-              title="Recent Members"
+              title={
+                <Tooltip title="New members added in the last 30 days">
+                  <span>Recent Members <InfoCircleOutlined style={{ fontSize: '12px', marginLeft: '4px' }} /></span>
+                </Tooltip>
+              }
               value={stats?.recentMembers || 0}
               prefix={<PlusOutlined style={{ color: '#faad14' }} />}
               valueStyle={{ color: '#faad14' }}
@@ -158,7 +176,11 @@ const Dashboard: React.FC = () => {
         <Col xs={24} sm={12} md={6}>
           <Card>
             <Statistic
-              title="Avg Family Size"
+              title={
+                <Tooltip title="Average number of members per family">
+                  <span>Avg Family Size <InfoCircleOutlined style={{ fontSize: '12px', marginLeft: '4px' }} /></span>
+                </Tooltip>
+              }
               value={stats?.totalFamilies ? Math.round((stats.totalMembers / stats.totalFamilies) * 10) / 10 : 0}
               prefix={<TeamOutlined style={{ color: '#eb2f96' }} />}
               valueStyle={{ color: '#eb2f96' }}

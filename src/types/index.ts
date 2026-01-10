@@ -49,6 +49,8 @@ export interface Member {
   isDeceased?: boolean;
   dateOfDeath?: string;
   graveNumber?: string;
+  isMoved?: boolean;
+  movedTo?: string;
 
   // Religious Activities (per member)
   religiousActivities?: ReligiousActivities;

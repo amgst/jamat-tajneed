@@ -64,6 +64,8 @@ interface MemberForm {
 
   isDeceased?: boolean;
   dateOfDeath?: dayjs.Dayjs;
+  isMoved?: boolean;
+  movedTo?: string;
 }
 
 const Members: React.FC = () => {
@@ -175,12 +177,15 @@ const Members: React.FC = () => {
   const getFilteredAndSortedMembers = (): Member[] => {
     let filtered = members;
 
-    // Filter by deceased status based on active tab
+    // Filter by status based on active tab
     filtered = filtered.filter(member => {
       if (activeTab === 'deceased') {
         return member.isDeceased === true;
+      } else if (activeTab === 'moved') {
+        return member.isMoved === true;
       } else {
-        return !member.isDeceased;
+        // Active members are neither deceased nor moved
+        return !member.isDeceased && !member.isMoved;
       }
     });
 
@@ -281,6 +286,8 @@ const Members: React.FC = () => {
         hasNewTanzeemTransition: false,
         isDeceased: formData.isDeceased || false,
         graveNumber: formData.graveNumber || '',
+        isMoved: formData.isMoved || false,
+        movedTo: formData.movedTo || '',
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       };
@@ -292,7 +299,7 @@ const Members: React.FC = () => {
 
       // Validate and sanitize input
       const validation = validateMemberData(memberDataRaw);
-      
+
       if (!validation.valid) {
         message.error(`Validation failed: ${validation.errors.join(', ')}`);
         return;
@@ -559,12 +566,13 @@ const Members: React.FC = () => {
   ];
 
   const getTabCounts = () => {
-    const activeCount = members.filter(m => !m.isDeceased).length;
+    const activeCount = members.filter(m => !m.isDeceased && !m.isMoved).length;
     const deceasedCount = members.filter(m => m.isDeceased).length;
-    return { activeCount, deceasedCount };
+    const movedCount = members.filter(m => m.isMoved).length;
+    return { activeCount, deceasedCount, movedCount };
   };
 
-  const { activeCount, deceasedCount } = getTabCounts();
+  const { activeCount, deceasedCount, movedCount } = getTabCounts();
 
   return (
     <div>
@@ -749,6 +757,77 @@ const Members: React.FC = () => {
                     }}
                     scroll={{ x: 1000 }}
                     rowClassName={(record: Member) => record.isDeceased ? 'deceased-member' : ''}
+                  />
+                </div>
+            },
+            {
+              key: 'moved',
+              label: `Moved Members (${movedCount})`,
+              children: (
+                <div>
+                  {/* Search and Filter Controls for Moved */}
+                  <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
+                    <Col xs={24} sm={12} md={8}>
+                      <Input
+                        placeholder="Search moved members..."
+                        prefix={<SearchOutlined />}
+                        value={searchText}
+                        onChange={(e) => setSearchText(e.target.value)}
+                        allowClear
+                        style={{ width: '100%' }}
+                      />
+                    </Col>
+                    <Col xs={24} sm={12} md={8}>
+                      <Select
+                        placeholder="Filter by family..."
+                        value={selectedFamilyId}
+                        onChange={setSelectedFamilyId}
+                        allowClear
+                        style={{ width: '100%' }}
+                      >
+                        {families.map(family => (
+                          <Option key={family.id} value={family.id}>
+                            <Space>
+                              <TeamOutlined />
+                              {family.familyName}
+                            </Space>
+                          </Option>
+                        ))}
+                      </Select>
+                    </Col>
+                    <Col xs={24} sm={12} md={8}>
+                      <Button
+                        type="default"
+                        onClick={() => {
+                          setSearchText('');
+                          setSelectedFamilyId('');
+                        }}
+                        style={{ width: '100%' }}
+                      >
+                        Clear Filters
+                      </Button>
+                    </Col>
+                  </Row>
+
+                  <Table
+                    columns={[...columns.slice(0, -1), {
+                      title: 'Moved To',
+                      dataIndex: 'movedTo',
+                      key: 'movedTo',
+                    }, columns[columns.length - 1]]}
+                    dataSource={getFilteredAndSortedMembers()}
+                    rowKey="id"
+                    loading={loading}
+                    pagination={{
+                      defaultPageSize: 10,
+                      pageSizeOptions: [10, 20, 50, 100],
+                      showSizeChanger: true,
+                      showQuickJumper: true,
+                      showTotal: (total, range) =>
+                        `${range[0]}-${range[1]} of ${total} items`,
+                      responsive: true,
+                    }}
+                    scroll={{ x: 1000 }}
                   />
                 </div>
               ),
@@ -998,6 +1077,41 @@ const Members: React.FC = () => {
             </Col>
           </Row>
 
+
+
+          <Row gutter={16}>
+            <Col xs={24} md={12}>
+              <Form.Item
+                name="isMoved"
+                valuePropName="checked"
+              >
+                <Checkbox>Moved</Checkbox>
+              </Form.Item>
+            </Col>
+            <Col xs={24} md={12}>
+              <Form.Item
+                name="movedTo"
+                label="Moved To"
+                dependencies={['isMoved']}
+                rules={[
+                  ({ getFieldValue }) => ({
+                    validator(_, value) {
+                      if (getFieldValue('isMoved') && !value) {
+                        return Promise.reject(new Error('Please enter where member moved to'));
+                      }
+                      return Promise.resolve();
+                    },
+                  }),
+                ]}
+              >
+                <Input
+                  placeholder="Enter new location"
+                  disabled={!Form.useWatch('isMoved', form)}
+                />
+              </Form.Item>
+            </Col>
+          </Row>
+
           <Row>
             <Col xs={24}>
               <Form.Item
@@ -1026,7 +1140,7 @@ const Members: React.FC = () => {
           loadMembers(); // Refresh the members list
         }}
       />
-    </div>
+    </div >
   );
 };
 
