@@ -43,22 +43,38 @@ export const getTanzeemDisplayName = (tanzeem: Tanzeem): string => {
 };
 
 /**
+ * Get Tanzeem Urdu display name
+ */
+export const getTanzeemUrduName = (tanzeem: Tanzeem): string => {
+  const names: Record<Tanzeem, string> = {
+    'saf-e-awal': 'صف اول',
+    'saf-e-awal-girls': 'صف اول (لڑکیاں)',
+    'atfal': 'اطفال',
+    'nasirat': 'ناصرات',
+    'khuddam': 'خدام',
+    'lajna': 'لجنہ',
+    'ansar': 'انصار'
+  };
+  return names[tanzeem];
+};
+
+/**
  * Check if member needs Tanzeem transition based on current age vs stored Tanzeem
  */
 export const checkTanzeemTransition = (
-  currentAge: number, 
-  gender: 'male' | 'female', 
+  currentAge: number,
+  gender: 'male' | 'female',
   currentTanzeem: Tanzeem
 ): { needsTransition: boolean; newTanzeem?: Tanzeem } => {
   const correctTanzeem = determineTanzeem(currentAge, gender);
-  
+
   if (correctTanzeem !== currentTanzeem) {
     return {
       needsTransition: true,
       newTanzeem: correctTanzeem
     };
   }
-  
+
   return { needsTransition: false };
 };
 
@@ -127,7 +143,7 @@ export const exportToCSV = (data: any[], filename: string): void => {
   const csvContent = convertToCSV(data);
   const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
   const link = document.createElement('a');
-  
+
   if (link.download !== undefined) {
     const url = URL.createObjectURL(blob);
     link.setAttribute('href', url);
@@ -144,19 +160,19 @@ export const exportToCSV = (data: any[], filename: string): void => {
  */
 const convertToCSV = (data: any[]): string => {
   if (data.length === 0) return '';
-  
+
   const headers = Object.keys(data[0]);
   const csvContent = [
     headers.join(','),
-    ...data.map(row => 
+    ...data.map(row =>
       headers.map(header => {
         const value = row[header];
-        return typeof value === 'string' && value.includes(',') 
-          ? `"${value}"` 
+        return typeof value === 'string' && value.includes(',')
+          ? `"${value}"`
           : value;
       }).join(',')
     )
   ].join('\n');
-  
+
   return csvContent;
 };

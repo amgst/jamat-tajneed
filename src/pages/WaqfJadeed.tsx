@@ -2286,8 +2286,25 @@ const WaqfJadeed: React.FC = () => {
                                     <Input placeholder="Optional notes" />
                                 </Form.Item>
                             </Col>
-                            <Col xs={24} sm={24} md={24} style={{ textAlign: 'right' }}>
-                                <Button type="primary" htmlType="submit" icon={<PlusOutlined />} loading={submitting}>Add Payment</Button>
+                            <Col xs={24} sm={24} md={24} style={{ textAlign: 'right', display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+                                <Button onClick={() => {
+                                    setEditingMember(null);
+                                    setEditingSpecial(null);
+                                    setPaymentEditingId(null);
+                                }}>
+                                    Close
+                                </Button>
+                                {paymentEditingId && (
+                                    <Button onClick={() => {
+                                        setPaymentEditingId(null);
+                                        paymentForm.resetFields();
+                                    }}>
+                                        Cancel Edit
+                                    </Button>
+                                )}
+                                <Button type="primary" htmlType="submit" icon={paymentEditingId ? <SaveOutlined /> : <PlusOutlined />} loading={submitting}>
+                                    {paymentEditingId ? 'Update Payment' : 'Add Payment'}
+                                </Button>
                             </Col>
                         </Row>
                     </Form>
@@ -2404,7 +2421,9 @@ const WaqfJadeed: React.FC = () => {
                                 memberCode: printingPayment.memberCode || '',
                                 amount: printingPayment.payment.amount,
                                 year: selectedYear,
-                                type: printingPayment.memberCode ? 'Waqf-e-Jadeed' : 'Waqf-e-Jadeed (Special)'
+                                type: printingPayment.memberCode ? 'Waqf-e-Jadeed' : 'Waqf-e-Jadeed (Special)',
+                                tanzeem: printingPayment.memberCode && editingMember ? getTanzeemUrduName(determineTanzeem(calculateAge(editingMember.dateOfBirth), editingMember.gender)) : undefined,
+                                gender: editingMember ? editingMember.gender : editingSpecial?.gender
                             }}
                         />
                     </div>

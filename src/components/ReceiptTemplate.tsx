@@ -15,10 +15,24 @@ interface ReceiptTemplateProps {
         type: 'Waqf-e-Jadeed' | 'Waqf-e-Jadeed (Special)' | 'Tahreq Jadeed' | 'Tahreq Jadeed (Special)';
         bookNo?: string;
         receiptNoDisplay?: string | number; // differentiated from receiptNo (system ID)
+        tanzeem?: string;
+        gender?: 'male' | 'female';
     }
 }
 
 export const ReceiptTemplate = React.forwardRef<HTMLDivElement, ReceiptTemplateProps>(({ data }, ref) => {
+    const getFormattedName = () => {
+        if (!data.gender) return data.name;
+        if (data.gender === 'female') return `محترمہ ${data.name} صاحبہ`;
+        return `محترم ${data.name} صاحب`;
+    };
+
+    const getUrduType = () => {
+        if (data.type.includes('Special')) return 'وقف جدید (خصوصی)';
+        if (data.type.includes('Waqf-e-Jadeed')) return 'وقف جدید';
+        return data.type;
+    };
+
     return (
         <div ref={ref} className="receipt-container" style={{ padding: 40, background: 'white', color: 'black' }}>
             {/* Header */}
@@ -51,12 +65,18 @@ export const ReceiptTemplate = React.forwardRef<HTMLDivElement, ReceiptTemplateP
                 <Row gutter={[16, 24]}>
                     <Col span={24}>
                         <Text type="secondary" style={{ fontSize: 12 }}>RECEIVED FROM</Text>
-                        <div style={{ fontSize: 18, fontWeight: 500 }}>{data.name}</div>
+                        <div style={{ fontSize: 18, fontWeight: 500, fontFamily: 'Noto Nastaliq Urdu, Arial, sans-serif' }}>{getFormattedName()}</div>
                         <Text type="secondary">{data.memberCode ? `Member Code: ${data.memberCode}` : 'Special Pledge'}</Text>
+                        {data.tanzeem && (
+                            <div style={{ marginTop: 4 }}>
+                                <Text strong style={{ fontSize: 16, fontFamily: 'Noto Nastaliq Urdu, Arial, sans-serif' }}>{data.tanzeem}</Text>
+                            </div>
+                        )}
                     </Col>
                     <Col span={24}>
                         <Text type="secondary" style={{ fontSize: 12 }}>PAYMENT FOR</Text>
-                        <div style={{ fontSize: 16 }}>{data.type} - {data.year}</div>
+                        <div style={{ fontSize: 20, fontFamily: 'Noto Nastaliq Urdu, Arial, sans-serif' }}>{getUrduType()}</div>
+                        <div style={{ fontSize: 14, color: '#666' }}>{data.year}</div>
                     </Col>
                 </Row>
             </div>
