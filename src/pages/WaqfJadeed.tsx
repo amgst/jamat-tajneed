@@ -40,9 +40,7 @@ import {
     PrinterOutlined,
     FilePdfOutlined,
     CopyOutlined,
-    SaveOutlined,
-    DownloadOutlined,
-    TeamOutlined
+    SaveOutlined
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { jsPDF } from 'jspdf';
