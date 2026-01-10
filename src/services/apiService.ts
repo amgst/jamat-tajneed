@@ -207,7 +207,7 @@ export class ApiService {
     return { ...snap.data(), id: snap.id, payments } as WaqfJadeedRecord;
   }
 
-  static async addWaqfJadeedPayment(data: { memberId: string; year: number; amount: number; date: string; notes?: string }): Promise<WaqfJadeedRecord | null> {
+  static async addWaqfJadeedPayment(data: { memberId: string; year: number; amount: number; date: string; notes?: string; bookId?: string; bookNo?: string; receiptNo?: number }): Promise<WaqfJadeedRecord | null> {
     const record = await this.saveWaqfJadeedRecord({ memberId: data.memberId, year: data.year });
 
     if (!record) throw new Error('Failed to create/fetch record');
@@ -218,7 +218,10 @@ export class ApiService {
       waqfJadeedId: record.id,
       amount: data.amount,
       date: data.date,
-      notes: data.notes || ''
+      notes: data.notes || '',
+      bookId: data.bookId || null,
+      bookNo: data.bookNo || null,
+      receiptNo: data.receiptNo || null
     });
 
     await this.recalculatePaidAmount(record.id);
@@ -295,14 +298,17 @@ export class ApiService {
     return { ...snap.data(), id: snap.id, payments } as WaqfJadeedSpecialRecord;
   }
 
-  static async addWaqfJadeedSpecialPayment(data: { specialId: string; amount: number; date: string; notes?: string }): Promise<WaqfJadeedSpecialRecord | null> {
+  static async addWaqfJadeedSpecialPayment(data: { specialId: string; amount: number; date: string; notes?: string; bookId?: string; bookNo?: string; receiptNo?: number }): Promise<WaqfJadeedSpecialRecord | null> {
     const paymentId = crypto.randomUUID();
     await setDoc(doc(db, 'waqfJadeedPayments', paymentId), {
       id: paymentId,
       waqfJadeedId: data.specialId,
       amount: data.amount,
       date: data.date,
-      notes: data.notes || ''
+      notes: data.notes || '',
+      bookId: data.bookId || null,
+      bookNo: data.bookNo || null,
+      receiptNo: data.receiptNo || null
     });
 
     await this.recalculateSpecialPaidAmount(data.specialId);
@@ -702,5 +708,32 @@ export class ApiService {
     }
 
     return comparisonData;
+  }
+
+  // --- Receipt Books ---
+
+  static async createReceiptBook(bookNo: string): Promise<any> {
+    // Check if exists
+    const q = query(collection(db, 'receiptBooks'), where('bookNo', '==', bookNo));
+    const snap = await getDocs(q);
+    if (!snap.empty) {
+      throw new Error('Book number already exists');
+    }
+
+    const id = crypto.randomUUID();
+    const book = {
+      id,
+      bookNo,
+      status: 'active',
+      createdAt: new Date().toISOString()
+    };
+    await setDoc(doc(db, 'receiptBooks', id), book);
+    return book;
+  }
+
+  static async getReceiptBooks(): Promise<any[]> {
+    const q = query(collection(db, 'receiptBooks'));
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id }));
   }
 }

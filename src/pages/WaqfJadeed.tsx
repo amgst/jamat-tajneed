@@ -45,7 +45,7 @@ import dayjs from 'dayjs';
 import { jsPDF } from 'jspdf';
 import html2canvas from 'html2canvas';
 import { ApiService } from '../services/apiService';
-import type { Member, WaqfJadeedRecord, Family, Payment, WaqfJadeedSpecialRecord } from '../types';
+import type { Member, WaqfJadeedRecord, Family, Payment, WaqfJadeedSpecialRecord, ReceiptBook } from '../types';
 import { ReceiptTemplate } from '../components/ReceiptTemplate';
 import PaymentPlanManager from '../components/PaymentPlanManager';
 import { getTanzeemDisplayName } from '../utils/helpers';
@@ -95,9 +95,29 @@ const WaqfJadeed: React.FC = () => {
     const [tanzeemMembersCurrentPage, setTanzeemMembersCurrentPage] = useState<Record<string, number>>({});
     const [tanzeemMembersPageSize, setTanzeemMembersPageSize] = useState<Record<string, number>>({});
 
+    const [books, setBooks] = useState<ReceiptBook[]>([]);
+    const [addBookModalVisible, setAddBookModalVisible] = useState(false);
+    const [newBookForm] = Form.useForm();
+
     useEffect(() => {
         loadData();
+        loadBooks();
     }, [selectedYear]);
+
+    const loadBooks = async () => {
+        try {
+            const data = await ApiService.getReceiptBooks();
+            // Sort active first, then by createdAt desc
+            const sorted = data.sort((a, b) => {
+                if (a.status === 'active' && b.status !== 'active') return -1;
+                if (a.status !== 'active' && b.status === 'active') return 1;
+                return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+            });
+            setBooks(sorted);
+        } catch (error) {
+            console.error('Failed to load books:', error);
+        }
+    };
 
     useEffect(() => {
         const loadTarget = async () => {
@@ -276,6 +296,21 @@ const WaqfJadeed: React.FC = () => {
             setIsEditingPromise(false);
         } catch (error) {
             message.error('Failed to save promise');
+        } finally {
+            setSubmitting(false);
+        }
+    };
+
+    const handleAddBook = async (values: any) => {
+        try {
+            setSubmitting(true);
+            await ApiService.createReceiptBook(values.bookNo);
+            message.success('Book created successfully');
+            setAddBookModalVisible(false);
+            newBookForm.resetFields();
+            loadBooks();
+        } catch (error: any) {
+            message.error(error.message || 'Failed to create book');
         } finally {
             setSubmitting(false);
         }
@@ -2202,18 +2237,45 @@ const WaqfJadeed: React.FC = () => {
                     <Title level={5} style={{ fontSize: 'clamp(14px, 3.5vw, 16px)' }}>Add Payment</Title>
                     <Form form={paymentForm} layout="vertical" onFinish={handleAddPayment}>
                         <Row gutter={[8, 8]}>
-                            <Col xs={24} sm={12} md={8}>
-                                <Form.Item name="amount" rules={[{ required: true, message: 'Required' }]} style={{ margin: 0 }}>
-                                    <InputNumber placeholder="Amount" style={{ width: '100%' }} />
+                            <Col xs={24} sm={12} md={6}>
+                                <Form.Item name="bookId" label="Book" rules={[{ required: true, message: 'Required' }]} style={{ marginBottom: 8 }}>
+                                    <Select
+                                        placeholder="Select Book"
+                                        dropdownRender={menu => (
+                                            <>
+                                                {menu}
+                                                <Button type="text" block icon={<PlusOutlined />} onClick={() => setAddBookModalVisible(true)}>
+                                                    Add New Book
+                                                </Button>
+                                            </>
+                                        )}
+                                    >
+                                        {books.map(book => (
+                                            <Option key={book.id} value={book.id}>{book.bookNo} ({book.status})</Option>
+                                        ))}
+                                    </Select>
                                 </Form.Item>
                             </Col>
-                            <Col xs={24} sm={12} md={10}>
-                                <Form.Item name="notes" style={{ margin: 0 }}>
-                                    <Input placeholder="Ref/Receipt #" />
+                            <Col xs={12} sm={6} md={4}>
+                                <Form.Item name="receiptNo" label="Receipt #" rules={[{ required: true, message: 'Required' }]} style={{ marginBottom: 8 }}>
+                                    <InputNumber placeholder="No." style={{ width: '100%' }} />
                                 </Form.Item>
                             </Col>
-                            <Col xs={24} sm={24} md={6}>
-                                <Button type="primary" htmlType="submit" icon={<PlusOutlined />} loading={submitting} block>Add</Button>
+                            <Col xs={12} sm={6} md={6}>
+                                <Form.Item name="amount" label="Amount" rules={[{ required: true, message: 'Required' }]} style={{ marginBottom: 8 }}>
+                                    <InputNumber placeholder="Amount" style={{ width: '100%' }}
+                                        formatter={value => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
+                                        parser={value => value!.replace(/\$\s?|(,*)/g, '') as any}
+                                    />
+                                </Form.Item>
+                            </Col>
+                            <Col xs={24} sm={24} md={8}>
+                                <Form.Item name="notes" label="Notes" style={{ marginBottom: 8 }}>
+                                    <Input placeholder="Optional notes" />
+                                </Form.Item>
+                            </Col>
+                            <Col xs={24} sm={24} md={24} style={{ textAlign: 'right' }}>
+                                <Button type="primary" htmlType="submit" icon={<PlusOutlined />} loading={submitting}>Add Payment</Button>
                             </Col>
                         </Row>
                     </Form>
@@ -2232,9 +2294,13 @@ const WaqfJadeed: React.FC = () => {
                                 <List.Item.Meta
                                     title={`Rs. ${item.amount.toLocaleString()}`}
                                     description={
-                                        <Space>
+                                        <Space direction="vertical" size={0}>
                                             <Text type="secondary">{dayjs(item.date).format('DD MMM YYYY')}</Text>
-                                            {item.notes && <Text type="secondary">• {item.notes}</Text>}
+                                            <Space split={<Text type="secondary">|</Text>}>
+                                                {item.bookNo && <Text strong>Book: {item.bookNo}</Text>}
+                                                {item.receiptNo && <Text strong>Rcpt: {item.receiptNo}</Text>}
+                                            </Space>
+                                            {item.notes && <Text type="secondary">{item.notes}</Text>}
                                         </Space>
                                     }
                                 />
@@ -2246,8 +2312,7 @@ const WaqfJadeed: React.FC = () => {
                                             setPrintingPayment({
                                                 payment: item,
                                                 recordName: editingMember ? editingMember.name : (editingSpecial?.name || 'Unknown'),
-                                                // memberCode: editingMember ? editingMember.memberCode : undefined // Property does not exist
-                                                memberCode: undefined // Or use another field if available, but for now undefined to fix build
+                                                memberCode: undefined
                                             });
                                         }}
                                     />
@@ -2381,6 +2446,25 @@ const WaqfJadeed: React.FC = () => {
                             </Form.Item>
                         </Col>
                     </Row>
+                </Form>
+            </Modal>
+
+            {/* Add Book Modal */}
+            <Modal
+                title="Add New Receipt Book"
+                open={addBookModalVisible}
+                onCancel={() => setAddBookModalVisible(false)}
+                footer={null}
+            >
+                <Form form={newBookForm} layout="vertical" onFinish={handleAddBook}>
+                    <Form.Item name="bookNo" label="Book Number" rules={[{ required: true, message: 'Required' }]}>
+                        <Input placeholder="e.g. A-1, B-2" />
+                    </Form.Item>
+                    <Form.Item>
+                        <Button type="primary" htmlType="submit" loading={submitting} block>
+                            Create Book
+                        </Button>
+                    </Form.Item>
                 </Form>
             </Modal>
         </div>

@@ -162,12 +162,23 @@ export interface SearchFilters {
   familyId?: string;
 }
 
+
+export interface ReceiptBook {
+  id: string;
+  bookNo: string;
+  status: 'active' | 'completed';
+  createdAt: string;
+}
+
 export interface Payment {
   id: string;
   waqfJadeedId: string;
   amount: number;
   date: string;
   notes?: string;
+  bookId?: string;
+  bookNo?: string;
+  receiptNo?: number;
 }
 
 export interface PaymentPlan {
