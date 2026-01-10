@@ -677,6 +677,13 @@ const WaqfJadeed: React.FC = () => {
         const totalDeceasedPaid = deceasedStats.totalDeceasedPaid || 0;
         const totalReceived = ansarPaid + lajnaPaid + khuddamPaid + totalDeceasedPaid;
 
+        // Calculate Total Promised for the same group
+        const ansarPromise = tanzeemStats.find(t => t.name === 'ansar')?.promise || 0;
+        const lajnaPromise = tanzeemStats.find(t => t.name === 'lajna')?.promise || 0;
+        const khuddamPromise = tanzeemStats.find(t => t.name === 'khuddam')?.promise || 0;
+        const totalDeceasedPromise = deceasedStats.totalDeceasedPromise || 0;
+        const totalPromised = ansarPromise + lajnaPromise + khuddamPromise + totalDeceasedPromise;
+
         // Calculate Dafar Atfal: Atfal + Saf-e-Awal boys + Saf-e-Awal girls + Nasirat
         const atfalPaid = tanzeemStats.find(t => t.name === 'atfal')?.paid || 0;
         const safEawalPaid = tanzeemStats.find(t => t.name === 'saf-e-awal')?.paid || 0;
@@ -686,9 +693,10 @@ const WaqfJadeed: React.FC = () => {
 
         return {
             totalReceived,
+            totalPromised,
             dafarAtfalTotal,
-            remainingFromTarget: targetAmount > 0 ? targetAmount - totalReceived : 0,
-            receivedPercent: targetAmount > 0 ? (totalReceived / targetAmount) * 100 : 0
+            remainingFromTarget: targetAmount > 0 ? targetAmount - totalPromised : 0,
+            receivedPercent: targetAmount > 0 ? (totalPromised / targetAmount) * 100 : 0
         };
     }, [tanzeemStats, deceasedStats, targetAmount]);
 
@@ -1708,12 +1716,17 @@ const WaqfJadeed: React.FC = () => {
                             <Col xs={24} sm={12} md={6}>
                                 <Card bodyStyle={{ padding: 16 }}>
                                     <Statistic
-                                        title="Total Received"
-                                        value={targetSectionStats.totalReceived}
+                                        title="Total Promised"
+                                        value={targetSectionStats.totalPromised}
                                         prefix="Rs."
                                         precision={0}
                                         valueStyle={{ fontSize: 'clamp(18px, 4vw, 28px)' }}
                                     />
+                                    <div style={{ marginBottom: 4 }}>
+                                        <Text type="secondary" style={{ fontSize: 'clamp(11px, 2.5vw, 12px)' }}>
+                                            Received: Rs. {targetSectionStats.totalReceived.toLocaleString()}
+                                        </Text>
+                                    </div>
                                     <div style={{ marginTop: 8 }}>
                                         <Progress
                                             percent={Math.round(targetSectionStats.receivedPercent)}
@@ -1746,7 +1759,7 @@ const WaqfJadeed: React.FC = () => {
                                     />
                                     <div style={{ marginTop: 8 }}>
                                         <Text type="secondary" style={{ fontSize: 'clamp(11px, 2.5vw, 12px)' }}>
-                                            (Target - Total Received)
+                                            (Target - Total Promised)
                                         </Text>
                                     </div>
                                 </Card>
