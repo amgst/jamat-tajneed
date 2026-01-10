@@ -372,349 +372,349 @@ const WaqfJadeed: React.FC = () => {
         }
     };
 
-};
 
-const handleDeletePayment = async (paymentId: string) => {
-    try {
-        const res = await ApiService.deleteWaqfJadeedPayment(paymentId);
-        if (res.success) {
-            if (editingMember) {
-                const [updatedRecords] = await Promise.all([ApiService.getWaqfJadeedRecords(selectedYear, editingMember.id)]);
-                if (updatedRecords && updatedRecords.length > 0) {
-                    updateLocalRecord(updatedRecords[0]);
+
+    const handleDeletePayment = async (paymentId: string) => {
+        try {
+            const res = await ApiService.deleteWaqfJadeedPayment(paymentId);
+            if (res.success) {
+                if (editingMember) {
+                    const [updatedRecords] = await Promise.all([ApiService.getWaqfJadeedRecords(selectedYear, editingMember.id)]);
+                    if (updatedRecords && updatedRecords.length > 0) {
+                        updateLocalRecord(updatedRecords[0]);
+                    }
+                } else if (editingSpecial) {
+                    const updatedRecord = await ApiService.getWaqfJadeedSpecialRecordById(editingSpecial.id);
+                    if (updatedRecord) {
+                        setSpecialRecords(prev => {
+                            const idx = prev.findIndex(r => r.id === updatedRecord.id);
+                            if (idx >= 0) {
+                                const newRecs = [...prev];
+                                newRecs[idx] = updatedRecord;
+                                return newRecs;
+                            }
+                            return prev;
+                        });
+                        setEditingSpecial(updatedRecord);
+                    }
                 }
-            } else if (editingSpecial) {
-                const updatedRecord = await ApiService.getWaqfJadeedSpecialRecordById(editingSpecial.id);
-                if (updatedRecord) {
-                    setSpecialRecords(prev => {
-                        const idx = prev.findIndex(r => r.id === updatedRecord.id);
-                        if (idx >= 0) {
-                            const newRecs = [...prev];
-                            newRecs[idx] = updatedRecord;
-                            return newRecs;
-                        }
-                        return prev;
-                    });
-                    setEditingSpecial(updatedRecord);
-                }
+                message.success('Payment deleted');
             }
-            message.success('Payment deleted');
+        } catch (error) {
+            message.error('Failed to delete payment');
         }
-    } catch (error) {
-        message.error('Failed to delete payment');
-    }
-};
-
-
-
-// Special Member Handlers
-const handleSaveSpecial = async () => {
-    setSubmitting(true);
-    try {
-        const values = await specialForm.validateFields();
-        const payload = {
-            id: values.id,
-            familyId: activeFamilyId,
-            year: selectedYear,
-            name: values.name,
-            gender: values.gender,
-            isDeceased: !!values.isDeceased, // Ensure boolean
-            promiseAmount: values.promiseAmount || 0,
-            nagarparAmount: values.nagarparAmount || 0,
-        };
-        const saved = await ApiService.saveWaqfJadeedSpecialRecord(payload);
-
-        setSpecialRecords(prev => {
-            const idx = prev.findIndex(r => r.id === saved.id);
-            if (idx >= 0) {
-                const newRecs = [...prev];
-                newRecs[idx] = { ...saved, isDeceased: !!saved.isDeceased } as WaqfJadeedSpecialRecord;
-                return newRecs;
-            }
-            return [...prev, { ...saved, isDeceased: !!saved.isDeceased } as WaqfJadeedSpecialRecord];
-        });
-
-        message.success('Special record saved');
-        setSpecialModalVisible(false);
-        specialForm.resetFields();
-    } catch (error) {
-        message.error('Failed to save');
-    } finally {
-        setSubmitting(false);
-    }
-};
-
-const handleDeleteSpecial = async (id: string) => {
-    try {
-        await ApiService.deleteWaqfJadeedSpecialRecord(id);
-        setSpecialRecords(prev => prev.filter(r => r.id !== id));
-        message.success('Record deleted');
-    } catch (error) {
-        message.error('Failed to delete');
-    }
-};
-
-
-
-// Merge Data
-const getMemberData = (memberId: string) => {
-    const member = members.find(m => m.id === memberId);
-    if (!member) return null;
-    const record = records.find(r => r.memberId === member.id);
-    return {
-        member,
-        record,
-        promise: (record?.promiseAmount || 0) + (record?.nagarparAmount || 0),
-        paid: record?.paidAmount || 0,
-        originalPromise: record?.promiseAmount || 0,
-        nagarpar: record?.nagarparAmount || 0
     };
-};
 
-type MemberData = ReturnType<typeof getMemberData>;
 
-const filteredMemberData = useMemo(() => {
-    let data = members
-        .filter(member => {
-            // Exclude deceased members from main members list
-            return !member.isDeceased;
-        })
-        .map(member => {
-            const record = records.find(r => r.memberId === member.id);
-            return {
-                member,
-                record,
-                promise: (record?.promiseAmount || 0) + (record?.nagarparAmount || 0),
-                paid: record?.paidAmount || 0,
-                originalPromise: record?.promiseAmount || 0,
-                nagarpar: record?.nagarparAmount || 0
+
+    // Special Member Handlers
+    const handleSaveSpecial = async () => {
+        setSubmitting(true);
+        try {
+            const values = await specialForm.validateFields();
+            const payload = {
+                id: values.id,
+                familyId: activeFamilyId,
+                year: selectedYear,
+                name: values.name,
+                gender: values.gender,
+                isDeceased: !!values.isDeceased, // Ensure boolean
+                promiseAmount: values.promiseAmount || 0,
+                nagarparAmount: values.nagarparAmount || 0,
             };
+            const saved = await ApiService.saveWaqfJadeedSpecialRecord(payload);
+
+            setSpecialRecords(prev => {
+                const idx = prev.findIndex(r => r.id === saved.id);
+                if (idx >= 0) {
+                    const newRecs = [...prev];
+                    newRecs[idx] = { ...saved, isDeceased: !!saved.isDeceased } as WaqfJadeedSpecialRecord;
+                    return newRecs;
+                }
+                return [...prev, { ...saved, isDeceased: !!saved.isDeceased } as WaqfJadeedSpecialRecord];
+            });
+
+            message.success('Special record saved');
+            setSpecialModalVisible(false);
+            specialForm.resetFields();
+        } catch (error) {
+            message.error('Failed to save');
+        } finally {
+            setSubmitting(false);
+        }
+    };
+
+    const handleDeleteSpecial = async (id: string) => {
+        try {
+            await ApiService.deleteWaqfJadeedSpecialRecord(id);
+            setSpecialRecords(prev => prev.filter(r => r.id !== id));
+            message.success('Record deleted');
+        } catch (error) {
+            message.error('Failed to delete');
+        }
+    };
+
+
+
+    // Merge Data
+    const getMemberData = (memberId: string) => {
+        const member = members.find(m => m.id === memberId);
+        if (!member) return null;
+        const record = records.find(r => r.memberId === member.id);
+        return {
+            member,
+            record,
+            promise: (record?.promiseAmount || 0) + (record?.nagarparAmount || 0),
+            paid: record?.paidAmount || 0,
+            originalPromise: record?.promiseAmount || 0,
+            nagarpar: record?.nagarparAmount || 0
+        };
+    };
+
+    type MemberData = ReturnType<typeof getMemberData>;
+
+    const filteredMemberData = useMemo(() => {
+        let data = members
+            .filter(member => {
+                // Exclude deceased members from main members list
+                return !member.isDeceased;
+            })
+            .map(member => {
+                const record = records.find(r => r.memberId === member.id);
+                return {
+                    member,
+                    record,
+                    promise: (record?.promiseAmount || 0) + (record?.nagarparAmount || 0),
+                    paid: record?.paidAmount || 0,
+                    originalPromise: record?.promiseAmount || 0,
+                    nagarpar: record?.nagarparAmount || 0
+                };
+            });
+
+        if (searchTerm) {
+            const lower = searchTerm.toLowerCase();
+            data = data.filter(item =>
+                item.member.name.toLowerCase().includes(lower) ||
+                (item.member.fatherName || '').toLowerCase().includes(lower) ||
+                (item.member.halqa || '').toLowerCase().includes(lower)
+            );
+        }
+        return data;
+    }, [members, records, searchTerm]);
+
+    const filteredFamilyData = useMemo(() => {
+        let data = families;
+        if (searchTerm) {
+            const lower = searchTerm.toLowerCase();
+            data = data.filter(f =>
+                f.familyName.toLowerCase().includes(lower) ||
+                (f.halqa || '').toLowerCase().includes(lower)
+            );
+        }
+        // numeric sort by familyNumber
+        return data.sort((a, b) => {
+            const numA = a.familyNumber || 999999;
+            const numB = b.familyNumber || 999999;
+            return numA - numB;
+        });
+    }, [families, searchTerm]);
+
+    // Group members by tanzeem for Tanzeem Wise view
+    const tanzeemGroupedData = useMemo(() => {
+        const tanzeemOrder = ['ansar', 'lajna', 'khuddam', 'atfal', 'nasirat', 'saf-e-awal', 'saf-e-awal-girls'];
+        const grouped: Record<string, typeof filteredMemberData> = {};
+
+        filteredMemberData.forEach(item => {
+            const tanzeem = item.member.tanzeem || 'Unknown';
+            if (!grouped[tanzeem]) {
+                grouped[tanzeem] = [];
+            }
+            grouped[tanzeem].push(item);
         });
 
-    if (searchTerm) {
-        const lower = searchTerm.toLowerCase();
-        data = data.filter(item =>
-            item.member.name.toLowerCase().includes(lower) ||
-            (item.member.fatherName || '').toLowerCase().includes(lower) ||
-            (item.member.halqa || '').toLowerCase().includes(lower)
-        );
-    }
-    return data;
-}, [members, records, searchTerm]);
+        // Sort tanzeem groups by predefined order
+        return tanzeemOrder
+            .filter(t => grouped[t])
+            .map(tanzeem => ({
+                tanzeem,
+                members: grouped[tanzeem],
+                totalPromise: grouped[tanzeem].reduce((sum, m) => sum + m.promise, 0),
+                totalPaid: grouped[tanzeem].reduce((sum, m) => sum + m.paid, 0),
+                count: grouped[tanzeem].length
+            }))
+            .map(group => ({
+                ...group,
+                percent: group.totalPromise > 0 ? Math.round((group.totalPaid / group.totalPromise) * 100) : 0
+            }));
+    }, [filteredMemberData]);
 
-const filteredFamilyData = useMemo(() => {
-    let data = families;
-    if (searchTerm) {
-        const lower = searchTerm.toLowerCase();
-        data = data.filter(f =>
-            f.familyName.toLowerCase().includes(lower) ||
-            (f.halqa || '').toLowerCase().includes(lower)
-        );
-    }
-    // numeric sort by familyNumber
-    return data.sort((a, b) => {
-        const numA = a.familyNumber || 999999;
-        const numB = b.familyNumber || 999999;
-        return numA - numB;
-    });
-}, [families, searchTerm]);
+    // Initialize pagination states when families change
+    useEffect(() => {
+        const initialMembersPageState: Record<string, number> = {};
+        const initialSpecialPageState: Record<string, number> = {};
+        const initialMembersPageSizeState: Record<string, number> = {};
+        const initialSpecialPageSizeState: Record<string, number> = {};
 
-// Group members by tanzeem for Tanzeem Wise view
-const tanzeemGroupedData = useMemo(() => {
-    const tanzeemOrder = ['ansar', 'lajna', 'khuddam', 'atfal', 'nasirat', 'saf-e-awal', 'saf-e-awal-girls'];
-    const grouped: Record<string, typeof filteredMemberData> = {};
+        families.forEach(family => {
+            initialMembersPageState[family.id] = 1;
+            initialSpecialPageState[family.id] = 1;
+            initialMembersPageSizeState[family.id] = 10;
+            initialSpecialPageSizeState[family.id] = 10;
+        });
 
-    filteredMemberData.forEach(item => {
-        const tanzeem = item.member.tanzeem || 'Unknown';
-        if (!grouped[tanzeem]) {
-            grouped[tanzeem] = [];
+        setFamilyMembersCurrentPage(initialMembersPageState);
+        setFamilySpecialCurrentPage(initialSpecialPageState);
+        setFamilyMembersPageSize(initialMembersPageSizeState);
+        setFamilySpecialPageSize(initialSpecialPageSizeState);
+    }, [families]);
+
+    // Initialize pagination states when tanzeem groups change
+    useEffect(() => {
+        const initialTanzeemPageState: Record<string, number> = {};
+        const initialTanzeemPageSizeState: Record<string, number> = {};
+
+        tanzeemGroupedData.forEach(group => {
+            initialTanzeemPageState[group.tanzeem] = 1;
+            initialTanzeemPageSizeState[group.tanzeem] = 10;
+        });
+
+        setTanzeemMembersCurrentPage(prev => ({ ...prev, ...initialTanzeemPageState }));
+        setTanzeemMembersPageSize(prev => ({ ...prev, ...initialTanzeemPageSizeState }));
+    }, [tanzeemGroupedData]);
+
+
+    // Stats
+    const stats = useMemo(() => {
+        const specialPromise = Array.isArray(specialRecords) ? specialRecords.reduce((sum, r) => sum + (r.promiseAmount || 0) + (r.nagarparAmount || 0), 0) : 0;
+        const specialPaid = Array.isArray(specialRecords) ? specialRecords.reduce((sum, r) => sum + (r.paidAmount || 0), 0) : 0;
+
+        const totalPromise = records.reduce((sum, r) => sum + (r.promiseAmount || 0) + (r.nagarparAmount || 0), 0) + specialPromise;
+        const totalPaid = records.reduce((sum, r) => sum + (r.paidAmount || 0), 0) + specialPaid;
+        const percent = totalPromise > 0 ? (totalPaid / totalPromise) * 100 : 0;
+        return { totalPromise, totalPaid, percent };
+    }, [records, specialRecords]);
+
+    // Tanzeem Stats Aggregation
+    const tanzeemStats = useMemo(() => {
+        const statsMap: Record<string, { promise: number; paid: number; count: number }> = {};
+
+        members.forEach(member => {
+            const tanzeem = member.tanzeem || 'Unknown';
+            if (!statsMap[tanzeem]) {
+                statsMap[tanzeem] = { promise: 0, paid: 0, count: 0 };
+            }
+            const record = records.find(r => r.memberId === member.id);
+            if (record) {
+                statsMap[tanzeem].promise += (record.promiseAmount || 0) + (record.nagarparAmount || 0);
+                statsMap[tanzeem].paid += record.paidAmount || 0;
+            }
+            statsMap[tanzeem].count += 1;
+        });
+
+        return Object.entries(statsMap).map(([name, data]) => ({
+            name,
+            ...data,
+            percent: data.promise > 0 ? (data.paid / data.promise) * 100 : 0
+        })).sort((a, b) => b.promise - a.promise); // Sort by highest promise
+    }, [members, records]);
+
+    // Deceased Stats
+    const deceasedStats = useMemo(() => {
+        const deceasedMaleRecords = specialRecords.filter(r => r.isDeceased && r.gender === 'male');
+        const deceasedFemaleRecords = specialRecords.filter(r => r.isDeceased && r.gender === 'female');
+
+        const malePromiseAmount = deceasedMaleRecords.reduce((sum, r) => sum + (r.promiseAmount || 0) + (r.nagarparAmount || 0), 0);
+        const malePaidAmount = deceasedMaleRecords.reduce((sum, r) => sum + (r.paidAmount || 0), 0);
+
+        const femalePromiseAmount = deceasedFemaleRecords.reduce((sum, r) => sum + (r.promiseAmount || 0) + (r.nagarparAmount || 0), 0);
+        const femalePaidAmount = deceasedFemaleRecords.reduce((sum, r) => sum + (r.paidAmount || 0), 0);
+
+        const totalDeceasedPromise = malePromiseAmount + femalePromiseAmount;
+        const totalDeceasedPaid = malePaidAmount + femalePaidAmount;
+
+        return {
+            deceasedMales: deceasedMaleRecords.length,
+            deceasedFemales: deceasedFemaleRecords.length,
+            malePromiseAmount,
+            malePaidAmount,
+            femalePromiseAmount,
+            femalePaidAmount,
+            totalDeceasedPromise,
+            totalDeceasedPaid
+        };
+    }, [specialRecords]);
+
+    // اضافی (Additional) Stats
+    const azafiStats = useMemo(() => {
+        const azafiRecords = specialRecords.filter(r => r.name === 'اضافی');
+
+        const azafiPromiseAmount = azafiRecords.reduce((sum, r) => sum + (r.promiseAmount || 0) + (r.nagarparAmount || 0), 0);
+        const azafiPaidAmount = azafiRecords.reduce((sum, r) => sum + (r.paidAmount || 0), 0);
+
+        return {
+            count: azafiRecords.length,
+            promiseAmount: azafiPromiseAmount,
+            paidAmount: azafiPaidAmount,
+            percent: azafiPromiseAmount > 0 ? (azafiPaidAmount / azafiPromiseAmount) * 100 : 0
+        };
+    }, [specialRecords]);
+
+    // Target Section Calculations
+    const targetSectionStats = useMemo(() => {
+        // Calculate Total Received: Ansar + Lajna + Khuddam + all deceased
+        const ansarPaid = tanzeemStats.find(t => t.name === 'ansar')?.paid || 0;
+        const lajnaPaid = tanzeemStats.find(t => t.name === 'lajna')?.paid || 0;
+        const khuddamPaid = tanzeemStats.find(t => t.name === 'khuddam')?.paid || 0;
+        const totalDeceasedPaid = deceasedStats.totalDeceasedPaid || 0;
+        const totalReceived = ansarPaid + lajnaPaid + khuddamPaid + totalDeceasedPaid;
+
+        // Calculate Dafar Atfal: Atfal + Saf-e-Awal boys + Saf-e-Awal girls + Nasirat
+        const atfalPaid = tanzeemStats.find(t => t.name === 'atfal')?.paid || 0;
+        const safEawalPaid = tanzeemStats.find(t => t.name === 'saf-e-awal')?.paid || 0;
+        const safEawalGirlsPaid = tanzeemStats.find(t => t.name === 'saf-e-awal-girls')?.paid || 0;
+        const nasiratPaid = tanzeemStats.find(t => t.name === 'nasirat')?.paid || 0;
+        const dafarAtfalTotal = atfalPaid + safEawalPaid + safEawalGirlsPaid + nasiratPaid;
+
+        return {
+            totalReceived,
+            dafarAtfalTotal,
+            remainingFromTarget: targetAmount > 0 ? targetAmount - totalReceived : 0,
+            receivedPercent: targetAmount > 0 ? (totalReceived / targetAmount) * 100 : 0
+        };
+    }, [tanzeemStats, deceasedStats, targetAmount]);
+
+    // Helper function to convert English names to Urdu for display
+    const getUrduName = (name: string): string => {
+        if (name === 'Hazrat Muhammad (pbuh)') {
+            return 'حضرت محمد ﷺ';
+        } else if (name === 'Hazrat Messiah Maoud (as)') {
+            return 'حضرت مسیح موعودؑ';
         }
-        grouped[tanzeem].push(item);
-    });
-
-    // Sort tanzeem groups by predefined order
-    return tanzeemOrder
-        .filter(t => grouped[t])
-        .map(tanzeem => ({
-            tanzeem,
-            members: grouped[tanzeem],
-            totalPromise: grouped[tanzeem].reduce((sum, m) => sum + m.promise, 0),
-            totalPaid: grouped[tanzeem].reduce((sum, m) => sum + m.paid, 0),
-            count: grouped[tanzeem].length
-        }))
-        .map(group => ({
-            ...group,
-            percent: group.totalPromise > 0 ? Math.round((group.totalPaid / group.totalPromise) * 100) : 0
-        }));
-}, [filteredMemberData]);
-
-// Initialize pagination states when families change
-useEffect(() => {
-    const initialMembersPageState: Record<string, number> = {};
-    const initialSpecialPageState: Record<string, number> = {};
-    const initialMembersPageSizeState: Record<string, number> = {};
-    const initialSpecialPageSizeState: Record<string, number> = {};
-
-    families.forEach(family => {
-        initialMembersPageState[family.id] = 1;
-        initialSpecialPageState[family.id] = 1;
-        initialMembersPageSizeState[family.id] = 10;
-        initialSpecialPageSizeState[family.id] = 10;
-    });
-
-    setFamilyMembersCurrentPage(initialMembersPageState);
-    setFamilySpecialCurrentPage(initialSpecialPageState);
-    setFamilyMembersPageSize(initialMembersPageSizeState);
-    setFamilySpecialPageSize(initialSpecialPageSizeState);
-}, [families]);
-
-// Initialize pagination states when tanzeem groups change
-useEffect(() => {
-    const initialTanzeemPageState: Record<string, number> = {};
-    const initialTanzeemPageSizeState: Record<string, number> = {};
-
-    tanzeemGroupedData.forEach(group => {
-        initialTanzeemPageState[group.tanzeem] = 1;
-        initialTanzeemPageSizeState[group.tanzeem] = 10;
-    });
-
-    setTanzeemMembersCurrentPage(prev => ({ ...prev, ...initialTanzeemPageState }));
-    setTanzeemMembersPageSize(prev => ({ ...prev, ...initialTanzeemPageSizeState }));
-}, [tanzeemGroupedData]);
-
-
-// Stats
-const stats = useMemo(() => {
-    const specialPromise = Array.isArray(specialRecords) ? specialRecords.reduce((sum, r) => sum + (r.promiseAmount || 0) + (r.nagarparAmount || 0), 0) : 0;
-    const specialPaid = Array.isArray(specialRecords) ? specialRecords.reduce((sum, r) => sum + (r.paidAmount || 0), 0) : 0;
-
-    const totalPromise = records.reduce((sum, r) => sum + (r.promiseAmount || 0) + (r.nagarparAmount || 0), 0) + specialPromise;
-    const totalPaid = records.reduce((sum, r) => sum + (r.paidAmount || 0), 0) + specialPaid;
-    const percent = totalPromise > 0 ? (totalPaid / totalPromise) * 100 : 0;
-    return { totalPromise, totalPaid, percent };
-}, [records, specialRecords]);
-
-// Tanzeem Stats Aggregation
-const tanzeemStats = useMemo(() => {
-    const statsMap: Record<string, { promise: number; paid: number; count: number }> = {};
-
-    members.forEach(member => {
-        const tanzeem = member.tanzeem || 'Unknown';
-        if (!statsMap[tanzeem]) {
-            statsMap[tanzeem] = { promise: 0, paid: 0, count: 0 };
-        }
-        const record = records.find(r => r.memberId === member.id);
-        if (record) {
-            statsMap[tanzeem].promise += (record.promiseAmount || 0) + (record.nagarparAmount || 0);
-            statsMap[tanzeem].paid += record.paidAmount || 0;
-        }
-        statsMap[tanzeem].count += 1;
-    });
-
-    return Object.entries(statsMap).map(([name, data]) => ({
-        name,
-        ...data,
-        percent: data.promise > 0 ? (data.paid / data.promise) * 100 : 0
-    })).sort((a, b) => b.promise - a.promise); // Sort by highest promise
-}, [members, records]);
-
-// Deceased Stats
-const deceasedStats = useMemo(() => {
-    const deceasedMaleRecords = specialRecords.filter(r => r.isDeceased && r.gender === 'male');
-    const deceasedFemaleRecords = specialRecords.filter(r => r.isDeceased && r.gender === 'female');
-
-    const malePromiseAmount = deceasedMaleRecords.reduce((sum, r) => sum + (r.promiseAmount || 0) + (r.nagarparAmount || 0), 0);
-    const malePaidAmount = deceasedMaleRecords.reduce((sum, r) => sum + (r.paidAmount || 0), 0);
-
-    const femalePromiseAmount = deceasedFemaleRecords.reduce((sum, r) => sum + (r.promiseAmount || 0) + (r.nagarparAmount || 0), 0);
-    const femalePaidAmount = deceasedFemaleRecords.reduce((sum, r) => sum + (r.paidAmount || 0), 0);
-
-    const totalDeceasedPromise = malePromiseAmount + femalePromiseAmount;
-    const totalDeceasedPaid = malePaidAmount + femalePaidAmount;
-
-    return {
-        deceasedMales: deceasedMaleRecords.length,
-        deceasedFemales: deceasedFemaleRecords.length,
-        malePromiseAmount,
-        malePaidAmount,
-        femalePromiseAmount,
-        femalePaidAmount,
-        totalDeceasedPromise,
-        totalDeceasedPaid
+        return name;
     };
-}, [specialRecords]);
 
-// اضافی (Additional) Stats
-const azafiStats = useMemo(() => {
-    const azafiRecords = specialRecords.filter(r => r.name === 'اضافی');
+    const handleExportFamilyPDF = async (family: Family, familyMembersCtx: NonNullable<MemberData>[], familySpecialRecords: WaqfJadeedSpecialRecord[], familyTotalPromise: number, familyTotalPaid: number) => {
+        try {
+            message.loading({ content: 'Generating PDF with Urdu support...', key: 'pdf-export', duration: 0 });
 
-    const azafiPromiseAmount = azafiRecords.reduce((sum, r) => sum + (r.promiseAmount || 0) + (r.nagarparAmount || 0), 0);
-    const azafiPaidAmount = azafiRecords.reduce((sum, r) => sum + (r.paidAmount || 0), 0);
+            // Create a temporary HTML element with proper Urdu rendering
+            const printDiv = document.createElement('div');
+            printDiv.style.position = 'absolute';
+            printDiv.style.left = '-9999px';
+            printDiv.style.width = '210mm'; // A4 width
+            printDiv.style.padding = '20px';
+            printDiv.style.fontFamily = 'Arial, "Noto Sans Arabic", "Al Qalam Taj Nastaleeq", sans-serif';
+            printDiv.style.direction = 'rtl';
+            printDiv.style.unicodeBidi = 'embed';
+            printDiv.style.backgroundColor = 'white';
+            printDiv.style.color = 'black';
 
-    return {
-        count: azafiRecords.length,
-        promiseAmount: azafiPromiseAmount,
-        paidAmount: azafiPaidAmount,
-        percent: azafiPromiseAmount > 0 ? (azafiPaidAmount / azafiPromiseAmount) * 100 : 0
-    };
-}, [specialRecords]);
+            // Get family head data
+            const familyHead = getMemberData(family.headId);
+            const headPhone = familyHead?.member.phone || 'N/A';
 
-// Target Section Calculations
-const targetSectionStats = useMemo(() => {
-    // Calculate Total Received: Ansar + Lajna + Khuddam + all deceased
-    const ansarPaid = tanzeemStats.find(t => t.name === 'ansar')?.paid || 0;
-    const lajnaPaid = tanzeemStats.find(t => t.name === 'lajna')?.paid || 0;
-    const khuddamPaid = tanzeemStats.find(t => t.name === 'khuddam')?.paid || 0;
-    const totalDeceasedPaid = deceasedStats.totalDeceasedPaid || 0;
-    const totalReceived = ansarPaid + lajnaPaid + khuddamPaid + totalDeceasedPaid;
-
-    // Calculate Dafar Atfal: Atfal + Saf-e-Awal boys + Saf-e-Awal girls + Nasirat
-    const atfalPaid = tanzeemStats.find(t => t.name === 'atfal')?.paid || 0;
-    const safEawalPaid = tanzeemStats.find(t => t.name === 'saf-e-awal')?.paid || 0;
-    const safEawalGirlsPaid = tanzeemStats.find(t => t.name === 'saf-e-awal-girls')?.paid || 0;
-    const nasiratPaid = tanzeemStats.find(t => t.name === 'nasirat')?.paid || 0;
-    const dafarAtfalTotal = atfalPaid + safEawalPaid + safEawalGirlsPaid + nasiratPaid;
-
-    return {
-        totalReceived,
-        dafarAtfalTotal,
-        remainingFromTarget: targetAmount > 0 ? targetAmount - totalReceived : 0,
-        receivedPercent: targetAmount > 0 ? (totalReceived / targetAmount) * 100 : 0
-    };
-}, [tanzeemStats, deceasedStats, targetAmount]);
-
-// Helper function to convert English names to Urdu for display
-const getUrduName = (name: string): string => {
-    if (name === 'Hazrat Muhammad (pbuh)') {
-        return 'حضرت محمد ﷺ';
-    } else if (name === 'Hazrat Messiah Maoud (as)') {
-        return 'حضرت مسیح موعودؑ';
-    }
-    return name;
-};
-
-const handleExportFamilyPDF = async (family: Family, familyMembersCtx: NonNullable<MemberData>[], familySpecialRecords: WaqfJadeedSpecialRecord[], familyTotalPromise: number, familyTotalPaid: number) => {
-    try {
-        message.loading({ content: 'Generating PDF with Urdu support...', key: 'pdf-export', duration: 0 });
-
-        // Create a temporary HTML element with proper Urdu rendering
-        const printDiv = document.createElement('div');
-        printDiv.style.position = 'absolute';
-        printDiv.style.left = '-9999px';
-        printDiv.style.width = '210mm'; // A4 width
-        printDiv.style.padding = '20px';
-        printDiv.style.fontFamily = 'Arial, "Noto Sans Arabic", "Al Qalam Taj Nastaleeq", sans-serif';
-        printDiv.style.direction = 'rtl';
-        printDiv.style.unicodeBidi = 'embed';
-        printDiv.style.backgroundColor = 'white';
-        printDiv.style.color = 'black';
-
-        // Get family head data
-        const familyHead = getMemberData(family.headId);
-        const headPhone = familyHead?.member.phone || 'N/A';
-
-        // Build HTML content
-        let htmlContent = `
+            // Build HTML content
+            let htmlContent = `
                 <div style="text-align: center; margin-bottom: 20px;">
                     <h1 style="font-size: 24px; margin: 0; font-weight: bold;">${family.familyName} - Waqf-e-Jadeed ${selectedYear}</h1>
                 </div><div style="margin-bottom: 15px; font-size: 12px; direction: rtl; text-align: right;">
@@ -744,32 +744,32 @@ const handleExportFamilyPDF = async (family: Family, familyMembersCtx: NonNullab
                     <tbody>
             `;
 
-        // Helper function to determine row color based on tanzeem and promise
-        const getRowColor = (tanzeem: string | undefined, promise: number): string => {
-            const isAtfalOrNasirat = tanzeem === 'atfal' || tanzeem === 'nasirat' || tanzeem === 'saf-e-awal' || tanzeem === 'saf-e-awal-girls';
+            // Helper function to determine row color based on tanzeem and promise
+            const getRowColor = (tanzeem: string | undefined, promise: number): string => {
+                const isAtfalOrNasirat = tanzeem === 'atfal' || tanzeem === 'nasirat' || tanzeem === 'saf-e-awal' || tanzeem === 'saf-e-awal-girls';
 
-            if (isAtfalOrNasirat) {
-                // Atfal/Nasirat/Saf-e-Awal: Light blue if >= 1000, Yellow if < 1000
-                if (promise >= 1000) {
-                    return '#e6f7ff'; // Light blue - consistent color
+                if (isAtfalOrNasirat) {
+                    // Atfal/Nasirat/Saf-e-Awal: Light blue if >= 1000, Yellow if < 1000
+                    if (promise >= 1000) {
+                        return '#e6f7ff'; // Light blue - consistent color
+                    } else {
+                        return '#fff7e6'; // Light yellow/orange - consistent color
+                    }
                 } else {
-                    return '#fff7e6'; // Light yellow/orange - consistent color
+                    // Others (Khuddam, Lajna, Ansar): Stage 1 (>=5000) or Stage 2 (>=2500)
+                    if (promise >= 5000) {
+                        return '#f6ffed'; // Light green (Stage 1) - consistent color
+                    } else if (promise >= 2500) {
+                        return '#fff1f0'; // Light red/pink (Stage 2) - consistent color
+                    } else {
+                        return '#ffffff'; // Default white - consistent color
+                    }
                 }
-            } else {
-                // Others (Khuddam, Lajna, Ansar): Stage 1 (>=5000) or Stage 2 (>=2500)
-                if (promise >= 5000) {
-                    return '#f6ffed'; // Light green (Stage 1) - consistent color
-                } else if (promise >= 2500) {
-                    return '#fff1f0'; // Light red/pink (Stage 2) - consistent color
-                } else {
-                    return '#ffffff'; // Default white - consistent color
-                }
-            }
-        };
+            };
 
-        familyMembersCtx.forEach((item, index) => {
-            const rowColor = getRowColor(item.member.tanzeem, item.promise);
-            htmlContent += `
+            familyMembersCtx.forEach((item, index) => {
+                const rowColor = getRowColor(item.member.tanzeem, item.promise);
+                htmlContent += `
                     <tr style="background-color: ${rowColor};">
                         <td style="border: 1px solid #ddd; padding: 6px; text-align: center;">${index + 1}</td>
                         <td style="border: 1px solid #ddd; padding: 6px; text-align: right; direction: rtl; unicode-bidi: embed;">${item.member.name}</td>
@@ -780,13 +780,13 @@ const handleExportFamilyPDF = async (family: Family, familyMembersCtx: NonNullab
                         <td style="border: 1px solid #ddd; padding: 6px; text-align: center;">${item.promise > 0 ? Math.round((item.paid / item.promise) * 100) : 0}%</td>
                     </tr>
                 `;
-        });
+            });
 
-        htmlContent += '</tbody></table>';
+            htmlContent += '</tbody></table>';
 
-        // Add special records if any
-        if (familySpecialRecords.length > 0) {
-            htmlContent += `
+            // Add special records if any
+            if (familySpecialRecords.length > 0) {
+                htmlContent += `
                     <h3 style="font-size: 14px; margin-top: 20px; margin-bottom: 10px; direction: rtl; text-align: right;">خصوصی / متوفی ریکارڈ</h3>
                     <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 10px;" dir="rtl">
                         <thead>
@@ -802,20 +802,20 @@ const handleExportFamilyPDF = async (family: Family, familyMembersCtx: NonNullab
                         <tbody>
                 `;
 
-            familySpecialRecords.forEach((record, index) => {
-                const totalPromise = (record.promiseAmount || 0) + (record.nagarparAmount || 0);
-                const rowColor = index % 2 === 0 ? '#ffffff' : '#faf0e6';
+                familySpecialRecords.forEach((record, index) => {
+                    const totalPromise = (record.promiseAmount || 0) + (record.nagarparAmount || 0);
+                    const rowColor = index % 2 === 0 ? '#ffffff' : '#faf0e6';
 
-                // Convert English names to Urdu for display
-                const displayName = getUrduName(record.name);
+                    // Convert English names to Urdu for display
+                    const displayName = getUrduName(record.name);
 
-                // Get deceased text based on gender
-                let deceasedText = '';
-                if (record.isDeceased) {
-                    deceasedText = record.gender === 'female' ? ' (مرحومہ)' : ' (مرحوم)';
-                }
+                    // Get deceased text based on gender
+                    let deceasedText = '';
+                    if (record.isDeceased) {
+                        deceasedText = record.gender === 'female' ? ' (مرحومہ)' : ' (مرحوم)';
+                    }
 
-                htmlContent += `
+                    htmlContent += `
                         <tr style="background-color: ${rowColor};">
                             <td style="border: 1px solid #ddd; padding: 6px; text-align: center;">${index + 1}</td>
                             <td style="border: 1px solid #ddd; padding: 6px; text-align: right; direction: rtl; unicode-bidi: embed;">${displayName}${deceasedText}</td>
@@ -825,13 +825,13 @@ const handleExportFamilyPDF = async (family: Family, familyMembersCtx: NonNullab
                             <td style="border: 1px solid #ddd; padding: 6px; text-align: center;">${totalPromise > 0 ? Math.round(((record.paidAmount || 0) / totalPromise) * 100) : 0}%</td>
                         </tr>
                     `;
-            });
+                });
 
-            htmlContent += '</tbody></table>';
-        }
+                htmlContent += '</tbody></table>';
+            }
 
-        // Add footer notes with color legend in Urdu
-        htmlContent += `
+            // Add footer notes with color legend in Urdu
+            htmlContent += `
 <div style="margin-top: 30px; padding: 15px; background-color: #fafafa; border: 1px solid #ddd; border-radius: 5px; font-size: 10px; direction: rtl; text-align: right;">
     <h4 style="margin: 0 0 10px 0; font-size: 12px; font-weight: bold; text-align: center; direction: rtl;">
         وعدہ کی ہدایات اور رنگوں کی وضاحت
@@ -887,564 +887,458 @@ const handleExportFamilyPDF = async (family: Family, familyMembersCtx: NonNullab
                 </div>
             `;
 
-        printDiv.innerHTML = htmlContent;
-        document.body.appendChild(printDiv);
+            printDiv.innerHTML = htmlContent;
+            document.body.appendChild(printDiv);
 
-        // Convert to canvas with high quality
-        const canvas = await html2canvas(printDiv, {
-            scale: 2,
-            useCORS: true,
-            logging: false,
-            backgroundColor: '#ffffff',
-            onclone: (clonedDoc) => {
-                // Ensure fonts are loaded in cloned document
-                const clonedElement = clonedDoc.querySelector('[style*="font-family"]') as HTMLElement;
-                if (clonedElement) {
-                    clonedElement.style.fontFamily = 'Arial, "Noto Sans Arabic", "Al Qalam Taj Nastaleeq", sans-serif';
+            // Convert to canvas with high quality
+            const canvas = await html2canvas(printDiv, {
+                scale: 2,
+                useCORS: true,
+                logging: false,
+                backgroundColor: '#ffffff',
+                onclone: (clonedDoc) => {
+                    // Ensure fonts are loaded in cloned document
+                    const clonedElement = clonedDoc.querySelector('[style*="font-family"]') as HTMLElement;
+                    if (clonedElement) {
+                        clonedElement.style.fontFamily = 'Arial, "Noto Sans Arabic", "Al Qalam Taj Nastaleeq", sans-serif';
+                    }
                 }
-            }
-        });
+            });
 
-        // Remove temporary element
-        document.body.removeChild(printDiv);
+            // Remove temporary element
+            document.body.removeChild(printDiv);
 
-        // Convert canvas to PDF
-        const imgData = canvas.toDataURL('image/png');
-        const pdf = new jsPDF('p', 'mm', 'a4');
-        const imgWidth = 210; // A4 width in mm
-        const pageHeight = 297; // A4 height in mm
-        const imgHeight = (canvas.height * imgWidth) / canvas.width;
-        let heightLeft = imgHeight;
-        let position = 0;
+            // Convert canvas to PDF
+            const imgData = canvas.toDataURL('image/png');
+            const pdf = new jsPDF('p', 'mm', 'a4');
+            const imgWidth = 210; // A4 width in mm
+            const pageHeight = 297; // A4 height in mm
+            const imgHeight = (canvas.height * imgWidth) / canvas.width;
+            let heightLeft = imgHeight;
+            let position = 0;
 
-        pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-        heightLeft -= pageHeight;
-
-        while (heightLeft > 0) {
-            position = heightLeft - imgHeight;
-            pdf.addPage();
             pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
             heightLeft -= pageHeight;
-        }
 
-        pdf.save(`${family.familyName.replace(/\s+/g, '_')}_waqf_${selectedYear}.pdf`);
-        message.success({ content: 'PDF generated successfully with Urdu support!', key: 'pdf-export' });
-    } catch (error) {
-        console.error('Error generating PDF:', error);
-        message.error({ content: 'Failed to generate PDF', key: 'pdf-export' });
-    }
-};
-
-const handleCopyNamesFrom2025 = async () => {
-    try {
-        setLoading(true);
-        message.loading({ content: 'Copying names from 2025 to 2026...', key: 'copying', duration: 0 });
-
-        // Get 2025 records
-        const records2025 = await ApiService.getWaqfJadeedRecords(2025);
-
-        // Get 2026 records to check what already exists
-        const records2026 = await ApiService.getWaqfJadeedRecords(2026);
-        const existing2026MemberIds = new Set(records2026.map(r => r.memberId));
-
-        // Copy only names (create records with 0 promise and 0 paid)
-        let copiedMembers = 0;
-        let skippedMembers = 0;
-
-        for (const record2025 of records2025) {
-            // Skip if already exists in 2026
-            if (existing2026MemberIds.has(record2025.memberId)) {
-                skippedMembers++;
-                continue;
+            while (heightLeft > 0) {
+                position = heightLeft - imgHeight;
+                pdf.addPage();
+                pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+                heightLeft -= pageHeight;
             }
 
-            // Create new record with 0 promise and 0 paid
-            await ApiService.saveWaqfJadeedRecord({
-                memberId: record2025.memberId,
-                year: 2026,
-                promiseAmount: 0,
-                nagarparAmount: 0
-            });
-            copiedMembers++;
+            pdf.save(`${family.familyName.replace(/\s+/g, '_')}_waqf_${selectedYear}.pdf`);
+            message.success({ content: 'PDF generated successfully with Urdu support!', key: 'pdf-export' });
+        } catch (error) {
+            console.error('Error generating PDF:', error);
+            message.error({ content: 'Failed to generate PDF', key: 'pdf-export' });
         }
+    };
 
-        // Copy special records (including deceased and اضافی)
-        const special2025 = await ApiService.getWaqfJadeedSpecialRecords(2025);
-        const special2026 = await ApiService.getWaqfJadeedSpecialRecords(2026);
+    const handleCopyNamesFrom2025 = async () => {
+        try {
+            setLoading(true);
+            message.loading({ content: 'Copying names from 2025 to 2026...', key: 'copying', duration: 0 });
 
-        // Check by name and familyId combination to avoid duplicates (year is already 2026 for existing records)
-        const existing2026SpecialKeys = new Set(
-            special2026.map(r => `${r.familyId || 'no-family'}_${r.name || 'no-name'}`)
-        );
+            // Get 2025 records
+            const records2025 = await ApiService.getWaqfJadeedRecords(2025);
 
-        let copiedSpecial = 0;
-        let skippedSpecial = 0;
+            // Get 2026 records to check what already exists
+            const records2026 = await ApiService.getWaqfJadeedRecords(2026);
+            const existing2026MemberIds = new Set(records2026.map(r => r.memberId));
 
-        for (const special2025Record of special2025) {
-            const key = `${special2025Record.familyId || 'no-family'}_${special2025Record.name || 'no-name'}`;
+            // Copy only names (create records with 0 promise and 0 paid)
+            let copiedMembers = 0;
+            let skippedMembers = 0;
 
-            // Skip if already exists in 2026
-            if (existing2026SpecialKeys.has(key)) {
-                skippedSpecial++;
-                continue;
-            }
+            for (const record2025 of records2025) {
+                // Skip if already exists in 2026
+                if (existing2026MemberIds.has(record2025.memberId)) {
+                    skippedMembers++;
+                    continue;
+                }
 
-            try {
-                // Create new record without the old ID so it gets a new one
-                const { id, payments, paidAmount, ...specialDataWithoutId } = special2025Record;
-                await ApiService.saveWaqfJadeedSpecialRecord({
-                    ...specialDataWithoutId,
+                // Create new record with 0 promise and 0 paid
+                await ApiService.saveWaqfJadeedRecord({
+                    memberId: record2025.memberId,
                     year: 2026,
                     promiseAmount: 0,
-                    nagarparAmount: 0,
-                    paidAmount: 0,
-                    payments: []
+                    nagarparAmount: 0
                 });
-                copiedSpecial++;
-            } catch (err) {
-                console.error('Error copying special record:', special2025Record.name, err);
-                skippedSpecial++;
+                copiedMembers++;
             }
+
+            // Copy special records (including deceased and اضافی)
+            const special2025 = await ApiService.getWaqfJadeedSpecialRecords(2025);
+            const special2026 = await ApiService.getWaqfJadeedSpecialRecords(2026);
+
+            // Check by name and familyId combination to avoid duplicates (year is already 2026 for existing records)
+            const existing2026SpecialKeys = new Set(
+                special2026.map(r => `${r.familyId || 'no-family'}_${r.name || 'no-name'}`)
+            );
+
+            let copiedSpecial = 0;
+            let skippedSpecial = 0;
+
+            for (const special2025Record of special2025) {
+                const key = `${special2025Record.familyId || 'no-family'}_${special2025Record.name || 'no-name'}`;
+
+                // Skip if already exists in 2026
+                if (existing2026SpecialKeys.has(key)) {
+                    skippedSpecial++;
+                    continue;
+                }
+
+                try {
+                    // Create new record without the old ID so it gets a new one
+                    const { id, payments, paidAmount, ...specialDataWithoutId } = special2025Record;
+                    await ApiService.saveWaqfJadeedSpecialRecord({
+                        ...specialDataWithoutId,
+                        year: 2026,
+                        promiseAmount: 0,
+                        nagarparAmount: 0,
+                        paidAmount: 0,
+                        payments: []
+                    });
+                    copiedSpecial++;
+                } catch (err) {
+                    console.error('Error copying special record:', special2025Record.name, err);
+                    skippedSpecial++;
+                }
+            }
+
+            const totalCopied = copiedMembers + copiedSpecial;
+            const totalSkipped = skippedMembers + skippedSpecial;
+
+            message.success({
+                content: `Copied ${totalCopied} names (${copiedMembers} members, ${copiedSpecial} special) from 2025 to 2026. ${totalSkipped} already existed.`,
+                key: 'copying',
+                duration: 5
+            });
+
+            // Reload data
+            await loadData();
+        } catch (error) {
+            console.error('Error copying names:', error);
+            message.error({ content: `Failed to copy names: ${error instanceof Error ? error.message : 'Unknown error'}`, key: 'copying', duration: 5 });
+        } finally {
+            setLoading(false);
         }
-
-        const totalCopied = copiedMembers + copiedSpecial;
-        const totalSkipped = skippedMembers + skippedSpecial;
-
-        message.success({
-            content: `Copied ${totalCopied} names (${copiedMembers} members, ${copiedSpecial} special) from 2025 to 2026. ${totalSkipped} already existed.`,
-            key: 'copying',
-            duration: 5
-        });
-
-        // Reload data
-        await loadData();
-    } catch (error) {
-        console.error('Error copying names:', error);
-        message.error({ content: `Failed to copy names: ${error instanceof Error ? error.message : 'Unknown error'}`, key: 'copying', duration: 5 });
-    } finally {
-        setLoading(false);
-    }
-};
+    };
 
 
-return (
-    <div style={{ margin: 0, padding: '0 8px', width: '100%', maxWidth: '100%', boxSizing: 'border-box', paddingBottom: 80 }} className="waqf-jadeed-container">
-        {/* Search Header */}
-        <Card style={{ marginBottom: 16, position: 'sticky', top: 0, zIndex: 10 }} bodyStyle={{ padding: 12 }}>
-            <Row gutter={[8, 8]} align="middle">
-                <Col xs={24} sm={12} md={8}>
-                    <Title level={4} style={{ margin: 0, fontSize: 'clamp(16px, 4vw, 20px)' }}>Waqf-e-Jadeed</Title>
-                </Col>
-                <Col xs={12} sm={6} md={4}>
-                    <Select
-                        value={selectedYear}
-                        onChange={setSelectedYear}
-                        style={{ width: '100%' }}
-                    >
-                        {[2023, 2024, 2025, 2026].map(y => (
-                            <Option key={y} value={y}>{y}</Option>
-                        ))}
-                    </Select>
-                </Col>
-                <Col xs={12} sm={6} md={4}>
-                    <Input
-                        prefix={<SearchOutlined />}
-                        placeholder="Search..."
-                        value={searchTerm}
-                        onChange={e => setSearchTerm(e.target.value)}
-                        allowClear
-                    />
-                </Col>
-                {selectedYear === 2026 && (
-                    <Col xs={24} sm={24} md={12}>
-                        <Button
-                            icon={<CopyOutlined />}
-                            onClick={handleCopyNamesFrom2025}
-                            loading={loading}
-                            type="dashed"
-                            block
-                            size="large"
-                        >
-                            Copy All Names from 2025 (Members + Special)
-                        </Button>
+    return (
+        <div style={{ margin: 0, padding: '0 8px', width: '100%', maxWidth: '100%', boxSizing: 'border-box', paddingBottom: 80 }} className="waqf-jadeed-container">
+            {/* Search Header */}
+            <Card style={{ marginBottom: 16, position: 'sticky', top: 0, zIndex: 10 }} bodyStyle={{ padding: 12 }}>
+                <Row gutter={[8, 8]} align="middle">
+                    <Col xs={24} sm={12} md={8}>
+                        <Title level={4} style={{ margin: 0, fontSize: 'clamp(16px, 4vw, 20px)' }}>Waqf-e-Jadeed</Title>
                     </Col>
-                )}
-            </Row>
-            <Tabs activeKey={activeTab} onChange={setActiveTab} style={{ marginTop: 12 }} type="card">
-                <Tabs.TabPane tab="Members" key="members" />
-                <Tabs.TabPane tab="Family Wise" key="families" />
-                <Tabs.TabPane tab="Tanzeem Wise" key="tanzeem" />
-                <Tabs.TabPane tab="Dashboard" key="dashboard" />
-                <Tabs.TabPane tab="About" key="about" />
-            </Tabs>
-        </Card>
-
-        {/* Stats Cards */}
-        <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
-            <Col xs={24} sm={12} md={8}>
-                <Card bodyStyle={{ padding: 16 }}>
-                    <Statistic
-                        title="Total Promise"
-                        value={stats.totalPromise}
-                        prefix={<DollarOutlined />}
-                        precision={0}
-                        valueStyle={{ fontSize: 'clamp(20px, 5vw, 32px)' }}
-                    />
-                </Card>
-            </Col>
-            <Col xs={24} sm={12} md={8}>
-                <Card bodyStyle={{ padding: 16 }}>
-                    <Statistic
-                        title="Total Paid"
-                        value={stats.totalPaid}
-                        prefix={<CheckCircleOutlined />}
-                        valueStyle={{ color: '#3f8600', fontSize: 'clamp(20px, 5vw, 32px)' }}
-                        precision={0}
-                    />
-                </Card>
-            </Col>
-            <Col xs={24} sm={24} md={8}>
-                <Card bodyStyle={{ padding: 16 }}>
-                    <Text type="secondary" style={{ fontSize: 'clamp(12px, 3vw, 14px)' }}>Collection Progress</Text>
-                    <Progress percent={Math.round(stats.percent)} status="active" />
-                </Card>
-            </Col>
-        </Row>
-
-        {/* Content */}
-        {activeTab === 'members' ? (
-            <Card>
-                <Table
-                    dataSource={filteredMemberData}
-                    loading={loading}
-                    rowKey={(record) => record.member.id}
-                    pagination={{
-                        pageSize: 20,
-                        showSizeChanger: true,
-                        pageSizeOptions: ['10', '20', '50', '100'],
-                        showTotal: (total, range) => `${range[0]}-${range[1]} of ${total} members`
-                    }}
-                    scroll={{ x: 'max-content' }}
-                    onRow={(record) => ({
-                        onClick: () => handleEdit(record.member),
-                        style: { cursor: 'pointer' }
-                    })}
-                    columns={[
-                        {
-                            title: '#',
-                            key: 'serial',
-                            width: 60,
-                            render: (_, __, index) => index + 1,
-                            sorter: false
-                        },
-                        {
-                            title: 'Photo',
-                            key: 'photo',
-                            width: 80,
-                            render: (_, record) => (
-                                <Avatar
-                                    size="large"
-                                    icon={<UserOutlined />}
-                                    src={record.member.profilePhoto}
-                                />
-                            ),
-                            sorter: false
-                        },
-                        {
-                            title: 'Name',
-                            key: 'name',
-                            dataIndex: ['member', 'name'],
-                            sorter: (a, b) => a.member.name.localeCompare(b.member.name),
-                            render: (_, record) => (
-                                <div>
-                                    <Text strong style={{ fontSize: '14px' }}>{record.member.name}</Text>
-                                    {record.member.fatherName && (
-                                        <div>
-                                            <Text type="secondary" style={{ fontSize: '12px' }}>
-                                                {record.member.fatherName}
-                                            </Text>
-                                        </div>
-                                    )}
-                                </div>
-                            )
-                        },
-                        {
-                            title: 'Halqa',
-                            key: 'halqa',
-                            dataIndex: ['member', 'halqa'],
-                            sorter: (a, b) => (a.member.halqa || '').localeCompare(b.member.halqa || ''),
-                            render: (halqa) => halqa || <Text type="secondary">No Halqa</Text>
-                        },
-                        {
-                            title: 'Tanzeem',
-                            key: 'tanzeem',
-                            dataIndex: ['member', 'tanzeem'],
-                            sorter: (a, b) => a.member.tanzeem.localeCompare(b.member.tanzeem),
-                            filters: (() => {
-                                // Get unique tanzeem values from filtered data
-                                const uniqueTanzeems = Array.from(new Set(filteredMemberData.map(item => item.member.tanzeem)));
-                                return uniqueTanzeems
-                                    .sort()
-                                    .map(tanzeem => ({
-                                        text: getTanzeemDisplayName(tanzeem),
-                                        value: tanzeem
-                                    }));
-                            })(),
-                            onFilter: (value, record) => record.member.tanzeem === value,
-                            render: (tanzeem) => (
-                                <Tag color="blue">{getTanzeemDisplayName(tanzeem)}</Tag>
-                            )
-                        },
-                        {
-                            title: 'Promise',
-                            key: 'promise',
-                            sorter: (a, b) => a.promise - b.promise,
-                            render: (_, record) => (
-                                <Text strong style={{ fontSize: '14px' }}>
-                                    Rs. {record.promise.toLocaleString()}
-                                </Text>
-                            ),
-                            align: 'right'
-                        },
-                        {
-                            title: 'Paid',
-                            key: 'paid',
-                            sorter: (a, b) => a.paid - b.paid,
-                            render: (_, record) => (
-                                <Text
-                                    strong
-                                    style={{
-                                        fontSize: '14px',
-                                        color: record.paid >= record.promise && record.promise > 0 ? '#52c41a' : undefined
-                                    }}
-                                >
-                                    Rs. {record.paid.toLocaleString()}
-                                </Text>
-                            ),
-                            align: 'right'
-                        },
-                        {
-                            title: 'Progress',
-                            key: 'progress',
-                            sorter: (a, b) => {
-                                const aPercent = a.promise > 0 ? (a.paid / a.promise) * 100 : 0;
-                                const bPercent = b.promise > 0 ? (b.paid / b.promise) * 100 : 0;
-                                return aPercent - bPercent;
-                            },
-                            render: (_, record) => {
-                                const percent = record.promise > 0 ? Math.min(100, Math.round((record.paid / record.promise) * 100)) : 0;
-                                return (
-                                    <div>
-                                        <Progress
-                                            percent={percent}
-                                            size="small"
-                                            strokeColor={record.paid >= record.promise && record.promise > 0 ? '#52c41a' : '#1890ff'}
-                                            format={() => `${percent}%`}
-                                        />
-                                    </div>
-                                );
-                            },
-                            width: 150
-                        },
-                        {
-                            title: 'Actions',
-                            key: 'actions',
-                            width: 100,
-                            fixed: 'right',
-                            render: (_, record) => (
-                                <Button
-                                    type="link"
-                                    icon={<EditOutlined />}
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        handleEdit(record.member);
-                                    }}
-                                >
-                                    Edit
-                                </Button>
-                            ),
-                            sorter: false
-                        }
-                    ]}
-                />
+                    <Col xs={12} sm={6} md={4}>
+                        <Select
+                            value={selectedYear}
+                            onChange={setSelectedYear}
+                            style={{ width: '100%' }}
+                        >
+                            {[2023, 2024, 2025, 2026].map(y => (
+                                <Option key={y} value={y}>{y}</Option>
+                            ))}
+                        </Select>
+                    </Col>
+                    <Col xs={12} sm={6} md={4}>
+                        <Input
+                            prefix={<SearchOutlined />}
+                            placeholder="Search..."
+                            value={searchTerm}
+                            onChange={e => setSearchTerm(e.target.value)}
+                            allowClear
+                        />
+                    </Col>
+                    {selectedYear === 2026 && (
+                        <Col xs={24} sm={24} md={12}>
+                            <Button
+                                icon={<CopyOutlined />}
+                                onClick={handleCopyNamesFrom2025}
+                                loading={loading}
+                                type="dashed"
+                                block
+                                size="large"
+                            >
+                                Copy All Names from 2025 (Members + Special)
+                            </Button>
+                        </Col>
+                    )}
+                </Row>
+                <Tabs activeKey={activeTab} onChange={setActiveTab} style={{ marginTop: 12 }} type="card">
+                    <Tabs.TabPane tab="Members" key="members" />
+                    <Tabs.TabPane tab="Family Wise" key="families" />
+                    <Tabs.TabPane tab="Tanzeem Wise" key="tanzeem" />
+                    <Tabs.TabPane tab="Dashboard" key="dashboard" />
+                    <Tabs.TabPane tab="About" key="about" />
+                </Tabs>
             </Card>
-        ) : activeTab === 'families' ? (
-            <div className="family-list">
-                {loading ? <p>Loading...</p> : (
-                    <Collapse defaultActiveKey={[]} ghost>
-                        {filteredFamilyData.map(family => {
-                            // Filter out deceased members from family members list
-                            const familyMembersCtx = family.memberIds
-                                .map(mid => getMemberData(mid))
-                                .filter((item): item is NonNullable<MemberData> => {
-                                    if (!item) return false;
-                                    // Exclude if member is marked as deceased
-                                    return !item.member.isDeceased;
-                                });
-                            const familySpecialRecords = specialRecords.filter(r => r.familyId === family.id);
 
-                            const membersPromise = familyMembersCtx.reduce((sum, m) => sum + (m?.promise || 0), 0);
-                            const specialPromise = familySpecialRecords.reduce((sum, r) => sum + (r.promiseAmount || 0) + (r.nagarparAmount || 0), 0);
-                            const familyTotalPromise = membersPromise + specialPromise;
+            {/* Stats Cards */}
+            <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
+                <Col xs={24} sm={12} md={8}>
+                    <Card bodyStyle={{ padding: 16 }}>
+                        <Statistic
+                            title="Total Promise"
+                            value={stats.totalPromise}
+                            prefix={<DollarOutlined />}
+                            precision={0}
+                            valueStyle={{ fontSize: 'clamp(20px, 5vw, 32px)' }}
+                        />
+                    </Card>
+                </Col>
+                <Col xs={24} sm={12} md={8}>
+                    <Card bodyStyle={{ padding: 16 }}>
+                        <Statistic
+                            title="Total Paid"
+                            value={stats.totalPaid}
+                            prefix={<CheckCircleOutlined />}
+                            valueStyle={{ color: '#3f8600', fontSize: 'clamp(20px, 5vw, 32px)' }}
+                            precision={0}
+                        />
+                    </Card>
+                </Col>
+                <Col xs={24} sm={24} md={8}>
+                    <Card bodyStyle={{ padding: 16 }}>
+                        <Text type="secondary" style={{ fontSize: 'clamp(12px, 3vw, 14px)' }}>Collection Progress</Text>
+                        <Progress percent={Math.round(stats.percent)} status="active" />
+                    </Card>
+                </Col>
+            </Row>
 
-                            const membersPaid = familyMembersCtx.reduce((sum, m) => sum + (m?.paid || 0), 0);
-                            const specialPaid = familySpecialRecords.reduce((sum, r) => sum + (r.paidAmount || 0), 0);
-                            const familyTotalPaid = membersPaid + specialPaid;
-
-                            const familyPercent = familyTotalPromise > 0 ? Math.round((familyTotalPaid / familyTotalPromise) * 100) : 0;
-
-                            return (
-                                <Panel
-                                    key={family.id}
-                                    header={
-                                        <Row justify="space-between" align="middle" style={{ width: '100%' }} gutter={[8, 8]}>
-                                            <Col xs={24} sm={16} md={16}>
-                                                <Text strong style={{ fontSize: 'clamp(14px, 3.5vw, 16px)' }}>{family.familyName}</Text>
-                                                <br />
-                                                <Text type="secondary" style={{ fontSize: 'clamp(11px, 2.5vw, 12px)' }}>
-                                                    {family.familyNumber ? <span>#{family.familyNumber} • </span> : ''}
-                                                    Head: {getMemberData(family.headId)?.member.name || 'Unknown'} • {familyMembersCtx.length + familySpecialRecords.length} Cards
-                                                </Text>
-                                            </Col>
-                                            <Col xs={24} sm={8} md={6} style={{ textAlign: 'right' }}>
-                                                <Text type="secondary" style={{ fontSize: 'clamp(11px, 2.5vw, 12px)' }}>Paid / Promise</Text>
-                                                <div style={{ fontWeight: 500, fontSize: 'clamp(12px, 3vw, 14px)' }}>
-                                                    {familyTotalPaid.toLocaleString()} / {familyTotalPromise.toLocaleString()}
-                                                </div>
-                                                <Progress percent={familyPercent} steps={5} size="small" strokeColor="#52c41a" />
-                                            </Col>
-                                            <Col xs={24} sm={24} md={2} style={{ textAlign: 'right' }}>
-                                                <Button
-                                                    type="text"
-                                                    icon={<FilePdfOutlined />}
-                                                    size="small"
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        handleExportFamilyPDF(
-                                                            family,
-                                                            familyMembersCtx,
-                                                            familySpecialRecords,
-                                                            familyTotalPromise,
-                                                            familyTotalPaid
-                                                        );
-                                                    }}
-                                                    title="Export to PDF"
-                                                />
-                                            </Col>
-                                        </Row>
-                                    }
-                                >
-                                    {/* Table for Family Members */}
-                                    <Table
-                                        size="small"
-                                        dataSource={familyMembersCtx.filter(item => item !== null)}
-                                        rowKey={(item) => item.member.id}
-                                        pagination={{
-                                            pageSize: 10,
-                                            showSizeChanger: true,
-                                            showQuickJumper: true,
-                                            pageSizeOptions: ['5', '10', '20', '50'],
-                                            showTotal: (total, range) => `${range[0]}-${range[1]} of ${total} items`,
-                                            onChange: (page: number, pageSize: number) => {
-                                                setFamilyMembersCurrentPage(prev => ({
-                                                    ...prev,
-                                                    [family.id]: page || 1
-                                                }));
-                                                setFamilyMembersPageSize(prev => ({
-                                                    ...prev,
-                                                    [family.id]: pageSize || 10
-                                                }));
-                                            }
-                                        }}
-                                        scroll={{ x: 'max-content' }}
-                                        columns={[{
-                                            title: '#',
-                                            key: 'serial',
-                                            width: 50,
-                                            render: (_, __, index) => {
-                                                // Calculate serial number based on current page and page size
-                                                const currentFamilyPage = familyMembersCurrentPage[family.id] || 1;
-                                                const currentPageSize = familyMembersPageSize[family.id] || 10;
-                                                return ((currentFamilyPage - 1) * currentPageSize + index + 1);
-                                            },
-                                        },
-                                        {
-                                            title: 'Name',
-                                            dataIndex: ['member', 'name'],
-                                            key: 'name',
-                                            width: 150,
-                                            render: (name, record) => (
-                                                <a onClick={() => handleEdit(record.member)} style={{ cursor: 'pointer' }}>
-                                                    {name}
-                                                </a>
-                                            ),
-                                        },
-                                        {
-                                            title: 'Promise',
-                                            key: 'promise',
-                                            width: 100,
-                                            render: (_, record) => record?.promise?.toLocaleString() || '0',
-                                        },
-                                        {
-                                            title: 'Paid',
-                                            key: 'paid',
-                                            width: 100,
-                                            render: (_, record) => (
-                                                <span style={{ color: record?.paid >= record?.promise && record?.promise > 0 ? 'green' : 'inherit' }}>
-                                                    {(record?.paid || 0).toLocaleString()}
-                                                </span>
-                                            ),
-                                        },
-                                        {
-                                            title: 'Progress',
-                                            key: 'progress',
-                                            width: 120,
-                                            render: (_, record) => (
-                                                <div style={{ width: '100px' }}>
-                                                    <Progress
-                                                        percent={record?.promise > 0 ? Math.min(100, Math.round(((record?.paid || 0) / record?.promise) * 100)) : 0}
-                                                        size="small"
-                                                        showInfo={false}
-                                                        strokeColor={record?.paid >= record?.promise ? '#52c41a' : '#1890ff'}
-                                                    />
-                                                </div>
-                                            ),
-                                        },
-                                        {
-                                            title: 'Actions',
-                                            key: 'actions',
-                                            width: 80,
-                                            render: (_, record) => (
-                                                <Space size="small">
-                                                    <Button size="small" icon={<EditOutlined />} onClick={() => handleEdit(record.member)} />
-                                                </Space>
-                                            ),
-                                        },
-                                        ]}
+            {/* Content */}
+            {activeTab === 'members' ? (
+                <Card>
+                    <Table
+                        dataSource={filteredMemberData}
+                        loading={loading}
+                        rowKey={(record) => record.member.id}
+                        pagination={{
+                            pageSize: 20,
+                            showSizeChanger: true,
+                            pageSizeOptions: ['10', '20', '50', '100'],
+                            showTotal: (total, range) => `${range[0]}-${range[1]} of ${total} members`
+                        }}
+                        scroll={{ x: 'max-content' }}
+                        onRow={(record) => ({
+                            onClick: () => handleEdit(record.member),
+                            style: { cursor: 'pointer' }
+                        })}
+                        columns={[
+                            {
+                                title: '#',
+                                key: 'serial',
+                                width: 60,
+                                render: (_, __, index) => index + 1,
+                                sorter: false
+                            },
+                            {
+                                title: 'Photo',
+                                key: 'photo',
+                                width: 80,
+                                render: (_, record) => (
+                                    <Avatar
+                                        size="large"
+                                        icon={<UserOutlined />}
+                                        src={record.member.profilePhoto}
                                     />
-
-                                    {/* Special Members Section */}
-                                    <div style={{ marginTop: 16, borderTop: '1px dashed #d9d9d9', paddingTop: 16 }}>
-                                        <Row justify="space-between" align="middle" style={{ marginBottom: 12 }}>
-                                            <Text type="secondary"><strong style={{ color: '#1890ff' }}>Special / Deceased Pledges</strong></Text>
-                                            <Button
+                                ),
+                                sorter: false
+                            },
+                            {
+                                title: 'Name',
+                                key: 'name',
+                                dataIndex: ['member', 'name'],
+                                sorter: (a, b) => a.member.name.localeCompare(b.member.name),
+                                render: (_, record) => (
+                                    <div>
+                                        <Text strong style={{ fontSize: '14px' }}>{record.member.name}</Text>
+                                        {record.member.fatherName && (
+                                            <div>
+                                                <Text type="secondary" style={{ fontSize: '12px' }}>
+                                                    {record.member.fatherName}
+                                                </Text>
+                                            </div>
+                                        )}
+                                    </div>
+                                )
+                            },
+                            {
+                                title: 'Halqa',
+                                key: 'halqa',
+                                dataIndex: ['member', 'halqa'],
+                                sorter: (a, b) => (a.member.halqa || '').localeCompare(b.member.halqa || ''),
+                                render: (halqa) => halqa || <Text type="secondary">No Halqa</Text>
+                            },
+                            {
+                                title: 'Tanzeem',
+                                key: 'tanzeem',
+                                dataIndex: ['member', 'tanzeem'],
+                                sorter: (a, b) => a.member.tanzeem.localeCompare(b.member.tanzeem),
+                                filters: (() => {
+                                    // Get unique tanzeem values from filtered data
+                                    const uniqueTanzeems = Array.from(new Set(filteredMemberData.map(item => item.member.tanzeem)));
+                                    return uniqueTanzeems
+                                        .sort()
+                                        .map(tanzeem => ({
+                                            text: getTanzeemDisplayName(tanzeem),
+                                            value: tanzeem
+                                        }));
+                                })(),
+                                onFilter: (value, record) => record.member.tanzeem === value,
+                                render: (tanzeem) => (
+                                    <Tag color="blue">{getTanzeemDisplayName(tanzeem)}</Tag>
+                                )
+                            },
+                            {
+                                title: 'Promise',
+                                key: 'promise',
+                                sorter: (a, b) => a.promise - b.promise,
+                                render: (_, record) => (
+                                    <Text strong style={{ fontSize: '14px' }}>
+                                        Rs. {record.promise.toLocaleString()}
+                                    </Text>
+                                ),
+                                align: 'right'
+                            },
+                            {
+                                title: 'Paid',
+                                key: 'paid',
+                                sorter: (a, b) => a.paid - b.paid,
+                                render: (_, record) => (
+                                    <Text
+                                        strong
+                                        style={{
+                                            fontSize: '14px',
+                                            color: record.paid >= record.promise && record.promise > 0 ? '#52c41a' : undefined
+                                        }}
+                                    >
+                                        Rs. {record.paid.toLocaleString()}
+                                    </Text>
+                                ),
+                                align: 'right'
+                            },
+                            {
+                                title: 'Progress',
+                                key: 'progress',
+                                sorter: (a, b) => {
+                                    const aPercent = a.promise > 0 ? (a.paid / a.promise) * 100 : 0;
+                                    const bPercent = b.promise > 0 ? (b.paid / b.promise) * 100 : 0;
+                                    return aPercent - bPercent;
+                                },
+                                render: (_, record) => {
+                                    const percent = record.promise > 0 ? Math.min(100, Math.round((record.paid / record.promise) * 100)) : 0;
+                                    return (
+                                        <div>
+                                            <Progress
+                                                percent={percent}
                                                 size="small"
-                                                type="dashed"
-                                                icon={<PlusOutlined />}
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    setActiveFamilyId(family.id);
-                                                    specialForm.resetFields();
-                                                    setSpecialModalVisible(true);
-                                                }}
-                                            >
-                                                Add Special
-                                            </Button>
-                                        </Row>
+                                                strokeColor={record.paid >= record.promise && record.promise > 0 ? '#52c41a' : '#1890ff'}
+                                                format={() => `${percent}%`}
+                                            />
+                                        </div>
+                                    );
+                                },
+                                width: 150
+                            },
+                            {
+                                title: 'Actions',
+                                key: 'actions',
+                                width: 100,
+                                fixed: 'right',
+                                render: (_, record) => (
+                                    <Button
+                                        type="link"
+                                        icon={<EditOutlined />}
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleEdit(record.member);
+                                        }}
+                                    >
+                                        Edit
+                                    </Button>
+                                ),
+                                sorter: false
+                            }
+                        ]}
+                    />
+                </Card>
+            ) : activeTab === 'families' ? (
+                <div className="family-list">
+                    {loading ? <p>Loading...</p> : (
+                        <Collapse defaultActiveKey={[]} ghost>
+                            {filteredFamilyData.map(family => {
+                                // Filter out deceased members from family members list
+                                const familyMembersCtx = family.memberIds
+                                    .map(mid => getMemberData(mid))
+                                    .filter((item): item is NonNullable<MemberData> => {
+                                        if (!item) return false;
+                                        // Exclude if member is marked as deceased
+                                        return !item.member.isDeceased;
+                                    });
+                                const familySpecialRecords = specialRecords.filter(r => r.familyId === family.id);
+
+                                const membersPromise = familyMembersCtx.reduce((sum, m) => sum + (m?.promise || 0), 0);
+                                const specialPromise = familySpecialRecords.reduce((sum, r) => sum + (r.promiseAmount || 0) + (r.nagarparAmount || 0), 0);
+                                const familyTotalPromise = membersPromise + specialPromise;
+
+                                const membersPaid = familyMembersCtx.reduce((sum, m) => sum + (m?.paid || 0), 0);
+                                const specialPaid = familySpecialRecords.reduce((sum, r) => sum + (r.paidAmount || 0), 0);
+                                const familyTotalPaid = membersPaid + specialPaid;
+
+                                const familyPercent = familyTotalPromise > 0 ? Math.round((familyTotalPaid / familyTotalPromise) * 100) : 0;
+
+                                return (
+                                    <Panel
+                                        key={family.id}
+                                        header={
+                                            <Row justify="space-between" align="middle" style={{ width: '100%' }} gutter={[8, 8]}>
+                                                <Col xs={24} sm={16} md={16}>
+                                                    <Text strong style={{ fontSize: 'clamp(14px, 3.5vw, 16px)' }}>{family.familyName}</Text>
+                                                    <br />
+                                                    <Text type="secondary" style={{ fontSize: 'clamp(11px, 2.5vw, 12px)' }}>
+                                                        {family.familyNumber ? <span>#{family.familyNumber} • </span> : ''}
+                                                        Head: {getMemberData(family.headId)?.member.name || 'Unknown'} • {familyMembersCtx.length + familySpecialRecords.length} Cards
+                                                    </Text>
+                                                </Col>
+                                                <Col xs={24} sm={8} md={6} style={{ textAlign: 'right' }}>
+                                                    <Text type="secondary" style={{ fontSize: 'clamp(11px, 2.5vw, 12px)' }}>Paid / Promise</Text>
+                                                    <div style={{ fontWeight: 500, fontSize: 'clamp(12px, 3vw, 14px)' }}>
+                                                        {familyTotalPaid.toLocaleString()} / {familyTotalPromise.toLocaleString()}
+                                                    </div>
+                                                    <Progress percent={familyPercent} steps={5} size="small" strokeColor="#52c41a" />
+                                                </Col>
+                                                <Col xs={24} sm={24} md={2} style={{ textAlign: 'right' }}>
+                                                    <Button
+                                                        type="text"
+                                                        icon={<FilePdfOutlined />}
+                                                        size="small"
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            handleExportFamilyPDF(
+                                                                family,
+                                                                familyMembersCtx,
+                                                                familySpecialRecords,
+                                                                familyTotalPromise,
+                                                                familyTotalPaid
+                                                            );
+                                                        }}
+                                                        title="Export to PDF"
+                                                    />
+                                                </Col>
+                                            </Row>
+                                        }
+                                    >
+                                        {/* Table for Family Members */}
                                         <Table
                                             size="small"
-                                            dataSource={familySpecialRecords}
-                                            rowKey="id"
+                                            dataSource={familyMembersCtx.filter(item => item !== null)}
+                                            rowKey={(item) => item.member.id}
                                             pagination={{
                                                 pageSize: 10,
                                                 showSizeChanger: true,
@@ -1452,11 +1346,11 @@ return (
                                                 pageSizeOptions: ['5', '10', '20', '50'],
                                                 showTotal: (total, range) => `${range[0]}-${range[1]} of ${total} items`,
                                                 onChange: (page: number, pageSize: number) => {
-                                                    setFamilySpecialCurrentPage(prev => ({
+                                                    setFamilyMembersCurrentPage(prev => ({
                                                         ...prev,
                                                         [family.id]: page || 1
                                                     }));
-                                                    setFamilySpecialPageSize(prev => ({
+                                                    setFamilyMembersPageSize(prev => ({
                                                         ...prev,
                                                         [family.id]: pageSize || 10
                                                     }));
@@ -1469,1024 +1363,1132 @@ return (
                                                 width: 50,
                                                 render: (_, __, index) => {
                                                     // Calculate serial number based on current page and page size
-                                                    const currentSpecialPage = familySpecialCurrentPage[family.id] || 1;
-                                                    const currentSpecialPageSize = familySpecialPageSize[family.id] || 10;
-                                                    return ((currentSpecialPage - 1) * currentSpecialPageSize + index + 1);
+                                                    const currentFamilyPage = familyMembersCurrentPage[family.id] || 1;
+                                                    const currentPageSize = familyMembersPageSize[family.id] || 10;
+                                                    return ((currentFamilyPage - 1) * currentPageSize + index + 1);
                                                 },
                                             },
                                             {
                                                 title: 'Name',
-                                                dataIndex: 'name',
+                                                dataIndex: ['member', 'name'],
                                                 key: 'name',
                                                 width: 150,
-                                                render: (name, record) => {
-                                                    const deceasedText = record?.isDeceased
-                                                        ? (record.gender === 'female' ? ' (مرحومہ)' : ' (مرحوم)')
-                                                        : '';
-                                                    return (
-                                                        <>
-                                                            <span style={{ direction: 'rtl', unicodeBidi: 'embed' }}>{getUrduName(name || '')}{deceasedText}</span>
-                                                        </>
-                                                    );
-                                                },
+                                                render: (name, record) => (
+                                                    <a onClick={() => handleEdit(record.member)} style={{ cursor: 'pointer' }}>
+                                                        {name}
+                                                    </a>
+                                                ),
                                             },
                                             {
                                                 title: 'Promise',
                                                 key: 'promise',
                                                 width: 100,
-                                                render: (_, record) => ((record?.promiseAmount || 0) + (record?.nagarparAmount || 0)).toLocaleString(),
+                                                render: (_, record) => record?.promise?.toLocaleString() || '0',
                                             },
                                             {
                                                 title: 'Paid',
                                                 key: 'paid',
                                                 width: 100,
-                                                render: (_, record) => record?.paidAmount?.toLocaleString() || '0',
+                                                render: (_, record) => (
+                                                    <span style={{ color: record?.paid >= record?.promise && record?.promise > 0 ? 'green' : 'inherit' }}>
+                                                        {(record?.paid || 0).toLocaleString()}
+                                                    </span>
+                                                ),
                                             },
                                             {
                                                 title: 'Progress',
                                                 key: 'progress',
                                                 width: 120,
-                                                render: (_, record) => {
-                                                    const totalPromise = (record?.promiseAmount || 0) + (record?.nagarparAmount || 0);
-                                                    const percent = totalPromise > 0 ? Math.round((record?.paidAmount || 0) / totalPromise * 100) : 0;
-                                                    return (
-                                                        <div style={{ width: '100px' }}>
-                                                            <Progress
-                                                                percent={percent}
-                                                                size="small"
-                                                                showInfo={false}
-                                                                strokeColor={(record?.paidAmount || 0) >= totalPromise ? '#52c41a' : '#1890ff'}
-                                                            />
-                                                        </div>
-                                                    );
-                                                },
+                                                render: (_, record) => (
+                                                    <div style={{ width: '100px' }}>
+                                                        <Progress
+                                                            percent={record?.promise > 0 ? Math.min(100, Math.round(((record?.paid || 0) / record?.promise) * 100)) : 0}
+                                                            size="small"
+                                                            showInfo={false}
+                                                            strokeColor={record?.paid >= record?.promise ? '#52c41a' : '#1890ff'}
+                                                        />
+                                                    </div>
+                                                ),
                                             },
                                             {
                                                 title: 'Actions',
                                                 key: 'actions',
-                                                width: 100,
+                                                width: 80,
                                                 render: (_, record) => (
                                                     <Space size="small">
-                                                        <Button size="small" icon={<EditOutlined />} onClick={() => handleEditSpecial(record)} />
-                                                        <Button size="small" icon={<DeleteOutlined />} danger onClick={() => handleDeleteSpecial(record.id)} />
+                                                        <Button size="small" icon={<EditOutlined />} onClick={() => handleEdit(record.member)} />
                                                     </Space>
                                                 ),
                                             },
                                             ]}
                                         />
-                                    </div>
-                                </Panel>
-                            );
-                        })}
-                    </Collapse>
-                )}
-            </div>
-        ) : activeTab === 'tanzeem' ? (
-            <div className="tanzeem-list">
-                {loading ? <p>Loading...</p> : (
-                    <Collapse defaultActiveKey={[]} ghost>
-                        {tanzeemGroupedData.map(group => {
-                            return (
-                                <Panel
-                                    key={group.tanzeem}
-                                    header={
-                                        <Row justify="space-between" align="middle" style={{ width: '100%' }} gutter={[8, 8]}>
-                                            <Col xs={24} sm={16} md={16}>
-                                                <Text strong style={{ fontSize: 'clamp(14px, 3.5vw, 16px)' }}>
-                                                    {getTanzeemDisplayName(group.tanzeem as any)}
-                                                </Text>
-                                                <br />
-                                                <Text type="secondary" style={{ fontSize: 'clamp(11px, 2.5vw, 12px)' }}>
-                                                    {group.count} Members
-                                                </Text>
-                                            </Col>
-                                            <Col xs={24} sm={8} md={6} style={{ textAlign: 'right' }}>
-                                                <Text type="secondary" style={{ fontSize: 'clamp(11px, 2.5vw, 12px)' }}>Paid / Promise</Text>
-                                                <div style={{ fontWeight: 500, fontSize: 'clamp(12px, 3vw, 14px)' }}>
-                                                    {group.totalPaid.toLocaleString()} / {group.totalPromise.toLocaleString()}
-                                                </div>
-                                                <Progress percent={group.percent} steps={5} size="small" strokeColor="#52c41a" />
-                                            </Col>
-                                        </Row>
-                                    }
-                                >
-                                    {/* Table for Tanzeem Members */}
-                                    <Table
-                                        size="small"
-                                        dataSource={group.members.filter(item => item !== null)}
-                                        rowKey={(item) => item.member.id}
-                                        pagination={{
-                                            pageSize: 10,
-                                            showSizeChanger: true,
-                                            showQuickJumper: true,
-                                            pageSizeOptions: ['5', '10', '20', '50'],
-                                            showTotal: (total, range) => `${range[0]}-${range[1]} of ${total} items`,
-                                            onChange: (page: number, pageSize: number) => {
-                                                setTanzeemMembersCurrentPage(prev => ({
-                                                    ...prev,
-                                                    [group.tanzeem]: page || 1
-                                                }));
-                                                setTanzeemMembersPageSize(prev => ({
-                                                    ...prev,
-                                                    [group.tanzeem]: pageSize || 10
-                                                }));
-                                            }
-                                        }}
-                                        scroll={{ x: 'max-content' }}
-                                        columns={[{
-                                            title: '#',
-                                            key: 'serial',
-                                            width: 50,
-                                            render: (_, __, index) => {
-                                                const currentPage = tanzeemMembersCurrentPage[group.tanzeem] || 1;
-                                                const currentPageSize = tanzeemMembersPageSize[group.tanzeem] || 10;
-                                                return ((currentPage - 1) * currentPageSize + index + 1);
+
+                                        {/* Special Members Section */}
+                                        <div style={{ marginTop: 16, borderTop: '1px dashed #d9d9d9', paddingTop: 16 }}>
+                                            <Row justify="space-between" align="middle" style={{ marginBottom: 12 }}>
+                                                <Text type="secondary"><strong style={{ color: '#1890ff' }}>Special / Deceased Pledges</strong></Text>
+                                                <Button
+                                                    size="small"
+                                                    type="dashed"
+                                                    icon={<PlusOutlined />}
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        setActiveFamilyId(family.id);
+                                                        specialForm.resetFields();
+                                                        setSpecialModalVisible(true);
+                                                    }}
+                                                >
+                                                    Add Special
+                                                </Button>
+                                            </Row>
+                                            <Table
+                                                size="small"
+                                                dataSource={familySpecialRecords}
+                                                rowKey="id"
+                                                pagination={{
+                                                    pageSize: 10,
+                                                    showSizeChanger: true,
+                                                    showQuickJumper: true,
+                                                    pageSizeOptions: ['5', '10', '20', '50'],
+                                                    showTotal: (total, range) => `${range[0]}-${range[1]} of ${total} items`,
+                                                    onChange: (page: number, pageSize: number) => {
+                                                        setFamilySpecialCurrentPage(prev => ({
+                                                            ...prev,
+                                                            [family.id]: page || 1
+                                                        }));
+                                                        setFamilySpecialPageSize(prev => ({
+                                                            ...prev,
+                                                            [family.id]: pageSize || 10
+                                                        }));
+                                                    }
+                                                }}
+                                                scroll={{ x: 'max-content' }}
+                                                columns={[{
+                                                    title: '#',
+                                                    key: 'serial',
+                                                    width: 50,
+                                                    render: (_, __, index) => {
+                                                        // Calculate serial number based on current page and page size
+                                                        const currentSpecialPage = familySpecialCurrentPage[family.id] || 1;
+                                                        const currentSpecialPageSize = familySpecialPageSize[family.id] || 10;
+                                                        return ((currentSpecialPage - 1) * currentSpecialPageSize + index + 1);
+                                                    },
+                                                },
+                                                {
+                                                    title: 'Name',
+                                                    dataIndex: 'name',
+                                                    key: 'name',
+                                                    width: 150,
+                                                    render: (name, record) => {
+                                                        const deceasedText = record?.isDeceased
+                                                            ? (record.gender === 'female' ? ' (مرحومہ)' : ' (مرحوم)')
+                                                            : '';
+                                                        return (
+                                                            <>
+                                                                <span style={{ direction: 'rtl', unicodeBidi: 'embed' }}>{getUrduName(name || '')}{deceasedText}</span>
+                                                            </>
+                                                        );
+                                                    },
+                                                },
+                                                {
+                                                    title: 'Promise',
+                                                    key: 'promise',
+                                                    width: 100,
+                                                    render: (_, record) => ((record?.promiseAmount || 0) + (record?.nagarparAmount || 0)).toLocaleString(),
+                                                },
+                                                {
+                                                    title: 'Paid',
+                                                    key: 'paid',
+                                                    width: 100,
+                                                    render: (_, record) => record?.paidAmount?.toLocaleString() || '0',
+                                                },
+                                                {
+                                                    title: 'Progress',
+                                                    key: 'progress',
+                                                    width: 120,
+                                                    render: (_, record) => {
+                                                        const totalPromise = (record?.promiseAmount || 0) + (record?.nagarparAmount || 0);
+                                                        const percent = totalPromise > 0 ? Math.round((record?.paidAmount || 0) / totalPromise * 100) : 0;
+                                                        return (
+                                                            <div style={{ width: '100px' }}>
+                                                                <Progress
+                                                                    percent={percent}
+                                                                    size="small"
+                                                                    showInfo={false}
+                                                                    strokeColor={(record?.paidAmount || 0) >= totalPromise ? '#52c41a' : '#1890ff'}
+                                                                />
+                                                            </div>
+                                                        );
+                                                    },
+                                                },
+                                                {
+                                                    title: 'Actions',
+                                                    key: 'actions',
+                                                    width: 100,
+                                                    render: (_, record) => (
+                                                        <Space size="small">
+                                                            <Button size="small" icon={<EditOutlined />} onClick={() => handleEditSpecial(record)} />
+                                                            <Button size="small" icon={<DeleteOutlined />} danger onClick={() => handleDeleteSpecial(record.id)} />
+                                                        </Space>
+                                                    ),
+                                                },
+                                                ]}
+                                            />
+                                        </div>
+                                    </Panel>
+                                );
+                            })}
+                        </Collapse>
+                    )}
+                </div>
+            ) : activeTab === 'tanzeem' ? (
+                <div className="tanzeem-list">
+                    {loading ? <p>Loading...</p> : (
+                        <Collapse defaultActiveKey={[]} ghost>
+                            {tanzeemGroupedData.map(group => {
+                                return (
+                                    <Panel
+                                        key={group.tanzeem}
+                                        header={
+                                            <Row justify="space-between" align="middle" style={{ width: '100%' }} gutter={[8, 8]}>
+                                                <Col xs={24} sm={16} md={16}>
+                                                    <Text strong style={{ fontSize: 'clamp(14px, 3.5vw, 16px)' }}>
+                                                        {getTanzeemDisplayName(group.tanzeem as any)}
+                                                    </Text>
+                                                    <br />
+                                                    <Text type="secondary" style={{ fontSize: 'clamp(11px, 2.5vw, 12px)' }}>
+                                                        {group.count} Members
+                                                    </Text>
+                                                </Col>
+                                                <Col xs={24} sm={8} md={6} style={{ textAlign: 'right' }}>
+                                                    <Text type="secondary" style={{ fontSize: 'clamp(11px, 2.5vw, 12px)' }}>Paid / Promise</Text>
+                                                    <div style={{ fontWeight: 500, fontSize: 'clamp(12px, 3vw, 14px)' }}>
+                                                        {group.totalPaid.toLocaleString()} / {group.totalPromise.toLocaleString()}
+                                                    </div>
+                                                    <Progress percent={group.percent} steps={5} size="small" strokeColor="#52c41a" />
+                                                </Col>
+                                            </Row>
+                                        }
+                                    >
+                                        {/* Table for Tanzeem Members */}
+                                        <Table
+                                            size="small"
+                                            dataSource={group.members.filter(item => item !== null)}
+                                            rowKey={(item) => item.member.id}
+                                            pagination={{
+                                                pageSize: 10,
+                                                showSizeChanger: true,
+                                                showQuickJumper: true,
+                                                pageSizeOptions: ['5', '10', '20', '50'],
+                                                showTotal: (total, range) => `${range[0]}-${range[1]} of ${total} items`,
+                                                onChange: (page: number, pageSize: number) => {
+                                                    setTanzeemMembersCurrentPage(prev => ({
+                                                        ...prev,
+                                                        [group.tanzeem]: page || 1
+                                                    }));
+                                                    setTanzeemMembersPageSize(prev => ({
+                                                        ...prev,
+                                                        [group.tanzeem]: pageSize || 10
+                                                    }));
+                                                }
+                                            }}
+                                            scroll={{ x: 'max-content' }}
+                                            columns={[{
+                                                title: '#',
+                                                key: 'serial',
+                                                width: 50,
+                                                render: (_, __, index) => {
+                                                    const currentPage = tanzeemMembersCurrentPage[group.tanzeem] || 1;
+                                                    const currentPageSize = tanzeemMembersPageSize[group.tanzeem] || 10;
+                                                    return ((currentPage - 1) * currentPageSize + index + 1);
+                                                },
                                             },
-                                        },
-                                        {
-                                            title: 'Name',
-                                            dataIndex: ['member', 'name'],
-                                            key: 'name',
-                                            width: 150,
-                                            render: (name, record) => (
-                                                <a onClick={() => handleEdit(record.member)} style={{ cursor: 'pointer' }}>
-                                                    {name}
-                                                </a>
-                                            ),
-                                        },
-                                        {
-                                            title: 'Halqa',
-                                            key: 'halqa',
-                                            dataIndex: ['member', 'halqa'],
-                                            width: 120,
-                                            render: (halqa) => halqa || <Text type="secondary">No Halqa</Text>
-                                        },
-                                        {
-                                            title: 'Promise',
-                                            key: 'promise',
-                                            width: 100,
-                                            render: (_, record) => record?.promise?.toLocaleString() || '0',
-                                        },
-                                        {
-                                            title: 'Paid',
-                                            key: 'paid',
-                                            width: 100,
-                                            render: (_, record) => (
-                                                <span style={{ color: record?.paid >= record?.promise && record?.promise > 0 ? 'green' : 'inherit' }}>
-                                                    {(record?.paid || 0).toLocaleString()}
-                                                </span>
-                                            ),
-                                        },
-                                        {
-                                            title: 'Progress',
-                                            key: 'progress',
-                                            width: 120,
-                                            render: (_, record) => (
-                                                <div style={{ width: '100px' }}>
-                                                    <Progress
-                                                        percent={record?.promise > 0 ? Math.min(100, Math.round(((record?.paid || 0) / record?.promise) * 100)) : 0}
-                                                        size="small"
-                                                        showInfo={false}
-                                                        strokeColor={record?.paid >= record?.promise ? '#52c41a' : '#1890ff'}
-                                                    />
-                                                </div>
-                                            ),
-                                        },
-                                        {
-                                            title: 'Actions',
-                                            key: 'actions',
-                                            width: 80,
-                                            render: (_, record) => (
-                                                <Space size="small">
-                                                    <Button size="small" icon={<EditOutlined />} onClick={() => handleEdit(record.member)} />
-                                                </Space>
-                                            ),
-                                        },
-                                        ]}
+                                            {
+                                                title: 'Name',
+                                                dataIndex: ['member', 'name'],
+                                                key: 'name',
+                                                width: 150,
+                                                render: (name, record) => (
+                                                    <a onClick={() => handleEdit(record.member)} style={{ cursor: 'pointer' }}>
+                                                        {name}
+                                                    </a>
+                                                ),
+                                            },
+                                            {
+                                                title: 'Halqa',
+                                                key: 'halqa',
+                                                dataIndex: ['member', 'halqa'],
+                                                width: 120,
+                                                render: (halqa) => halqa || <Text type="secondary">No Halqa</Text>
+                                            },
+                                            {
+                                                title: 'Promise',
+                                                key: 'promise',
+                                                width: 100,
+                                                render: (_, record) => record?.promise?.toLocaleString() || '0',
+                                            },
+                                            {
+                                                title: 'Paid',
+                                                key: 'paid',
+                                                width: 100,
+                                                render: (_, record) => (
+                                                    <span style={{ color: record?.paid >= record?.promise && record?.promise > 0 ? 'green' : 'inherit' }}>
+                                                        {(record?.paid || 0).toLocaleString()}
+                                                    </span>
+                                                ),
+                                            },
+                                            {
+                                                title: 'Progress',
+                                                key: 'progress',
+                                                width: 120,
+                                                render: (_, record) => (
+                                                    <div style={{ width: '100px' }}>
+                                                        <Progress
+                                                            percent={record?.promise > 0 ? Math.min(100, Math.round(((record?.paid || 0) / record?.promise) * 100)) : 0}
+                                                            size="small"
+                                                            showInfo={false}
+                                                            strokeColor={record?.paid >= record?.promise ? '#52c41a' : '#1890ff'}
+                                                        />
+                                                    </div>
+                                                ),
+                                            },
+                                            {
+                                                title: 'Actions',
+                                                key: 'actions',
+                                                width: 80,
+                                                render: (_, record) => (
+                                                    <Space size="small">
+                                                        <Button size="small" icon={<EditOutlined />} onClick={() => handleEdit(record.member)} />
+                                                    </Space>
+                                                ),
+                                            },
+                                            ]}
+                                        />
+                                    </Panel>
+                                );
+                            })}
+                        </Collapse>
+                    )}
+                </div>
+            ) : activeTab === 'dashboard' ? (
+                // Dashboard Tab (Tanzeem Wise)
+                <div className="dashboard-view">
+                    {/* Target Section */}
+                    <Card title={<Title level={4} style={{ margin: 0 }}>Target</Title>} style={{ marginBottom: 16 }}>
+                        <Row gutter={[16, 16]}>
+                            <Col xs={24} sm={12} md={6}>
+                                <div>
+                                    <Text type="secondary" style={{ fontSize: 'clamp(12px, 2.5vw, 14px)', display: 'block', marginBottom: 8 }}>Target Amount</Text>
+                                    <InputNumber
+                                        value={targetAmount}
+                                        onChange={handleTargetChange}
+                                        addonBefore="Rs."
+                                        style={{ width: '100%' }}
+                                        formatter={(value) => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
+                                        parser={(value) => value!.replace(/\$\s?|(,*)/g, '') as any}
+                                        min={0}
+                                        precision={0}
+                                        size="large"
                                     />
-                                </Panel>
-                            );
-                        })}
-                    </Collapse>
-                )}
-            </div>
-        ) : activeTab === 'dashboard' ? (
-            // Dashboard Tab (Tanzeem Wise)
-            <div className="dashboard-view">
-                {/* Target Section */}
-                <Card title={<Title level={4} style={{ margin: 0 }}>Target</Title>} style={{ marginBottom: 16 }}>
-                    <Row gutter={[16, 16]}>
-                        <Col xs={24} sm={12} md={6}>
-                            <div>
-                                <Text type="secondary" style={{ fontSize: 'clamp(12px, 2.5vw, 14px)', display: 'block', marginBottom: 8 }}>Target Amount</Text>
-                                <InputNumber
-                                    value={targetAmount}
-                                    onChange={handleTargetChange}
-                                    addonBefore="Rs."
-                                    style={{ width: '100%' }}
-                                    formatter={(value) => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
-                                    parser={(value) => value!.replace(/\$\s?|(,*)/g, '') as any}
-                                    min={0}
-                                    precision={0}
-                                    size="large"
-                                />
-                            </div>
-                        </Col>
-                        <Col xs={24} sm={12} md={6}>
-                            <Card bodyStyle={{ padding: 16 }}>
-                                <Statistic
-                                    title="Total Received"
-                                    value={targetSectionStats.totalReceived}
-                                    prefix="Rs."
-                                    precision={0}
-                                    valueStyle={{ fontSize: 'clamp(18px, 4vw, 28px)' }}
-                                />
-                                <div style={{ marginTop: 8 }}>
-                                    <Progress
-                                        percent={Math.round(targetSectionStats.receivedPercent)}
-                                        size="small"
-                                        status={targetSectionStats.receivedPercent >= 100 ? "success" : "active"}
-                                        strokeColor={targetSectionStats.receivedPercent >= 100 ? "#52c41a" : "#1890ff"}
+                                </div>
+                            </Col>
+                            <Col xs={24} sm={12} md={6}>
+                                <Card bodyStyle={{ padding: 16 }}>
+                                    <Statistic
+                                        title="Total Received"
+                                        value={targetSectionStats.totalReceived}
+                                        prefix="Rs."
+                                        precision={0}
+                                        valueStyle={{ fontSize: 'clamp(18px, 4vw, 28px)' }}
                                     />
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 4 }}>
+                                    <div style={{ marginTop: 8 }}>
+                                        <Progress
+                                            percent={Math.round(targetSectionStats.receivedPercent)}
+                                            size="small"
+                                            status={targetSectionStats.receivedPercent >= 100 ? "success" : "active"}
+                                            strokeColor={targetSectionStats.receivedPercent >= 100 ? "#52c41a" : "#1890ff"}
+                                        />
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 4 }}>
+                                            <Text type="secondary" style={{ fontSize: 'clamp(11px, 2.5vw, 12px)' }}>
+                                                (Ansar + Lajna + Khuddam + Deceased)
+                                            </Text>
+                                            <Text type="secondary" style={{ fontSize: 'clamp(11px, 2.5vw, 12px)', fontWeight: 'bold' }}>
+                                                {targetSectionStats.receivedPercent.toFixed(1)}%
+                                            </Text>
+                                        </div>
+                                    </div>
+                                </Card>
+                            </Col>
+                            <Col xs={24} sm={12} md={6}>
+                                <Card bodyStyle={{ padding: 16 }}>
+                                    <Statistic
+                                        title="Remaining"
+                                        value={targetSectionStats.remainingFromTarget}
+                                        prefix="Rs."
+                                        precision={0}
+                                        valueStyle={{
+                                            fontSize: 'clamp(18px, 4vw, 28px)',
+                                            color: targetSectionStats.remainingFromTarget >= 0 ? '#3f8600' : '#cf1322'
+                                        }}
+                                    />
+                                    <div style={{ marginTop: 8 }}>
                                         <Text type="secondary" style={{ fontSize: 'clamp(11px, 2.5vw, 12px)' }}>
-                                            (Ansar + Lajna + Khuddam + Deceased)
-                                        </Text>
-                                        <Text type="secondary" style={{ fontSize: 'clamp(11px, 2.5vw, 12px)', fontWeight: 'bold' }}>
-                                            {targetSectionStats.receivedPercent.toFixed(1)}%
+                                            (Target - Total Received)
                                         </Text>
                                     </div>
+                                </Card>
+                            </Col>
+                            <Col xs={24} sm={12} md={6}>
+                                <Card bodyStyle={{ padding: 16 }}>
+                                    <div style={{ marginBottom: 8 }}>
+                                        <Title level={5} style={{ margin: 0, fontSize: 'clamp(14px, 3vw, 16px)' }}>دفتر اطفال</Title>
+                                    </div>
+                                    <Statistic
+                                        title="Total"
+                                        value={targetSectionStats.dafarAtfalTotal}
+                                        prefix="Rs."
+                                        precision={0}
+                                        valueStyle={{ fontSize: 'clamp(18px, 4vw, 28px)' }}
+                                    />
+                                    <div style={{ marginTop: 8 }}>
+                                        <Text type="secondary" style={{ fontSize: 'clamp(11px, 2.5vw, 12px)' }}>
+                                            (Atfal + Saf-e-Awal Boys + Saf-e-Awal Girls + Nasirat)
+                                        </Text>
+                                    </div>
+                                </Card>
+                            </Col>
+                        </Row>
+                    </Card>
+
+                    {/* Deceased Stats Cards with Amounts */}
+                    <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
+                        <Col xs={24} sm={24} md={8}>
+                            <Card hoverable>
+                                <Statistic
+                                    title={<span style={{ fontSize: 'clamp(12px, 3vw, 14px)' }}>{`Deceased Males (${deceasedStats.deceasedMales})`}</span>}
+                                    value={deceasedStats.malePaidAmount || 0}
+                                    prefix="Rs."
+                                    precision={0}
+                                    valueStyle={{ fontSize: 'clamp(18px, 4.5vw, 28px)' }}
+                                />
+                                <Progress
+                                    percent={deceasedStats.deceasedMales > 0 ? Math.round((deceasedStats.malePaidAmount || 0) / (deceasedStats.malePromiseAmount || 1) * 100) : 0}
+                                    status={deceasedStats.malePaidAmount >= deceasedStats.malePromiseAmount && deceasedStats.malePromiseAmount > 0 ? 'success' : 'active'}
+                                    strokeColor={deceasedStats.malePaidAmount >= deceasedStats.malePromiseAmount && deceasedStats.malePromiseAmount > 0 ? '#52c41a' : '#1890ff'}
+                                />
+                                <div style={{ marginTop: 12, display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: 4 }}>
+                                    <Text type="secondary" style={{ fontSize: 'clamp(11px, 2.5vw, 12px)' }}>Promise: Rs. {(deceasedStats.malePromiseAmount || 0).toLocaleString()}</Text>
+                                    <Text type="secondary" style={{ fontSize: 'clamp(11px, 2.5vw, 12px)' }}>{deceasedStats.malePromiseAmount ? Math.round((deceasedStats.malePaidAmount || 0) / deceasedStats.malePromiseAmount * 100).toFixed(1) + '%' : '0%'}</Text>
                                 </div>
                             </Card>
                         </Col>
-                        <Col xs={24} sm={12} md={6}>
-                            <Card bodyStyle={{ padding: 16 }}>
+                        <Col xs={24} sm={24} md={8}>
+                            <Card hoverable>
                                 <Statistic
-                                    title="Remaining"
-                                    value={targetSectionStats.remainingFromTarget}
+                                    title={<span style={{ fontSize: 'clamp(12px, 3vw, 14px)' }}>{`Deceased Females (${deceasedStats.deceasedFemales})`}</span>}
+                                    value={deceasedStats.femalePaidAmount || 0}
                                     prefix="Rs."
                                     precision={0}
-                                    valueStyle={{
-                                        fontSize: 'clamp(18px, 4vw, 28px)',
-                                        color: targetSectionStats.remainingFromTarget >= 0 ? '#3f8600' : '#cf1322'
-                                    }}
+                                    valueStyle={{ fontSize: 'clamp(18px, 4.5vw, 28px)' }}
                                 />
-                                <div style={{ marginTop: 8 }}>
-                                    <Text type="secondary" style={{ fontSize: 'clamp(11px, 2.5vw, 12px)' }}>
-                                        (Target - Total Received)
-                                    </Text>
+                                <Progress
+                                    percent={deceasedStats.deceasedFemales > 0 ? Math.round((deceasedStats.femalePaidAmount || 0) / (deceasedStats.femalePromiseAmount || 1) * 100) : 0}
+                                    status={deceasedStats.femalePaidAmount >= deceasedStats.femalePromiseAmount && deceasedStats.femalePromiseAmount > 0 ? 'success' : 'active'}
+                                    strokeColor={deceasedStats.femalePaidAmount >= deceasedStats.femalePromiseAmount && deceasedStats.femalePromiseAmount > 0 ? '#52c41a' : '#1890ff'}
+                                />
+                                <div style={{ marginTop: 12, display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: 4 }}>
+                                    <Text type="secondary" style={{ fontSize: 'clamp(11px, 2.5vw, 12px)' }}>Promise: Rs. {(deceasedStats.femalePromiseAmount || 0).toLocaleString()}</Text>
+                                    <Text type="secondary" style={{ fontSize: 'clamp(11px, 2.5vw, 12px)' }}>{deceasedStats.femalePromiseAmount ? Math.round((deceasedStats.femalePaidAmount || 0) / deceasedStats.femalePromiseAmount * 100).toFixed(1) + '%' : '0%'}</Text>
                                 </div>
                             </Card>
                         </Col>
-                        <Col xs={24} sm={12} md={6}>
-                            <Card bodyStyle={{ padding: 16 }}>
-                                <div style={{ marginBottom: 8 }}>
-                                    <Title level={5} style={{ margin: 0, fontSize: 'clamp(14px, 3vw, 16px)' }}>دفتر اطفال</Title>
-                                </div>
+                        <Col xs={24} sm={24} md={8}>
+                            <Card hoverable>
                                 <Statistic
-                                    title="Total"
-                                    value={targetSectionStats.dafarAtfalTotal}
+                                    title={<span style={{ fontSize: 'clamp(12px, 3vw, 14px)' }}>{`Total Deceased (${deceasedStats.deceasedMales + deceasedStats.deceasedFemales})`}</span>}
+                                    value={deceasedStats.totalDeceasedPaid || 0}
                                     prefix="Rs."
                                     precision={0}
-                                    valueStyle={{ fontSize: 'clamp(18px, 4vw, 28px)' }}
+                                    valueStyle={{ fontSize: 'clamp(18px, 4.5vw, 28px)' }}
                                 />
-                                <div style={{ marginTop: 8 }}>
-                                    <Text type="secondary" style={{ fontSize: 'clamp(11px, 2.5vw, 12px)' }}>
-                                        (Atfal + Saf-e-Awal Boys + Saf-e-Awal Girls + Nasirat)
-                                    </Text>
+                                <Progress
+                                    percent={deceasedStats.totalDeceasedPromise > 0 ? Math.round(deceasedStats.totalDeceasedPaid / deceasedStats.totalDeceasedPromise * 100) : 0}
+                                    status={deceasedStats.totalDeceasedPaid >= deceasedStats.totalDeceasedPromise && deceasedStats.totalDeceasedPromise > 0 ? 'success' : 'active'}
+                                    strokeColor={deceasedStats.totalDeceasedPaid >= deceasedStats.totalDeceasedPromise && deceasedStats.totalDeceasedPromise > 0 ? '#52c41a' : '#1890ff'}
+                                />
+                                <div style={{ marginTop: 12, display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: 4 }}>
+                                    <Text type="secondary" style={{ fontSize: 'clamp(11px, 2.5vw, 12px)' }}>Promise: Rs. {(deceasedStats.totalDeceasedPromise || 0).toLocaleString()}</Text>
+                                    <Text type="secondary" style={{ fontSize: 'clamp(11px, 2.5vw, 12px)' }}>{deceasedStats.totalDeceasedPromise ? Math.round(deceasedStats.totalDeceasedPaid / deceasedStats.totalDeceasedPromise * 100).toFixed(1) + '%' : '0%'}</Text>
                                 </div>
                             </Card>
                         </Col>
                     </Row>
-                </Card>
 
-                {/* Deceased Stats Cards with Amounts */}
-                <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
-                    <Col xs={24} sm={24} md={8}>
-                        <Card hoverable>
-                            <Statistic
-                                title={<span style={{ fontSize: 'clamp(12px, 3vw, 14px)' }}>{`Deceased Males (${deceasedStats.deceasedMales})`}</span>}
-                                value={deceasedStats.malePaidAmount || 0}
-                                prefix="Rs."
-                                precision={0}
-                                valueStyle={{ fontSize: 'clamp(18px, 4.5vw, 28px)' }}
-                            />
-                            <Progress
-                                percent={deceasedStats.deceasedMales > 0 ? Math.round((deceasedStats.malePaidAmount || 0) / (deceasedStats.malePromiseAmount || 1) * 100) : 0}
-                                status={deceasedStats.malePaidAmount >= deceasedStats.malePromiseAmount && deceasedStats.malePromiseAmount > 0 ? 'success' : 'active'}
-                                strokeColor={deceasedStats.malePaidAmount >= deceasedStats.malePromiseAmount && deceasedStats.malePromiseAmount > 0 ? '#52c41a' : '#1890ff'}
-                            />
-                            <div style={{ marginTop: 12, display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: 4 }}>
-                                <Text type="secondary" style={{ fontSize: 'clamp(11px, 2.5vw, 12px)' }}>Promise: Rs. {(deceasedStats.malePromiseAmount || 0).toLocaleString()}</Text>
-                                <Text type="secondary" style={{ fontSize: 'clamp(11px, 2.5vw, 12px)' }}>{deceasedStats.malePromiseAmount ? Math.round((deceasedStats.malePaidAmount || 0) / deceasedStats.malePromiseAmount * 100).toFixed(1) + '%' : '0%'}</Text>
-                            </div>
-                        </Card>
-                    </Col>
-                    <Col xs={24} sm={24} md={8}>
-                        <Card hoverable>
-                            <Statistic
-                                title={<span style={{ fontSize: 'clamp(12px, 3vw, 14px)' }}>{`Deceased Females (${deceasedStats.deceasedFemales})`}</span>}
-                                value={deceasedStats.femalePaidAmount || 0}
-                                prefix="Rs."
-                                precision={0}
-                                valueStyle={{ fontSize: 'clamp(18px, 4.5vw, 28px)' }}
-                            />
-                            <Progress
-                                percent={deceasedStats.deceasedFemales > 0 ? Math.round((deceasedStats.femalePaidAmount || 0) / (deceasedStats.femalePromiseAmount || 1) * 100) : 0}
-                                status={deceasedStats.femalePaidAmount >= deceasedStats.femalePromiseAmount && deceasedStats.femalePromiseAmount > 0 ? 'success' : 'active'}
-                                strokeColor={deceasedStats.femalePaidAmount >= deceasedStats.femalePromiseAmount && deceasedStats.femalePromiseAmount > 0 ? '#52c41a' : '#1890ff'}
-                            />
-                            <div style={{ marginTop: 12, display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: 4 }}>
-                                <Text type="secondary" style={{ fontSize: 'clamp(11px, 2.5vw, 12px)' }}>Promise: Rs. {(deceasedStats.femalePromiseAmount || 0).toLocaleString()}</Text>
-                                <Text type="secondary" style={{ fontSize: 'clamp(11px, 2.5vw, 12px)' }}>{deceasedStats.femalePromiseAmount ? Math.round((deceasedStats.femalePaidAmount || 0) / deceasedStats.femalePromiseAmount * 100).toFixed(1) + '%' : '0%'}</Text>
-                            </div>
-                        </Card>
-                    </Col>
-                    <Col xs={24} sm={24} md={8}>
-                        <Card hoverable>
-                            <Statistic
-                                title={<span style={{ fontSize: 'clamp(12px, 3vw, 14px)' }}>{`Total Deceased (${deceasedStats.deceasedMales + deceasedStats.deceasedFemales})`}</span>}
-                                value={deceasedStats.totalDeceasedPaid || 0}
-                                prefix="Rs."
-                                precision={0}
-                                valueStyle={{ fontSize: 'clamp(18px, 4.5vw, 28px)' }}
-                            />
-                            <Progress
-                                percent={deceasedStats.totalDeceasedPromise > 0 ? Math.round(deceasedStats.totalDeceasedPaid / deceasedStats.totalDeceasedPromise * 100) : 0}
-                                status={deceasedStats.totalDeceasedPaid >= deceasedStats.totalDeceasedPromise && deceasedStats.totalDeceasedPromise > 0 ? 'success' : 'active'}
-                                strokeColor={deceasedStats.totalDeceasedPaid >= deceasedStats.totalDeceasedPromise && deceasedStats.totalDeceasedPromise > 0 ? '#52c41a' : '#1890ff'}
-                            />
-                            <div style={{ marginTop: 12, display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: 4 }}>
-                                <Text type="secondary" style={{ fontSize: 'clamp(11px, 2.5vw, 12px)' }}>Promise: Rs. {(deceasedStats.totalDeceasedPromise || 0).toLocaleString()}</Text>
-                                <Text type="secondary" style={{ fontSize: 'clamp(11px, 2.5vw, 12px)' }}>{deceasedStats.totalDeceasedPromise ? Math.round(deceasedStats.totalDeceasedPaid / deceasedStats.totalDeceasedPromise * 100).toFixed(1) + '%' : '0%'}</Text>
-                            </div>
-                        </Card>
-                    </Col>
-                </Row>
+                    {/* اضافی (Additional) Stats Card */}
+                    <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
+                        <Col xs={24} sm={24} md={24}>
+                            <Card hoverable>
+                                <Statistic
+                                    title={`اضافی (${azafiStats.count})`}
+                                    value={azafiStats.paidAmount || 0}
+                                    prefix="Rs."
+                                    precision={0}
+                                    valueStyle={{ fontSize: 'clamp(18px, 4.5vw, 28px)' }}
+                                />
+                                <Progress
+                                    percent={Math.round(azafiStats.percent)}
+                                    status={azafiStats.paidAmount >= azafiStats.promiseAmount && azafiStats.promiseAmount > 0 ? 'success' : 'active'}
+                                    strokeColor={azafiStats.paidAmount >= azafiStats.promiseAmount && azafiStats.promiseAmount > 0 ? '#52c41a' : '#1890ff'}
+                                />
+                                <div style={{ marginTop: 12, display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: 4 }}>
+                                    <Text type="secondary" style={{ fontSize: 'clamp(11px, 2.5vw, 12px)' }}>Promise: Rs. {(azafiStats.promiseAmount || 0).toLocaleString()}</Text>
+                                    <Text type="secondary" style={{ fontSize: 'clamp(11px, 2.5vw, 12px)' }}>{azafiStats.promiseAmount ? Math.round(azafiStats.percent).toFixed(1) + '%' : '0%'}</Text>
+                                </div>
+                            </Card>
+                        </Col>
+                    </Row>
 
-                {/* اضافی (Additional) Stats Card */}
-                <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
-                    <Col xs={24} sm={24} md={24}>
-                        <Card hoverable>
-                            <Statistic
-                                title={`اضافی (${azafiStats.count})`}
-                                value={azafiStats.paidAmount || 0}
-                                prefix="Rs."
-                                precision={0}
-                                valueStyle={{ fontSize: 'clamp(18px, 4.5vw, 28px)' }}
-                            />
-                            <Progress
-                                percent={Math.round(azafiStats.percent)}
-                                status={azafiStats.paidAmount >= azafiStats.promiseAmount && azafiStats.promiseAmount > 0 ? 'success' : 'active'}
-                                strokeColor={azafiStats.paidAmount >= azafiStats.promiseAmount && azafiStats.promiseAmount > 0 ? '#52c41a' : '#1890ff'}
-                            />
-                            <div style={{ marginTop: 12, display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: 4 }}>
-                                <Text type="secondary" style={{ fontSize: 'clamp(11px, 2.5vw, 12px)' }}>Promise: Rs. {(azafiStats.promiseAmount || 0).toLocaleString()}</Text>
-                                <Text type="secondary" style={{ fontSize: 'clamp(11px, 2.5vw, 12px)' }}>{azafiStats.promiseAmount ? Math.round(azafiStats.percent).toFixed(1) + '%' : '0%'}</Text>
-                            </div>
-                        </Card>
-                    </Col>
-                </Row>
+                    {/* Target - Tanzeem Wise Totals */}
+                    <Card
+                        title="Target (Tanzeem Wise Totals)"
+                        style={{ marginBottom: 16 }}
+                        bodyStyle={{ padding: 16 }}
+                    >
+                        <List
+                            grid={{ gutter: [16, 16], xs: 1, sm: 2, md: 2, lg: 3, xl: 4 }}
+                            dataSource={tanzeemStats}
+                            renderItem={(item) => {
+                                const displayName =
+                                    item.name === 'Unknown'
+                                        ? 'Unknown'
+                                        : getTanzeemDisplayName(item.name as any);
 
-                {/* Target - Tanzeem Wise Totals */}
-                <Card
-                    title="Target (Tanzeem Wise Totals)"
-                    style={{ marginBottom: 16 }}
-                    bodyStyle={{ padding: 16 }}
-                >
-                    <List
-                        grid={{ gutter: [16, 16], xs: 1, sm: 2, md: 2, lg: 3, xl: 4 }}
-                        dataSource={tanzeemStats}
-                        renderItem={(item) => {
-                            const displayName =
-                                item.name === 'Unknown'
-                                    ? 'Unknown'
-                                    : getTanzeemDisplayName(item.name as any);
+                                return (
+                                    <List.Item>
+                                        <Card hoverable>
+                                            <Statistic
+                                                title={
+                                                    <span style={{ fontSize: 'clamp(12px, 3vw, 14px)' }}>
+                                                        {`${displayName} (${item.count})`}
+                                                    </span>
+                                                }
+                                                value={item.paid}
+                                                prefix="Rs."
+                                                precision={0}
+                                                valueStyle={{ fontSize: 'clamp(18px, 4.5vw, 28px)' }}
+                                            />
+                                            <Progress
+                                                percent={Math.round(item.percent)}
+                                                status={item.percent >= 100 ? 'success' : 'active'}
+                                                strokeColor={item.percent >= 100 ? '#52c41a' : '#1890ff'}
+                                            />
+                                            <div
+                                                style={{
+                                                    marginTop: 12,
+                                                    display: 'flex',
+                                                    justifyContent: 'space-between',
+                                                    flexWrap: 'wrap',
+                                                    gap: 4
+                                                }}
+                                            >
+                                                <Text
+                                                    type="secondary"
+                                                    style={{ fontSize: 'clamp(11px, 2.5vw, 12px)' }}
+                                                >
+                                                    Promise: Rs. {item.promise.toLocaleString()}
+                                                </Text>
+                                                <Text
+                                                    type="secondary"
+                                                    style={{ fontSize: 'clamp(11px, 2.5vw, 12px)' }}
+                                                >
+                                                    {item.percent.toFixed(1)}%
+                                                </Text>
+                                            </div>
+                                        </Card>
+                                    </List.Item>
+                                );
+                            }}
+                        />
+                    </Card>
+                </div>
+            ) : activeTab === 'about' ? (
+                <div className="about-view">
+                    <Card>
+                        <Title level={2} style={{ marginBottom: 24 }}>About Waqf-e-Jadeed System</Title>
 
-                            return (
-                                <List.Item>
-                                    <Card hoverable>
-                                        <Statistic
-                                            title={
-                                                <span style={{ fontSize: 'clamp(12px, 3vw, 14px)' }}>
-                                                    {`${displayName} (${item.count})`}
-                                                </span>
+                        <div style={{ marginBottom: 32 }}>
+                            <Title level={3} style={{ marginBottom: 16 }}>تنظیم کی تقسیم (Tanzeem Division)</Title>
+                            <Card style={{ marginBottom: 16 }}>
+                                <Title level={4} style={{ marginBottom: 12 }}>How Tanzeems are Divided:</Title>
+                                <div style={{ lineHeight: 1.8, fontSize: '14px' }}>
+                                    <p><strong>Members are automatically assigned to tanzeems based on their age and gender:</strong></p>
+                                    <ul style={{ paddingLeft: 20 }}>
+                                        <li><strong>Boys:</strong>
+                                            <ul style={{ paddingLeft: 20, marginTop: 8 }}>
+                                                <li>Under 7 years → <strong>اطفال- صف اول</strong> (Saf-e-Awal)</li>
+                                                <li>7 to 15 years → <strong>اطفال</strong> (Atfal)</li>
+                                                <li>15 to 40 years → <strong>خدام الحمدیہ</strong> (Khuddam)</li>
+                                                <li>40+ years → <strong>انصار اللہ</strong> (Ansar)</li>
+                                            </ul>
+                                        </li>
+                                        <li style={{ marginTop: 12 }}><strong>Girls:</strong>
+                                            <ul style={{ paddingLeft: 20, marginTop: 8 }}>
+                                                <li>Under 7 years → <strong>اطفال- صف اول (Girls)</strong> (Saf-e-Awal Girls)</li>
+                                                <li>7 to 15 years → <strong>ناصرات</strong> (Nasirat)</li>
+                                                <li>15+ years → <strong>لجنہ</strong> (Lajna)</li>
+                                            </ul>
+                                        </li>
+                                    </ul>
+                                    <p style={{ marginTop: 16, fontStyle: 'italic', color: '#666' }}>
+                                        Note: Age is calculated from the member's date of birth. The system automatically updates tanzeem assignments when members reach age thresholds.
+                                    </p>
+                                </div>
+                            </Card>
+                        </div>
+
+                        <div style={{ marginBottom: 32 }}>
+                            <Title level={3} style={{ marginBottom: 16 }}>کل جمع (Total Calculations)</Title>
+
+                            <Card style={{ marginBottom: 16 }}>
+                                <Title level={4} style={{ marginBottom: 12 }}>Total Promise Calculation:</Title>
+                                <div style={{ lineHeight: 1.8, fontSize: '14px' }}>
+                                    <p>The <strong>Total Promise</strong> includes:</p>
+                                    <ul style={{ paddingLeft: 20 }}>
+                                        <li>Promise Amount (وعدہ شدہ رقم) from all members</li>
+                                        <li>Nagar Parkar Amount (نگرپارکر) from all members</li>
+                                        <li>Special records (خصوصی ریکارڈ) including deceased members</li>
+                                    </ul>
+                                    <p style={{ marginTop: 12, fontFamily: 'monospace', backgroundColor: '#f5f5f5', padding: '8px', borderRadius: '4px' }}>
+                                        Total Promise = Σ(Promise Amount + Nagar Parkar Amount) for all members + Special records
+                                    </p>
+                                </div>
+                            </Card>
+
+                            <Card style={{ marginBottom: 16 }}>
+                                <Title level={4} style={{ marginBottom: 12 }}>Total Paid Calculation:</Title>
+                                <div style={{ lineHeight: 1.8, fontSize: '14px' }}>
+                                    <p>The <strong>Total Paid</strong> includes:</p>
+                                    <ul style={{ paddingLeft: 20 }}>
+                                        <li>All payment amounts (ادا شدہ رقم) recorded for members</li>
+                                        <li>Payments from special records</li>
+                                        <li>Multiple payments per member are summed together</li>
+                                    </ul>
+                                    <p style={{ marginTop: 12, fontFamily: 'monospace', backgroundColor: '#f5f5f5', padding: '8px', borderRadius: '4px' }}>
+                                        Total Paid = Σ(All Payment Amounts) for all members + Special records
+                                    </p>
+                                </div>
+                            </Card>
+
+                            <Card style={{ marginBottom: 16 }}>
+                                <Title level={4} style={{ marginBottom: 12 }}>Collection Progress:</Title>
+                                <div style={{ lineHeight: 1.8, fontSize: '14px' }}>
+                                    <p>The progress percentage is calculated as:</p>
+                                    <p style={{ marginTop: 12, fontFamily: 'monospace', backgroundColor: '#f5f5f5', padding: '8px', borderRadius: '4px' }}>
+                                        Progress % = (Total Paid / Total Promise) × 100
+                                    </p>
+                                    <p style={{ marginTop: 12 }}>This shows what percentage of the total promise has been collected.</p>
+                                </div>
+                            </Card>
+                        </div>
+
+                        <div style={{ marginBottom: 32 }}>
+                            <Title level={3} style={{ marginBottom: 16 }}>Target Section Calculations</Title>
+
+                            <Card style={{ marginBottom: 16 }}>
+                                <Title level={4} style={{ marginBottom: 12 }}>Total Received:</Title>
+                                <div style={{ lineHeight: 1.8, fontSize: '14px' }}>
+                                    <p>The <strong>Total Received</strong> in the Target section includes paid amounts from:</p>
+                                    <ul style={{ paddingLeft: 20 }}>
+                                        <li><strong>انصار اللہ</strong> (Ansar) - Men 40+ years</li>
+                                        <li><strong>لجنہ</strong> (Lajna) - Women 15+ years</li>
+                                        <li><strong>خدام الحمدیہ</strong> (Khuddam) - Men 15-40 years</li>
+                                        <li><strong>All Deceased Members</strong> (متوفی اراکین) - Both male and female</li>
+                                    </ul>
+                                    <p style={{ marginTop: 12, fontFamily: 'monospace', backgroundColor: '#f5f5f5', padding: '8px', borderRadius: '4px' }}>
+                                        Total Received = Ansar Paid + Lajna Paid + Khuddam Paid + Total Deceased Paid
+                                    </p>
+                                </div>
+                            </Card>
+
+                            <Card style={{ marginBottom: 16 }}>
+                                <Title level={4} style={{ marginBottom: 12 }}>دفتر اطفال (Dafar Atfal):</Title>
+                                <div style={{ lineHeight: 1.8, fontSize: '14px' }}>
+                                    <p>The <strong>دفتر اطفال</strong> total includes paid amounts from:</p>
+                                    <ul style={{ paddingLeft: 20 }}>
+                                        <li><strong>اطفال</strong> (Atfal) - Boys 7-15 years</li>
+                                        <li><strong>اطفال- صف اول</strong> (Saf-e-Awal) - Boys under 7 years</li>
+                                        <li><strong>اطفال- صف اول (Girls)</strong> (Saf-e-Awal Girls) - Girls under 7 years</li>
+                                        <li><strong>ناصرات</strong> (Nasirat) - Girls 7-15 years</li>
+                                    </ul>
+                                    <p style={{ marginTop: 12, fontFamily: 'monospace', backgroundColor: '#f5f5f5', padding: '8px', borderRadius: '4px' }}>
+                                        Dafar Atfal Total = Atfal Paid + Saf-e-Awal Paid + Saf-e-Awal Girls Paid + Nasirat Paid
+                                    </p>
+                                </div>
+                            </Card>
+
+                            <Card style={{ marginBottom: 16 }}>
+                                <Title level={4} style={{ marginBottom: 12 }}>Remaining from Target:</Title>
+                                <div style={{ lineHeight: 1.8, fontSize: '14px' }}>
+                                    <p>This shows how much remains to be collected to reach the target:</p>
+                                    <p style={{ marginTop: 12, fontFamily: 'monospace', backgroundColor: '#f5f5f5', padding: '8px', borderRadius: '4px' }}>
+                                        Remaining = Target Amount - Total Received
+                                    </p>
+                                    <p style={{ marginTop: 12 }}>
+                                        <strong>Note:</strong> The remaining amount is displayed in green if positive (target not yet reached)
+                                        or red if negative (target exceeded).
+                                    </p>
+                                </div>
+                            </Card>
+                        </div>
+
+                        <div style={{ marginBottom: 32 }}>
+                            <Title level={3} style={{ marginBottom: 16 }}>Special Records</Title>
+
+                            <Card style={{ marginBottom: 16 }}>
+                                <Title level={4} style={{ marginBottom: 12 }}>Deceased Members (متوفی اراکین):</Title>
+                                <div style={{ lineHeight: 1.8, fontSize: '14px' }}>
+                                    <p>Deceased members are tracked separately and included in:</p>
+                                    <ul style={{ paddingLeft: 20 }}>
+                                        <li>Total Promise calculations</li>
+                                        <li>Total Paid calculations</li>
+                                        <li>Total Received in Target section</li>
+                                    </ul>
+                                    <p style={{ marginTop: 12 }}>They are displayed separately in the Dashboard with male and female breakdowns.</p>
+                                </div>
+                            </Card>
+
+                            <Card style={{ marginBottom: 16 }}>
+                                <Title level={4} style={{ marginBottom: 12 }}>اضافی (Additional Records):</Title>
+                                <div style={{ lineHeight: 1.8, fontSize: '14px' }}>
+                                    <p>Special records marked as "اضافی" (Additional) are included in:</p>
+                                    <ul style={{ paddingLeft: 20 }}>
+                                        <li>Total Promise calculations</li>
+                                        <li>Total Paid calculations</li>
+                                    </ul>
+                                    <p style={{ marginTop: 12 }}>These are displayed separately in the Dashboard.</p>
+                                </div>
+                            </Card>
+                        </div>
+
+                        <div style={{ marginBottom: 32 }}>
+                            <Title level={3} style={{ marginBottom: 16 }}>Tanzeem Wise Statistics</Title>
+
+                            <Card style={{ marginBottom: 16 }}>
+                                <Title level={4} style={{ marginBottom: 12 }}>How Tanzeem Stats are Calculated:</Title>
+                                <div style={{ lineHeight: 1.8, fontSize: '14px' }}>
+                                    <p>For each tanzeem, the system calculates:</p>
+                                    <ul style={{ paddingLeft: 20 }}>
+                                        <li><strong>Promise:</strong> Sum of (Promise Amount + Nagar Parkar Amount) for all members in that tanzeem</li>
+                                        <li><strong>Paid:</strong> Sum of all payment amounts for members in that tanzeem</li>
+                                        <li><strong>Count:</strong> Total number of members in that tanzeem</li>
+                                        <li><strong>Percent:</strong> (Paid / Promise) × 100</li>
+                                    </ul>
+                                    <p style={{ marginTop: 12 }}>Tanzeem statistics are displayed in both the "Tanzeem Wise" tab and the "Dashboard" tab.</p>
+                                </div>
+                            </Card>
+                        </div>
+
+                        <div style={{ marginBottom: 32 }}>
+                            <Title level={3} style={{ marginBottom: 16 }}>Family Wise Calculations</Title>
+
+                            <Card style={{ marginBottom: 16 }}>
+                                <Title level={4} style={{ marginBottom: 12 }}>Family Totals:</Title>
+                                <div style={{ lineHeight: 1.8, fontSize: '14px' }}>
+                                    <p>Each family's totals include:</p>
+                                    <ul style={{ paddingLeft: 20 }}>
+                                        <li>Promise amounts from all family members (excluding deceased)</li>
+                                        <li>Promise amounts from special records linked to the family</li>
+                                        <li>Paid amounts from all family members</li>
+                                        <li>Paid amounts from special records</li>
+                                    </ul>
+                                    <p style={{ marginTop: 12, fontFamily: 'monospace', backgroundColor: '#f5f5f5', padding: '8px', borderRadius: '4px' }}>
+                                        Family Total Promise = Σ(Member Promises) + Σ(Special Record Promises)
+                                    </p>
+                                    <p style={{ marginTop: 8, fontFamily: 'monospace', backgroundColor: '#f5f5f5', padding: '8px', borderRadius: '4px' }}>
+                                        Family Total Paid = Σ(Member Payments) + Σ(Special Record Payments)
+                                    </p>
+                                </div>
+                            </Card>
+                        </div>
+
+                        <div style={{ marginBottom: 16 }}>
+                            <Card>
+                                <Title level={4} style={{ marginBottom: 12 }}>Important Notes:</Title>
+                                <div style={{ lineHeight: 1.8, fontSize: '14px' }}>
+                                    <ul style={{ paddingLeft: 20 }}>
+                                        <li>All amounts are displayed in Pakistani Rupees (Rs.)</li>
+                                        <li>Percentages are rounded to the nearest whole number</li>
+                                        <li>Target amounts are saved per year and persist across sessions</li>
+                                        <li>Deceased members are excluded from family member lists but included in totals</li>
+                                        <li>The system automatically updates tanzeem assignments based on current age</li>
+                                    </ul>
+                                </div>
+                            </Card>
+                        </div>
+                    </Card>
+                </div>
+            ) : null}
+
+            {/* Edit Drawer */}
+            <Drawer
+                title={`Edit: ${editingMember ? editingMember.name : editingSpecial ? editingSpecial.name : ''}`}
+                placement="bottom"
+                height="70vh"
+                onClose={() => setDrawerVisible(false)}
+                open={drawerVisible}
+                extra={
+                    <Button type="primary" onClick={handleSave} loading={submitting} size="small">
+                        Save
+                    </Button>
+                }
+            >
+                <Form form={form} layout="vertical">
+                    <Row gutter={[16, 16]}>
+                        <Col xs={24} sm={12} md={12} lg={6}>
+                            <Form.Item label="Promise">
+                                {isEditingPromise ? (
+                                    <div style={{ display: 'flex', gap: 8 }}>
+                                        <Form.Item name="promiseAmount" noStyle>
+                                            <InputNumber
+                                                style={{ width: '100%' }}
+                                                formatter={value => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
+                                                parser={value => value!.replace(/\$\s?|(,*)/g, '') as any}
+                                                size="large"
+                                                autoFocus
+                                            />
+                                        </Form.Item>
+                                        <Button
+                                            type="primary"
+                                            onClick={handleSave}
+                                            icon={<CheckCircleOutlined />}
+                                            loading={submitting}
+                                        />
+                                    </div>
+                                ) : (
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                        <Title level={4} style={{ margin: 0 }}>
+                                            {(editingMember
+                                                ? (records.find(r => r.memberId === editingMember.id)?.promiseAmount || 0)
+                                                : (editingSpecial?.promiseAmount || 0)
+                                            ).toLocaleString()}
+                                        </Title>
+                                        <Button
+                                            size="small"
+                                            icon={<EditOutlined />}
+                                            onClick={() => setIsEditingPromise(true)}
+                                        />
+                                    </div>
+                                )}
+                                {/* PREVIOUS YEAR PROMISE DISPLAY */}
+                                <div style={{ marginTop: 4 }}>
+                                    <Text type="secondary" style={{ fontSize: 12 }}>
+                                        {selectedYear - 1} Promise: {' '}
+                                        <Text strong>
+                                            {editingMember
+                                                ? (prevRecords.find(r => r.memberId === editingMember.id)?.promiseAmount || 0).toLocaleString()
+                                                : (prevSpecialRecords.find(r => r.id === editingSpecial?.id)?.promiseAmount || 0).toLocaleString()
                                             }
-                                            value={item.paid}
-                                            prefix="Rs."
-                                            precision={0}
-                                            valueStyle={{ fontSize: 'clamp(18px, 4.5vw, 28px)' }}
-                                        />
-                                        <Progress
-                                            percent={Math.round(item.percent)}
-                                            status={item.percent >= 100 ? 'success' : 'active'}
-                                            strokeColor={item.percent >= 100 ? '#52c41a' : '#1890ff'}
-                                        />
-                                        <div
-                                            style={{
-                                                marginTop: 12,
-                                                display: 'flex',
-                                                justifyContent: 'space-between',
-                                                flexWrap: 'wrap',
-                                                gap: 4
-                                            }}
-                                        >
-                                            <Text
-                                                type="secondary"
-                                                style={{ fontSize: 'clamp(11px, 2.5vw, 12px)' }}
-                                            >
-                                                Promise: Rs. {item.promise.toLocaleString()}
-                                            </Text>
-                                            <Text
-                                                type="secondary"
-                                                style={{ fontSize: 'clamp(11px, 2.5vw, 12px)' }}
-                                            >
-                                                {item.percent.toFixed(1)}%
-                                            </Text>
-                                        </div>
-                                    </Card>
-                                </List.Item>
-                            );
-                        }}
-                    />
-                </Card>
-            </div>
-        ) : activeTab === 'about' ? (
-            <div className="about-view">
-                <Card>
-                    <Title level={2} style={{ marginBottom: 24 }}>About Waqf-e-Jadeed System</Title>
-
-                    <div style={{ marginBottom: 32 }}>
-                        <Title level={3} style={{ marginBottom: 16 }}>تنظیم کی تقسیم (Tanzeem Division)</Title>
-                        <Card style={{ marginBottom: 16 }}>
-                            <Title level={4} style={{ marginBottom: 12 }}>How Tanzeems are Divided:</Title>
-                            <div style={{ lineHeight: 1.8, fontSize: '14px' }}>
-                                <p><strong>Members are automatically assigned to tanzeems based on their age and gender:</strong></p>
-                                <ul style={{ paddingLeft: 20 }}>
-                                    <li><strong>Boys:</strong>
-                                        <ul style={{ paddingLeft: 20, marginTop: 8 }}>
-                                            <li>Under 7 years → <strong>اطفال- صف اول</strong> (Saf-e-Awal)</li>
-                                            <li>7 to 15 years → <strong>اطفال</strong> (Atfal)</li>
-                                            <li>15 to 40 years → <strong>خدام الحمدیہ</strong> (Khuddam)</li>
-                                            <li>40+ years → <strong>انصار اللہ</strong> (Ansar)</li>
-                                        </ul>
-                                    </li>
-                                    <li style={{ marginTop: 12 }}><strong>Girls:</strong>
-                                        <ul style={{ paddingLeft: 20, marginTop: 8 }}>
-                                            <li>Under 7 years → <strong>اطفال- صف اول (Girls)</strong> (Saf-e-Awal Girls)</li>
-                                            <li>7 to 15 years → <strong>ناصرات</strong> (Nasirat)</li>
-                                            <li>15+ years → <strong>لجنہ</strong> (Lajna)</li>
-                                        </ul>
-                                    </li>
-                                </ul>
-                                <p style={{ marginTop: 16, fontStyle: 'italic', color: '#666' }}>
-                                    Note: Age is calculated from the member's date of birth. The system automatically updates tanzeem assignments when members reach age thresholds.
-                                </p>
-                            </div>
-                        </Card>
-                    </div>
-
-                    <div style={{ marginBottom: 32 }}>
-                        <Title level={3} style={{ marginBottom: 16 }}>کل جمع (Total Calculations)</Title>
-
-                        <Card style={{ marginBottom: 16 }}>
-                            <Title level={4} style={{ marginBottom: 12 }}>Total Promise Calculation:</Title>
-                            <div style={{ lineHeight: 1.8, fontSize: '14px' }}>
-                                <p>The <strong>Total Promise</strong> includes:</p>
-                                <ul style={{ paddingLeft: 20 }}>
-                                    <li>Promise Amount (وعدہ شدہ رقم) from all members</li>
-                                    <li>Nagar Parkar Amount (نگرپارکر) from all members</li>
-                                    <li>Special records (خصوصی ریکارڈ) including deceased members</li>
-                                </ul>
-                                <p style={{ marginTop: 12, fontFamily: 'monospace', backgroundColor: '#f5f5f5', padding: '8px', borderRadius: '4px' }}>
-                                    Total Promise = Σ(Promise Amount + Nagar Parkar Amount) for all members + Special records
-                                </p>
-                            </div>
-                        </Card>
-
-                        <Card style={{ marginBottom: 16 }}>
-                            <Title level={4} style={{ marginBottom: 12 }}>Total Paid Calculation:</Title>
-                            <div style={{ lineHeight: 1.8, fontSize: '14px' }}>
-                                <p>The <strong>Total Paid</strong> includes:</p>
-                                <ul style={{ paddingLeft: 20 }}>
-                                    <li>All payment amounts (ادا شدہ رقم) recorded for members</li>
-                                    <li>Payments from special records</li>
-                                    <li>Multiple payments per member are summed together</li>
-                                </ul>
-                                <p style={{ marginTop: 12, fontFamily: 'monospace', backgroundColor: '#f5f5f5', padding: '8px', borderRadius: '4px' }}>
-                                    Total Paid = Σ(All Payment Amounts) for all members + Special records
-                                </p>
-                            </div>
-                        </Card>
-
-                        <Card style={{ marginBottom: 16 }}>
-                            <Title level={4} style={{ marginBottom: 12 }}>Collection Progress:</Title>
-                            <div style={{ lineHeight: 1.8, fontSize: '14px' }}>
-                                <p>The progress percentage is calculated as:</p>
-                                <p style={{ marginTop: 12, fontFamily: 'monospace', backgroundColor: '#f5f5f5', padding: '8px', borderRadius: '4px' }}>
-                                    Progress % = (Total Paid / Total Promise) × 100
-                                </p>
-                                <p style={{ marginTop: 12 }}>This shows what percentage of the total promise has been collected.</p>
-                            </div>
-                        </Card>
-                    </div>
-
-                    <div style={{ marginBottom: 32 }}>
-                        <Title level={3} style={{ marginBottom: 16 }}>Target Section Calculations</Title>
-
-                        <Card style={{ marginBottom: 16 }}>
-                            <Title level={4} style={{ marginBottom: 12 }}>Total Received:</Title>
-                            <div style={{ lineHeight: 1.8, fontSize: '14px' }}>
-                                <p>The <strong>Total Received</strong> in the Target section includes paid amounts from:</p>
-                                <ul style={{ paddingLeft: 20 }}>
-                                    <li><strong>انصار اللہ</strong> (Ansar) - Men 40+ years</li>
-                                    <li><strong>لجنہ</strong> (Lajna) - Women 15+ years</li>
-                                    <li><strong>خدام الحمدیہ</strong> (Khuddam) - Men 15-40 years</li>
-                                    <li><strong>All Deceased Members</strong> (متوفی اراکین) - Both male and female</li>
-                                </ul>
-                                <p style={{ marginTop: 12, fontFamily: 'monospace', backgroundColor: '#f5f5f5', padding: '8px', borderRadius: '4px' }}>
-                                    Total Received = Ansar Paid + Lajna Paid + Khuddam Paid + Total Deceased Paid
-                                </p>
-                            </div>
-                        </Card>
-
-                        <Card style={{ marginBottom: 16 }}>
-                            <Title level={4} style={{ marginBottom: 12 }}>دفتر اطفال (Dafar Atfal):</Title>
-                            <div style={{ lineHeight: 1.8, fontSize: '14px' }}>
-                                <p>The <strong>دفتر اطفال</strong> total includes paid amounts from:</p>
-                                <ul style={{ paddingLeft: 20 }}>
-                                    <li><strong>اطفال</strong> (Atfal) - Boys 7-15 years</li>
-                                    <li><strong>اطفال- صف اول</strong> (Saf-e-Awal) - Boys under 7 years</li>
-                                    <li><strong>اطفال- صف اول (Girls)</strong> (Saf-e-Awal Girls) - Girls under 7 years</li>
-                                    <li><strong>ناصرات</strong> (Nasirat) - Girls 7-15 years</li>
-                                </ul>
-                                <p style={{ marginTop: 12, fontFamily: 'monospace', backgroundColor: '#f5f5f5', padding: '8px', borderRadius: '4px' }}>
-                                    Dafar Atfal Total = Atfal Paid + Saf-e-Awal Paid + Saf-e-Awal Girls Paid + Nasirat Paid
-                                </p>
-                            </div>
-                        </Card>
-
-                        <Card style={{ marginBottom: 16 }}>
-                            <Title level={4} style={{ marginBottom: 12 }}>Remaining from Target:</Title>
-                            <div style={{ lineHeight: 1.8, fontSize: '14px' }}>
-                                <p>This shows how much remains to be collected to reach the target:</p>
-                                <p style={{ marginTop: 12, fontFamily: 'monospace', backgroundColor: '#f5f5f5', padding: '8px', borderRadius: '4px' }}>
-                                    Remaining = Target Amount - Total Received
-                                </p>
-                                <p style={{ marginTop: 12 }}>
-                                    <strong>Note:</strong> The remaining amount is displayed in green if positive (target not yet reached)
-                                    or red if negative (target exceeded).
-                                </p>
-                            </div>
-                        </Card>
-                    </div>
-
-                    <div style={{ marginBottom: 32 }}>
-                        <Title level={3} style={{ marginBottom: 16 }}>Special Records</Title>
-
-                        <Card style={{ marginBottom: 16 }}>
-                            <Title level={4} style={{ marginBottom: 12 }}>Deceased Members (متوفی اراکین):</Title>
-                            <div style={{ lineHeight: 1.8, fontSize: '14px' }}>
-                                <p>Deceased members are tracked separately and included in:</p>
-                                <ul style={{ paddingLeft: 20 }}>
-                                    <li>Total Promise calculations</li>
-                                    <li>Total Paid calculations</li>
-                                    <li>Total Received in Target section</li>
-                                </ul>
-                                <p style={{ marginTop: 12 }}>They are displayed separately in the Dashboard with male and female breakdowns.</p>
-                            </div>
-                        </Card>
-
-                        <Card style={{ marginBottom: 16 }}>
-                            <Title level={4} style={{ marginBottom: 12 }}>اضافی (Additional Records):</Title>
-                            <div style={{ lineHeight: 1.8, fontSize: '14px' }}>
-                                <p>Special records marked as "اضافی" (Additional) are included in:</p>
-                                <ul style={{ paddingLeft: 20 }}>
-                                    <li>Total Promise calculations</li>
-                                    <li>Total Paid calculations</li>
-                                </ul>
-                                <p style={{ marginTop: 12 }}>These are displayed separately in the Dashboard.</p>
-                            </div>
-                        </Card>
-                    </div>
-
-                    <div style={{ marginBottom: 32 }}>
-                        <Title level={3} style={{ marginBottom: 16 }}>Tanzeem Wise Statistics</Title>
-
-                        <Card style={{ marginBottom: 16 }}>
-                            <Title level={4} style={{ marginBottom: 12 }}>How Tanzeem Stats are Calculated:</Title>
-                            <div style={{ lineHeight: 1.8, fontSize: '14px' }}>
-                                <p>For each tanzeem, the system calculates:</p>
-                                <ul style={{ paddingLeft: 20 }}>
-                                    <li><strong>Promise:</strong> Sum of (Promise Amount + Nagar Parkar Amount) for all members in that tanzeem</li>
-                                    <li><strong>Paid:</strong> Sum of all payment amounts for members in that tanzeem</li>
-                                    <li><strong>Count:</strong> Total number of members in that tanzeem</li>
-                                    <li><strong>Percent:</strong> (Paid / Promise) × 100</li>
-                                </ul>
-                                <p style={{ marginTop: 12 }}>Tanzeem statistics are displayed in both the "Tanzeem Wise" tab and the "Dashboard" tab.</p>
-                            </div>
-                        </Card>
-                    </div>
-
-                    <div style={{ marginBottom: 32 }}>
-                        <Title level={3} style={{ marginBottom: 16 }}>Family Wise Calculations</Title>
-
-                        <Card style={{ marginBottom: 16 }}>
-                            <Title level={4} style={{ marginBottom: 12 }}>Family Totals:</Title>
-                            <div style={{ lineHeight: 1.8, fontSize: '14px' }}>
-                                <p>Each family's totals include:</p>
-                                <ul style={{ paddingLeft: 20 }}>
-                                    <li>Promise amounts from all family members (excluding deceased)</li>
-                                    <li>Promise amounts from special records linked to the family</li>
-                                    <li>Paid amounts from all family members</li>
-                                    <li>Paid amounts from special records</li>
-                                </ul>
-                                <p style={{ marginTop: 12, fontFamily: 'monospace', backgroundColor: '#f5f5f5', padding: '8px', borderRadius: '4px' }}>
-                                    Family Total Promise = Σ(Member Promises) + Σ(Special Record Promises)
-                                </p>
-                                <p style={{ marginTop: 8, fontFamily: 'monospace', backgroundColor: '#f5f5f5', padding: '8px', borderRadius: '4px' }}>
-                                    Family Total Paid = Σ(Member Payments) + Σ(Special Record Payments)
-                                </p>
-                            </div>
-                        </Card>
-                    </div>
-
-                    <div style={{ marginBottom: 16 }}>
-                        <Card>
-                            <Title level={4} style={{ marginBottom: 12 }}>Important Notes:</Title>
-                            <div style={{ lineHeight: 1.8, fontSize: '14px' }}>
-                                <ul style={{ paddingLeft: 20 }}>
-                                    <li>All amounts are displayed in Pakistani Rupees (Rs.)</li>
-                                    <li>Percentages are rounded to the nearest whole number</li>
-                                    <li>Target amounts are saved per year and persist across sessions</li>
-                                    <li>Deceased members are excluded from family member lists but included in totals</li>
-                                    <li>The system automatically updates tanzeem assignments based on current age</li>
-                                </ul>
-                            </div>
-                        </Card>
-                    </div>
-                </Card>
-            </div>
-        ) : null}
-
-        {/* Edit Drawer */}
-        <Drawer
-            title={`Edit: ${editingMember ? editingMember.name : editingSpecial ? editingSpecial.name : ''}`}
-            placement="bottom"
-            height="70vh"
-            onClose={() => setDrawerVisible(false)}
-            open={drawerVisible}
-            extra={
-                <Button type="primary" onClick={handleSave} loading={submitting} size="small">
-                    Save
-                </Button>
-            }
-        >
-            <Form form={form} layout="vertical">
-                <Row gutter={[16, 16]}>
-                    <Col xs={24} sm={12} md={12} lg={6}>
-                        <Form.Item label="Promise">
-                            {isEditingPromise ? (
-                                <div style={{ display: 'flex', gap: 8 }}>
-                                    <Form.Item name="promiseAmount" noStyle>
+                                        </Text>
+                                    </Text>
+                                </div>
+                            </Form.Item>
+                        </Col>
+                        <Col xs={24} sm={12} md={12} lg={6}>
+                            <Form.Item label="Nagarpar">
+                                {isEditingPromise ? (
+                                    <Form.Item name="nagarparAmount" noStyle>
                                         <InputNumber
                                             style={{ width: '100%' }}
                                             formatter={value => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
                                             parser={value => value!.replace(/\$\s?|(,*)/g, '') as any}
                                             size="large"
-                                            autoFocus
                                         />
                                     </Form.Item>
-                                    <Button
-                                        type="primary"
-                                        onClick={handleSave}
-                                        icon={<CheckCircleOutlined />}
-                                        loading={submitting}
-                                    />
-                                </div>
-                            ) : (
-                                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                ) : (
                                     <Title level={4} style={{ margin: 0 }}>
                                         {(editingMember
-                                            ? (records.find(r => r.memberId === editingMember.id)?.promiseAmount || 0)
-                                            : (editingSpecial?.promiseAmount || 0)
+                                            ? (records.find(r => r.memberId === editingMember.id)?.nagarparAmount || 0)
+                                            : (editingSpecial?.nagarparAmount || 0)
                                         ).toLocaleString()}
                                     </Title>
-                                    <Button
-                                        size="small"
-                                        icon={<EditOutlined />}
-                                        onClick={() => setIsEditingPromise(true)}
-                                    />
-                                </div>
-                            )}
-                            {/* PREVIOUS YEAR PROMISE DISPLAY */}
-                            <div style={{ marginTop: 4 }}>
-                                <Text type="secondary" style={{ fontSize: 12 }}>
-                                    {selectedYear - 1} Promise: {' '}
-                                    <Text strong>
-                                        {editingMember
-                                            ? (prevRecords.find(r => r.memberId === editingMember.id)?.promiseAmount || 0).toLocaleString()
-                                            : (prevSpecialRecords.find(r => r.id === editingSpecial?.id)?.promiseAmount || 0).toLocaleString()
-                                        }
-                                    </Text>
-                                </Text>
-                            </div>
-                        </Form.Item>
-                    </Col>
-                    <Col xs={24} sm={12} md={12} lg={6}>
-                        <Form.Item label="Nagarpar">
-                            {isEditingPromise ? (
-                                <Form.Item name="nagarparAmount" noStyle>
-                                    <InputNumber
-                                        style={{ width: '100%' }}
+                                )}
+                            </Form.Item>
+                        </Col>
+                        <Col xs={24} sm={12} md={12} lg={6}>
+                            <Form.Item label="Total Promise">
+                                <Title level={4} style={{ margin: 0, marginTop: 4 }}>
+                                    {((editingMember
+                                        ? ((records.find(r => r.memberId === editingMember.id)?.promiseAmount || 0) + (records.find(r => r.memberId === editingMember.id)?.nagarparAmount || 0))
+                                        : ((editingSpecial?.promiseAmount || 0) + (editingSpecial?.nagarparAmount || 0))
+                                    ).toLocaleString())}
+                                </Title>
+                            </Form.Item>
+                        </Col>
+                        <Col xs={24} sm={12} md={12} lg={6}>
+                            <Form.Item label="Total Paid">
+                                <Title level={4} style={{ margin: 0, marginTop: 4 }}>
+                                    {editingMember
+                                        ? (records.find(r => r.memberId === editingMember.id)?.paidAmount?.toLocaleString() || 0)
+                                        : (editingSpecial?.paidAmount?.toLocaleString() || 0)
+                                    }
+                                </Title>
+                            </Form.Item>
+                        </Col>
+                    </Row>
+                    {/* Notes field removed as per request */}
+                </Form>
+
+                <div style={{ marginTop: 24, padding: '16px 0', borderTop: '1px solid #f0f0f0' }}>
+                    <Title level={5} style={{ fontSize: 'clamp(14px, 3.5vw, 16px)' }}>Add Payment</Title>
+                    <Form form={paymentForm} layout="vertical" onFinish={handleAddPayment}>
+                        <Row gutter={[8, 8]}>
+                            <Col xs={24} sm={12} md={6}>
+                                <Form.Item name="bookId" label="Book" rules={[{ required: true, message: 'Required' }]} style={{ marginBottom: 8 }}>
+                                    <Select
+                                        placeholder="Select Book"
+                                        dropdownRender={menu => (
+                                            <>
+                                                {menu}
+                                                <Button type="text" block icon={<PlusOutlined />} onClick={() => setAddBookModalVisible(true)}>
+                                                    Add New Book
+                                                </Button>
+                                            </>
+                                        )}
+                                    >
+                                        {books.map(book => (
+                                            <Option key={book.id} value={book.id}>{book.bookNo} ({book.status})</Option>
+                                        ))}
+                                    </Select>
+                                </Form.Item>
+                            </Col>
+                            <Col xs={12} sm={6} md={4}>
+                                <Form.Item name="receiptNo" label="Receipt #" rules={[{ required: true, message: 'Required' }]} style={{ marginBottom: 8 }}>
+                                    <InputNumber placeholder="No." style={{ width: '100%' }} />
+                                </Form.Item>
+                            </Col>
+                            <Col xs={12} sm={6} md={6}>
+                                <Form.Item name="amount" label="Amount" rules={[{ required: true, message: 'Required' }]} style={{ marginBottom: 8 }}>
+                                    <InputNumber placeholder="Amount" style={{ width: '100%' }}
                                         formatter={value => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
                                         parser={value => value!.replace(/\$\s?|(,*)/g, '') as any}
-                                        size="large"
                                     />
                                 </Form.Item>
-                            ) : (
-                                <Title level={4} style={{ margin: 0 }}>
-                                    {(editingMember
-                                        ? (records.find(r => r.memberId === editingMember.id)?.nagarparAmount || 0)
-                                        : (editingSpecial?.nagarparAmount || 0)
-                                    ).toLocaleString()}
-                                </Title>
-                            )}
-                        </Form.Item>
-                    </Col>
-                    <Col xs={24} sm={12} md={12} lg={6}>
-                        <Form.Item label="Total Promise">
-                            <Title level={4} style={{ margin: 0, marginTop: 4 }}>
-                                {((editingMember
-                                    ? ((records.find(r => r.memberId === editingMember.id)?.promiseAmount || 0) + (records.find(r => r.memberId === editingMember.id)?.nagarparAmount || 0))
-                                    : ((editingSpecial?.promiseAmount || 0) + (editingSpecial?.nagarparAmount || 0))
-                                ).toLocaleString())}
-                            </Title>
-                        </Form.Item>
-                    </Col>
-                    <Col xs={24} sm={12} md={12} lg={6}>
-                        <Form.Item label="Total Paid">
-                            <Title level={4} style={{ margin: 0, marginTop: 4 }}>
-                                {editingMember
-                                    ? (records.find(r => r.memberId === editingMember.id)?.paidAmount?.toLocaleString() || 0)
-                                    : (editingSpecial?.paidAmount?.toLocaleString() || 0)
-                                }
-                            </Title>
-                        </Form.Item>
-                    </Col>
-                </Row>
-                {/* Notes field removed as per request */}
-            </Form>
+                            </Col>
+                            <Col xs={24} sm={24} md={8}>
+                                <Form.Item name="notes" label="Notes" style={{ marginBottom: 8 }}>
+                                    <Input placeholder="Optional notes" />
+                                </Form.Item>
+                            </Col>
+                            <Col xs={24} sm={24} md={24} style={{ textAlign: 'right' }}>
+                                <Button type="primary" htmlType="submit" icon={<PlusOutlined />} loading={submitting}>Add Payment</Button>
+                            </Col>
+                        </Row>
+                    </Form>
+                </div>
 
-            <div style={{ marginTop: 24, padding: '16px 0', borderTop: '1px solid #f0f0f0' }}>
-                <Title level={5} style={{ fontSize: 'clamp(14px, 3.5vw, 16px)' }}>Add Payment</Title>
-                <Form form={paymentForm} layout="vertical" onFinish={handleAddPayment}>
-                    <Row gutter={[8, 8]}>
-                        <Col xs={24} sm={12} md={6}>
-                            <Form.Item name="bookId" label="Book" rules={[{ required: true, message: 'Required' }]} style={{ marginBottom: 8 }}>
-                                <Select
-                                    placeholder="Select Book"
-                                    dropdownRender={menu => (
-                                        <>
-                                            {menu}
-                                            <Button type="text" block icon={<PlusOutlined />} onClick={() => setAddBookModalVisible(true)}>
-                                                Add New Book
-                                            </Button>
-                                        </>
-                                    )}
-                                >
-                                    {books.map(book => (
-                                        <Option key={book.id} value={book.id}>{book.bookNo} ({book.status})</Option>
-                                    ))}
-                                </Select>
+                <div style={{ marginTop: 24 }}>
+                    <Title level={5}>Payment History</Title>
+                    <List
+                        size="small"
+                        dataSource={editingMember
+                            ? (records.find(r => r.memberId === editingMember.id)?.payments || [])
+                            : (editingSpecial?.payments || [])
+                        }
+                        renderItem={(item: Payment) => (
+                            <List.Item>
+                                <List.Item.Meta
+                                    title={`Rs. ${item.amount.toLocaleString()}`}
+                                    description={
+                                        <Space direction="vertical" size={0}>
+                                            <Text type="secondary">{dayjs(item.date).format('DD MMM YYYY')}</Text>
+                                            <Space split={<Text type="secondary">|</Text>}>
+                                                {item.bookNo && <Text strong>Book: {item.bookNo}</Text>}
+                                                {item.receiptNo && <Text strong>Rcpt: {item.receiptNo}</Text>}
+                                            </Space>
+                                            {item.notes && <Text type="secondary">{item.notes}</Text>}
+                                        </Space>
+                                    }
+                                />
+                                <Space>
+                                    <Button
+                                        type="text"
+                                        icon={<EditOutlined />}
+                                        onClick={() => {
+                                            setPaymentEditingId(item.id);
+                                            paymentForm.setFieldsValue({
+                                                amount: item.amount,
+                                                bookId: item.bookId,
+                                                receiptNo: item.receiptNo,
+                                                notes: item.notes
+                                            });
+                                        }}
+                                    />
+                                    <Button
+                                        type="text"
+                                        icon={<PrinterOutlined />}
+                                        onClick={() => {
+                                            setPrintingPayment({
+                                                payment: item,
+                                                recordName: editingMember ? editingMember.name : (editingSpecial?.name || 'Unknown'),
+                                                memberCode: undefined
+                                            });
+                                        }}
+                                    />
+                                    <Button
+                                        type="text"
+                                        danger
+                                        icon={<DeleteOutlined />}
+                                        onClick={() => handleDeletePayment(item.id)}
+                                    />
+                                </Space>
+                            </List.Item>
+                        )}
+                    />
+                </div>
+
+                {/* Payment Plans Section */}
+                {editingMember && (
+                    <div style={{ marginTop: 24 }}>
+                        <PaymentPlanManager
+                            memberId={editingMember.id}
+                            year={selectedYear}
+                            totalAmount={
+                                (records.find(r => r.memberId === editingMember.id)?.promiseAmount || 0) +
+                                (records.find(r => r.memberId === editingMember.id)?.nagarparAmount || 0)
+                            }
+                            onUpdate={loadData}
+                        />
+                    </div>
+                )}
+
+                <div style={{ marginTop: 20, textAlign: 'center' }}>
+                    <Text type="secondary">Year: {selectedYear}</Text>
+                </div>
+            </Drawer>
+
+            {/* Receipt Modal */}
+            <Modal
+                title="Print Receipt"
+                open={!!printingPayment}
+                onCancel={() => setPrintingPayment(null)}
+                footer={[
+                    <Button key="close" onClick={() => setPrintingPayment(null)}>Close</Button>,
+                    <Button key="print" type="primary" icon={<PrinterOutlined />} onClick={() => window.print()}>Print</Button>
+                ]}
+                width="90%"
+                style={{ maxWidth: 800 }}
+                styles={{ body: { padding: 0 } }}
+            >
+                {printingPayment && (
+                    <div style={{ padding: 20, background: '#f0f2f5', maxHeight: '70vh', overflow: 'auto' }}>
+                        <ReceiptTemplate
+                            ref={receiptRef}
+                            data={{
+                                receiptNo: printingPayment.payment.id.slice(0, 8).toUpperCase(),
+                                bookNo: printingPayment.payment.bookNo,
+                                receiptNoDisplay: printingPayment.payment.receiptNo,
+                                date: printingPayment.payment.date,
+                                name: printingPayment.recordName,
+                                memberCode: printingPayment.memberCode || '',
+                                amount: printingPayment.payment.amount,
+                                year: selectedYear,
+                                type: printingPayment.memberCode ? 'Waqf-e-Jadeed' : 'Waqf-e-Jadeed (Special)'
+                            }}
+                        />
+                    </div>
+                )}
+            </Modal>
+
+            {/* Special Member Modal */}
+            <Modal
+                title="Add/Edit Special Pledge"
+                open={specialModalVisible}
+                onOk={handleSaveSpecial}
+                onCancel={() => setSpecialModalVisible(false)}
+                okText="Save"
+                confirmLoading={submitting}
+            >
+                <Form form={specialForm} layout="vertical">
+                    <Form.Item name="id" hidden><Input /></Form.Item>
+
+                    <Form.Item label="Quick Select">
+                        <Radio.Group
+                            buttonStyle="solid"
+                            onChange={(e) => {
+                                const val = e.target.value;
+                                if (val) specialForm.setFieldsValue({ name: val });
+                            }}
+                            style={{ width: '100%' }}
+                        >
+                            <Radio.Button value="Hazrat Muhammad (pbuh)" style={{ width: '33.33%', textAlign: 'center', fontSize: 'clamp(11px, 2.5vw, 12px)', direction: 'rtl' }}>حضرت محمد ﷺ</Radio.Button>
+                            <Radio.Button value="Hazrat Messiah Maoud (as)" style={{ width: '33.33%', textAlign: 'center', fontSize: 'clamp(11px, 2.5vw, 12px)', direction: 'rtl' }}>حضرت مسیح موعودؑ</Radio.Button>
+                            <Radio.Button value="اضافی" style={{ width: '33.33%', textAlign: 'center', fontSize: 'clamp(11px, 2.5vw, 12px)', direction: 'rtl' }}>اضافی</Radio.Button>
+                        </Radio.Group>
+                    </Form.Item>
+
+                    <Form.Item name="name" label="Name / Title" rules={[{ required: true, message: 'Please enter name' }]}>
+                        <Input placeholder="Enter Name" />
+                    </Form.Item>
+
+                    <Row gutter={16}>
+                        <Col xs={24} sm={12}>
+                            <Form.Item name="gender" label="Gender" initialValue="male">
+                                <Radio.Group>
+                                    <Radio value="male">Male</Radio>
+                                    <Radio value="female">Female</Radio>
+                                </Radio.Group>
                             </Form.Item>
                         </Col>
-                        <Col xs={12} sm={6} md={4}>
-                            <Form.Item name="receiptNo" label="Receipt #" rules={[{ required: true, message: 'Required' }]} style={{ marginBottom: 8 }}>
-                                <InputNumber placeholder="No." style={{ width: '100%' }} />
+                        <Col xs={24} sm={12}>
+                            <Form.Item name="isDeceased" valuePropName="checked" initialValue={false}>
+                                <Checkbox>Is Deceased?</Checkbox>
                             </Form.Item>
                         </Col>
-                        <Col xs={12} sm={6} md={6}>
-                            <Form.Item name="amount" label="Amount" rules={[{ required: true, message: 'Required' }]} style={{ marginBottom: 8 }}>
-                                <InputNumber placeholder="Amount" style={{ width: '100%' }}
+                    </Row>
+
+                    <Row gutter={16}>
+                        <Col xs={24} sm={12}>
+                            <Form.Item name="promiseAmount" label="Promised Amount" initialValue={0}>
+                                <InputNumber
+                                    style={{ width: '100%' }}
                                     formatter={value => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
                                     parser={value => value!.replace(/\$\s?|(,*)/g, '') as any}
                                 />
                             </Form.Item>
                         </Col>
-                        <Col xs={24} sm={24} md={8}>
-                            <Form.Item name="notes" label="Notes" style={{ marginBottom: 8 }}>
-                                <Input placeholder="Optional notes" />
+                        <Col xs={24} sm={12}>
+                            <Form.Item name="nagarparAmount" label="Nagarpar Amount" initialValue={0}>
+                                <InputNumber
+                                    style={{ width: '100%' }}
+                                    formatter={value => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
+                                    parser={value => value!.replace(/\$\s?|(,*)/g, '') as any}
+                                />
                             </Form.Item>
-                        </Col>
-                        <Col xs={24} sm={24} md={24} style={{ textAlign: 'right' }}>
-                            <Button type="primary" htmlType="submit" icon={<PlusOutlined />} loading={submitting}>Add Payment</Button>
                         </Col>
                     </Row>
                 </Form>
-            </div>
+            </Modal>
 
-            <div style={{ marginTop: 24 }}>
-                <Title level={5}>Payment History</Title>
-                <List
-                    size="small"
-                    dataSource={editingMember
-                        ? (records.find(r => r.memberId === editingMember.id)?.payments || [])
-                        : (editingSpecial?.payments || [])
-                    }
-                    renderItem={(item: Payment) => (
-                        <List.Item>
-                            <List.Item.Meta
-                                title={`Rs. ${item.amount.toLocaleString()}`}
-                                description={
-                                    <Space direction="vertical" size={0}>
-                                        <Text type="secondary">{dayjs(item.date).format('DD MMM YYYY')}</Text>
-                                        <Space split={<Text type="secondary">|</Text>}>
-                                            {item.bookNo && <Text strong>Book: {item.bookNo}</Text>}
-                                            {item.receiptNo && <Text strong>Rcpt: {item.receiptNo}</Text>}
-                                        </Space>
-                                        {item.notes && <Text type="secondary">{item.notes}</Text>}
-                                    </Space>
-                                }
-                            />
-                            <Space>
-                                <Button
-                                    type="text"
-                                    icon={<EditOutlined />}
-                                    onClick={() => {
-                                        setPaymentEditingId(item.id);
-                                        paymentForm.setFieldsValue({
-                                            amount: item.amount,
-                                            bookId: item.bookId,
-                                            receiptNo: item.receiptNo,
-                                            notes: item.notes
-                                        });
-                                    }}
-                                />
-                                <Button
-                                    type="text"
-                                    icon={<PrinterOutlined />}
-                                    onClick={() => {
-                                        setPrintingPayment({
-                                            payment: item,
-                                            recordName: editingMember ? editingMember.name : (editingSpecial?.name || 'Unknown'),
-                                            memberCode: undefined
-                                        });
-                                    }}
-                                />
-                                <Button
-                                    type="text"
-                                    danger
-                                    icon={<DeleteOutlined />}
-                                    onClick={() => handleDeletePayment(item.id)}
-                                />
-                            </Space>
-                        </List.Item>
-                    )}
-                />
-            </div>
-
-            {/* Payment Plans Section */}
-            {editingMember && (
-                <div style={{ marginTop: 24 }}>
-                    <PaymentPlanManager
-                        memberId={editingMember.id}
-                        year={selectedYear}
-                        totalAmount={
-                            (records.find(r => r.memberId === editingMember.id)?.promiseAmount || 0) +
-                            (records.find(r => r.memberId === editingMember.id)?.nagarparAmount || 0)
-                        }
-                        onUpdate={loadData}
-                    />
-                </div>
-            )}
-
-            <div style={{ marginTop: 20, textAlign: 'center' }}>
-                <Text type="secondary">Year: {selectedYear}</Text>
-            </div>
-        </Drawer>
-
-        {/* Receipt Modal */}
-        <Modal
-            title="Print Receipt"
-            open={!!printingPayment}
-            onCancel={() => setPrintingPayment(null)}
-            footer={[
-                <Button key="close" onClick={() => setPrintingPayment(null)}>Close</Button>,
-                <Button key="print" type="primary" icon={<PrinterOutlined />} onClick={() => window.print()}>Print</Button>
-            ]}
-            width="90%"
-            style={{ maxWidth: 800 }}
-            styles={{ body: { padding: 0 } }}
-        >
-            {printingPayment && (
-                <div style={{ padding: 20, background: '#f0f2f5', maxHeight: '70vh', overflow: 'auto' }}>
-                    <ReceiptTemplate
-                        ref={receiptRef}
-                        data={{
-                            receiptNo: printingPayment.payment.id.slice(0, 8).toUpperCase(),
-                            date: printingPayment.payment.date,
-                            name: printingPayment.recordName,
-                            memberCode: printingPayment.memberCode || '',
-                            amount: printingPayment.payment.amount,
-                            year: selectedYear,
-                            type: printingPayment.memberCode ? 'Waqf-e-Jadeed' : 'Waqf-e-Jadeed (Special)'
-                        }}
-                    />
-                </div>
-            )}
-        </Modal>
-
-        {/* Special Member Modal */}
-        <Modal
-            title="Add/Edit Special Pledge"
-            open={specialModalVisible}
-            onOk={handleSaveSpecial}
-            onCancel={() => setSpecialModalVisible(false)}
-            okText="Save"
-            confirmLoading={submitting}
-        >
-            <Form form={specialForm} layout="vertical">
-                <Form.Item name="id" hidden><Input /></Form.Item>
-
-                <Form.Item label="Quick Select">
-                    <Radio.Group
-                        buttonStyle="solid"
-                        onChange={(e) => {
-                            const val = e.target.value;
-                            if (val) specialForm.setFieldsValue({ name: val });
-                        }}
-                        style={{ width: '100%' }}
-                    >
-                        <Radio.Button value="Hazrat Muhammad (pbuh)" style={{ width: '33.33%', textAlign: 'center', fontSize: 'clamp(11px, 2.5vw, 12px)', direction: 'rtl' }}>حضرت محمد ﷺ</Radio.Button>
-                        <Radio.Button value="Hazrat Messiah Maoud (as)" style={{ width: '33.33%', textAlign: 'center', fontSize: 'clamp(11px, 2.5vw, 12px)', direction: 'rtl' }}>حضرت مسیح موعودؑ</Radio.Button>
-                        <Radio.Button value="اضافی" style={{ width: '33.33%', textAlign: 'center', fontSize: 'clamp(11px, 2.5vw, 12px)', direction: 'rtl' }}>اضافی</Radio.Button>
-                    </Radio.Group>
-                </Form.Item>
-
-                <Form.Item name="name" label="Name / Title" rules={[{ required: true, message: 'Please enter name' }]}>
-                    <Input placeholder="Enter Name" />
-                </Form.Item>
-
-                <Row gutter={16}>
-                    <Col xs={24} sm={12}>
-                        <Form.Item name="gender" label="Gender" initialValue="male">
-                            <Radio.Group>
-                                <Radio value="male">Male</Radio>
-                                <Radio value="female">Female</Radio>
-                            </Radio.Group>
-                        </Form.Item>
-                    </Col>
-                    <Col xs={24} sm={12}>
-                        <Form.Item name="isDeceased" valuePropName="checked" initialValue={false}>
-                            <Checkbox>Is Deceased?</Checkbox>
-                        </Form.Item>
-                    </Col>
-                </Row>
-
-                <Row gutter={16}>
-                    <Col xs={24} sm={12}>
-                        <Form.Item name="promiseAmount" label="Promised Amount" initialValue={0}>
-                            <InputNumber
-                                style={{ width: '100%' }}
-                                formatter={value => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
-                                parser={value => value!.replace(/\$\s?|(,*)/g, '') as any}
-                            />
-                        </Form.Item>
-                    </Col>
-                    <Col xs={24} sm={12}>
-                        <Form.Item name="nagarparAmount" label="Nagarpar Amount" initialValue={0}>
-                            <InputNumber
-                                style={{ width: '100%' }}
-                                formatter={value => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
-                                parser={value => value!.replace(/\$\s?|(,*)/g, '') as any}
-                            />
-                        </Form.Item>
-                    </Col>
-                </Row>
-            </Form>
-        </Modal>
-
-        {/* Add Book Modal */}
-        <Modal
-            title="Add New Receipt Book"
-            open={addBookModalVisible}
-            onCancel={() => setAddBookModalVisible(false)}
-            footer={null}
-        >
-            <Form form={newBookForm} layout="vertical" onFinish={handleAddBook}>
-                <Form.Item name="bookNo" label="Book Number" rules={[{ required: true, message: 'Required' }]}>
-                    <Input placeholder="e.g. A-1, B-2" />
-                </Form.Item>
-                <Form.Item>
-                    <Button type="primary" htmlType="submit" loading={submitting} block>
-                        Create Book
-                    </Button>
-                </Form.Item>
-            </Form>
-        </Modal>
-    </div>
-);
+            {/* Add Book Modal */}
+            <Modal
+                title="Add New Receipt Book"
+                open={addBookModalVisible}
+                onCancel={() => setAddBookModalVisible(false)}
+                footer={null}
+            >
+                <Form form={newBookForm} layout="vertical" onFinish={handleAddBook}>
+                    <Form.Item name="bookNo" label="Book Number" rules={[{ required: true, message: 'Required' }]}>
+                        <Input placeholder="e.g. A-1, B-2" />
+                    </Form.Item>
+                    <Form.Item>
+                        <Button type="primary" htmlType="submit" loading={submitting} block>
+                            Create Book
+                        </Button>
+                    </Form.Item>
+                </Form>
+            </Modal>
+        </div>
+    );
 };
 
 export default WaqfJadeed;
