@@ -759,6 +759,7 @@ const Members: React.FC = () => {
                     rowClassName={(record: Member) => record.isDeceased ? 'deceased-member' : ''}
                   />
                 </div>
+              ),
             },
             {
               key: 'moved',
