@@ -254,6 +254,10 @@ const FamilyDetails: React.FC = () => {
       // Preserve createdAt when updating
       memberData.createdAt = selectedMember?.createdAt || new Date().toISOString();
 
+      // Explicitly set isMoved and movedTo to ensure they're properly updated
+      memberData.isMoved = values.isMoved || false;
+      memberData.movedTo = values.movedTo || '';
+
       if (values.dateOfDeath) {
         memberData.dateOfDeath = values.dateOfDeath.format('YYYY-MM-DD');
       }

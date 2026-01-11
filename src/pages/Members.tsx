@@ -297,6 +297,9 @@ const Members: React.FC = () => {
       } else {
         // Preserve the original createdAt when updating
         memberDataRaw.createdAt = editingMember.createdAt;
+        // Ensure isMoved and movedTo are properly set when updating
+        memberDataRaw.isMoved = formData.isMoved || false;
+        memberDataRaw.movedTo = formData.movedTo || '';
       }
 
       // Only add dateOfDeath if it has a value (Firebase doesn't accept undefined)

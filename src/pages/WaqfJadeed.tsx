@@ -169,7 +169,7 @@ const WaqfJadeed: React.FC = () => {
                 ApiService.getWaqfJadeedSpecialRecords(selectedYear - 1)
             ]);
             // Filter out moved members
-            setMembers(membersData.filter(m => !m.isMoved));
+            setMembers(membersData.filter(m => !m.isMoved && !m.isDeceased));
             setFamilies(familiesData);
             // Filter records to ensure they match the selected year (in case API returns wrong data)
             const filteredRecords = Array.isArray(recordsData)
@@ -1294,13 +1294,13 @@ const WaqfJadeed: React.FC = () => {
                     {loading ? <p>Loading...</p> : (
                         <Collapse defaultActiveKey={[]} ghost>
                             {filteredFamilyData.map(family => {
-                                // Filter out deceased members from family members list
+                                // Filter out deceased and moved members from family members list
                                 const familyMembersCtx = family.memberIds
                                     .map(mid => getMemberData(mid))
                                     .filter((item): item is NonNullable<MemberData> => {
                                         if (!item) return false;
-                                        // Exclude if member is marked as deceased
-                                        return !item.member.isDeceased;
+                                        // Exclude if member is marked as deceased or moved
+                                        return !item.member.isDeceased && !item.member.isMoved;
                                     });
                                 const familySpecialRecords = specialRecords.filter(r => r.familyId === family.id);
 

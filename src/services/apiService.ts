@@ -37,7 +37,12 @@ export class ApiService {
     const id = member.id || crypto.randomUUID();
     // Extract id to avoid storing it twice in the document
     const { id: _, ...memberData } = member;
-    const memberWithTimestamps = { ...memberData, id, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() };
+    const memberWithTimestamps = { 
+      ...memberData, 
+      id, 
+      createdAt: new Date().toISOString(), 
+      updatedAt: new Date().toISOString()
+    };
     await setDoc(doc(db, 'members', id), memberWithTimestamps);
     return { ...memberWithTimestamps } as Member;
   }
@@ -46,7 +51,12 @@ export class ApiService {
     const ref = doc(db, 'members', id);
     // Extract id to avoid storing it in the document
     const { id: _, ...memberData } = member;
-    await updateDoc(ref, { ...memberData, updatedAt: new Date().toISOString() });
+    // Ensure isMoved and movedTo are properly included in the update
+    const updateData = { 
+      ...memberData, 
+      updatedAt: new Date().toISOString()
+    };
+    await updateDoc(ref, updateData);
     const snap = await getDoc(ref);
     return { ...snap.data(), id: snap.id } as Member;
   }
