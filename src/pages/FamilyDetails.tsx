@@ -77,10 +77,18 @@ const FamilyDetails: React.FC = () => {
         setFamily(familyData);
         setAllMembers(allMembersData);
         setAllFamilies(familiesData);
-        // Get family members and sort them
-        const members = allMembersData.filter((member: Member) =>
+        // Get family members and ensure head is included
+        let members = allMembersData.filter((member: Member) =>
           familyData.memberIds.includes(member.id)
         );
+        
+        // Ensure family head is included even if not in memberIds
+        if (familyData.headId) {
+          const headMember = allMembersData.find(member => member.id === familyData.headId);
+          if (headMember && !members.find(m => m.id === familyData.headId)) {
+            members = [...members, headMember];
+          }
+        }
 
         // Sort members: head, wife, ansar, lajna, khuddam, atfal, nasirat
         const sortedMembers = members.sort((a: Member, b: Member) => {
