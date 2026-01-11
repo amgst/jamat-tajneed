@@ -332,7 +332,15 @@ const FamilyDetails: React.FC = () => {
   };
 
   const getFamilyHead = () => {
-    return familyMembers.find(member => member.id === family?.headId);
+    // First try to find in family members
+    let head = familyMembers.find(member => member.id === family?.headId);
+    
+    // If not found in family members, try to find in all members
+    if (!head && family?.headId) {
+      head = allMembers.find(member => member.id === family?.headId);
+    }
+    
+    return head;
   };
 
   const getTanzeemStats = () => {
@@ -532,7 +540,7 @@ const FamilyDetails: React.FC = () => {
                 {familyHead ? familyHead.name : 'Not Found'}
               </Descriptions.Item>
               <Descriptions.Item label="Total Members">
-                {family.totalMembers}
+                {familyMembers.length}
               </Descriptions.Item>
               <Descriptions.Item label="Halqa">
                 {family.halqa || 'Not Assigned'}
