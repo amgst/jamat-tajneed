@@ -146,6 +146,8 @@ const Members: React.FC = () => {
       if (editingMember) {
         form.setFieldsValue({
           ...editingMember,
+          isMoved: editingMember.isMoved ?? false,
+          movedTo: editingMember.movedTo || '',
           dateOfBirth: dayjs(editingMember.dateOfBirth),
           dateOfDeath: editingMember.dateOfDeath ? dayjs(editingMember.dateOfDeath) : undefined,
         });

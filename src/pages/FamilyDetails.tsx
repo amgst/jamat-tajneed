@@ -387,6 +387,8 @@ const FamilyDetails: React.FC = () => {
                 setUploadedImage(record.profilePhoto || '');
                 memberForm.setFieldsValue({
                   ...record,
+                  isMoved: record.isMoved ?? false,
+                  movedTo: record.movedTo || '',
                   dateOfBirth: dayjs(record.dateOfBirth),
                   dateOfDeath: record.dateOfDeath ? dayjs(record.dateOfDeath) : undefined,
                 });
