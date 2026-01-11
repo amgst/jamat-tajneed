@@ -248,6 +248,8 @@ export const sanitizeMemberData = (data: any): any => {
   if (data.age !== undefined) sanitized.age = data.age;
   if (data.tanzeem) sanitized.tanzeem = data.tanzeem;
   if (data.isDeceased !== undefined) sanitized.isDeceased = data.isDeceased;
+  if (data.isMoved !== undefined) sanitized.isMoved = data.isMoved;
+  if (data.movedTo) sanitized.movedTo = sanitizeInput(data.movedTo, { maxLength: 100 });
   if (data.graveNumber) sanitized.graveNumber = sanitizeInput(data.graveNumber, { maxLength: 50 });
   
   return sanitized;
