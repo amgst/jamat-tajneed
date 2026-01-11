@@ -485,8 +485,8 @@ const WaqfJadeed: React.FC = () => {
     const filteredMemberData = useMemo(() => {
         let data = members
             .filter(member => {
-                // Exclude deceased members from main members list
-                return !member.isDeceased;
+                // Exclude deceased and moved members from main members list
+                return !member.isDeceased && !member.isMoved;
             })
             .map(member => {
                 const record = records.find(r => r.memberId === member.id);

@@ -117,6 +117,11 @@ const MemberDetails: React.FC = () => {
                       {member.graveNumber || '-'}
                     </Descriptions.Item>
                   )}
+                  {member.isMoved && (
+                    <Descriptions.Item label="Status">
+                      <Tag color="orange">Moved to {member.movedTo || 'unknown location'}</Tag>
+                    </Descriptions.Item>
+                  )}
                 </Descriptions>
               </Card>
             </Tabs.TabPane>

@@ -246,8 +246,13 @@ const FamilyDetails: React.FC = () => {
         profilePhoto: uploadedImage || generateAvatarFromName(values.name),
         hasNewTanzeemTransition: false,
         isDeceased: values.isDeceased || false,
+        isMoved: values.isMoved || false,
+        movedTo: values.movedTo || '',
         updatedAt: new Date().toISOString(),
       };
+
+      // Preserve createdAt when updating
+      memberData.createdAt = selectedMember?.createdAt || new Date().toISOString();
 
       if (values.dateOfDeath) {
         memberData.dateOfDeath = values.dateOfDeath.format('YYYY-MM-DD');
@@ -377,6 +382,11 @@ const FamilyDetails: React.FC = () => {
           <Text type="secondary" style={{ fontSize: '12px' }}>
             {record.husbandName ? `Husband: ${record.husbandName}` : `Father: ${record.fatherName}`}
           </Text>
+          {record.isMoved && (
+            <Tag color="orange" style={{ marginTop: 4, display: 'block' }}>
+              Moved to {record.movedTo || 'unknown location'}
+            </Tag>
+          )}
         </div>
       ),
     },
@@ -930,6 +940,38 @@ const FamilyDetails: React.FC = () => {
                 <Input.TextArea
                   rows={3}
                   placeholder="Enter complete address"
+                />
+              </Form.Item>
+            </Col>
+          </Row>
+
+          <Row gutter={16}>
+            <Col xs={24} md={12}>
+              <Form.Item
+                name="isMoved"
+                valuePropName="checked"
+              >
+                <Checkbox>Moved</Checkbox>
+              </Form.Item>
+            </Col>
+            <Col xs={24} md={12}>
+              <Form.Item
+                name="movedTo"
+                label="Moved To"
+                dependencies={['isMoved']}
+                rules={[{
+                  validator(_, value) {
+                    const isMoved = memberForm.getFieldValue('isMoved');
+                    if (isMoved && !value) {
+                      return Promise.reject(new Error('Please enter where member moved to')); 
+                    }
+                    return Promise.resolve();
+                  },
+                }]}
+              >
+                <Input
+                  placeholder="Enter new location"
+                  disabled={!memberForm.getFieldValue('isMoved')}
                 />
               </Form.Item>
             </Col>

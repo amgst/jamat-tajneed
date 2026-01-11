@@ -288,9 +288,16 @@ const Members: React.FC = () => {
         graveNumber: formData.graveNumber || '',
         isMoved: formData.isMoved || false,
         movedTo: formData.movedTo || '',
-        createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       };
+
+      // Only set createdAt for new members
+      if (!editingMember) {
+        memberDataRaw.createdAt = new Date().toISOString();
+      } else {
+        // Preserve the original createdAt when updating
+        memberDataRaw.createdAt = editingMember.createdAt;
+      }
 
       // Only add dateOfDeath if it has a value (Firebase doesn't accept undefined)
       if (formData.dateOfDeath) {
@@ -457,6 +464,11 @@ const Members: React.FC = () => {
             <Text type="secondary" style={{ fontSize: '12px' }}>
               {record.husbandName ? `Husband: ${record.husbandName}` : record.fatherName}
             </Text>
+            {record.isMoved && (
+              <Tag color="orange" style={{ marginTop: 4, display: 'block' }}>
+                Moved to {record.movedTo || 'unknown location'}
+              </Tag>
+            )}
           </div>
         );
       },
@@ -509,6 +521,20 @@ const Members: React.FC = () => {
         const family = families.find(f => f.memberIds.includes(record.id));
         return family?.halqa || '-';
       },
+    },
+    {
+      title: 'Status',
+      key: 'status',
+      render: (record: Member) => {
+        if (record.isDeceased) {
+          return <Tag color="red">Deceased</Tag>;
+        }
+        if (record.isMoved) {
+          return <Tag color="orange">Moved to {record.movedTo || 'location unknown'}</Tag>;
+        }
+        return <Tag color="green">Active</Tag>;
+      },
+      width: 120,
     },
     {
       title: 'Religious Data',

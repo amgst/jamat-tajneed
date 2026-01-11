@@ -35,13 +35,18 @@ export class ApiService {
 
   static async createMember(member: any): Promise<Member> {
     const id = member.id || crypto.randomUUID();
-    await setDoc(doc(db, 'members', id), { ...member, id });
-    return { ...member, id } as Member;
+    // Extract id to avoid storing it twice in the document
+    const { id: _, ...memberData } = member;
+    const memberWithTimestamps = { ...memberData, id, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() };
+    await setDoc(doc(db, 'members', id), memberWithTimestamps);
+    return { ...memberWithTimestamps } as Member;
   }
 
   static async updateMember(id: string, member: any): Promise<Member> {
     const ref = doc(db, 'members', id);
-    await updateDoc(ref, member);
+    // Extract id to avoid storing it in the document
+    const { id: _, ...memberData } = member;
+    await updateDoc(ref, { ...memberData, updatedAt: new Date().toISOString() });
     const snap = await getDoc(ref);
     return { ...snap.data(), id: snap.id } as Member;
   }
