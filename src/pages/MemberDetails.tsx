@@ -112,11 +112,6 @@ const MemberDetails: React.FC = () => {
                   </Descriptions.Item>
                   <Descriptions.Item label="Created At">{formatDate(member.createdAt)}</Descriptions.Item>
                   <Descriptions.Item label="Updated At">{formatDate(member.updatedAt)}</Descriptions.Item>
-                  {member.isDeceased && (
-                    <Descriptions.Item label="Grave Number">
-                      {member.graveNumber || '-'}
-                    </Descriptions.Item>
-                  )}
                   {member.isMoved && (
                     <Descriptions.Item label="Status">
                       <Tag color="orange">Moved to {member.movedTo || 'unknown location'}</Tag>

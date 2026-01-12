@@ -66,7 +66,6 @@ const Graveyard: React.FC = () => {
       'Date of Birth': formatDate(member.dateOfBirth),
       'Date of Death': member.dateOfDeath ? formatDate(member.dateOfDeath) : '',
       'Years Passed': member.dateOfDeath ? Math.floor((new Date().getTime() - new Date(member.dateOfDeath).getTime()) / (1000 * 60 * 60 * 24 * 365)) : '',
-      'Grave Number': member.graveNumber || '',
       Tanzeem: getTanzeemDisplayName(member.tanzeem),
       Family: getFamilyName(member.id),
       Address: member.address,
@@ -97,14 +96,13 @@ const Graveyard: React.FC = () => {
       formatDate(member.dateOfBirth),
       member.dateOfDeath ? formatDate(member.dateOfDeath) : '',
       member.dateOfDeath ? Math.floor((new Date().getTime() - new Date(member.dateOfDeath).getTime()) / (1000 * 60 * 60 * 24 * 365)).toString() : '',
-      member.graveNumber || '',
       getTanzeemDisplayName(member.tanzeem),
       getFamilyName(member.id)
     ]);
 
     // Add table
     autoTable(doc, {
-      head: [['S.No', 'Name', 'Father/Husband', 'Gender', 'Age', 'DOB', 'DOD', 'Years Passed', 'Grave Number', 'Tanzeem', 'Family']],
+      head: [['S.No', 'Name', 'Father/Husband', 'Gender', 'Age', 'DOB', 'DOD', 'Years Passed', 'Tanzeem', 'Family']],
       body: tableData,
       startY: 40,
       styles: { fontSize: 8 },
@@ -215,12 +213,6 @@ const Graveyard: React.FC = () => {
       key: 'family',
       render: (record: Member) => getFamilyName(record.id),
     },
-    {
-      title: 'Grave Number',
-      dataIndex: 'graveNumber',
-      key: 'graveNumber',
-      render: (graveNumber: string) => graveNumber || '-',
-    },
   ];
 
   // Statistics
@@ -242,7 +234,7 @@ const Graveyard: React.FC = () => {
       </Title>
 
       {/* Summary Statistics */}
-      <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+      < Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
         <Col xs={24} sm={8}>
           <Card>
             <Statistic
@@ -273,25 +265,27 @@ const Graveyard: React.FC = () => {
             />
           </Card>
         </Col>
-      </Row>
+      </Row >
 
       {/* Tanzeem Distribution */}
-      <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
-        {Object.entries(tanzeemStats).map(([tanzeem, count]) => (
-          <Col xs={12} sm={8} md={4} key={tanzeem}>
-            <Card size="small">
-              <div style={{ textAlign: 'center' }}>
-                <div style={{ fontSize: '16px', fontWeight: 'bold' }}>
-                  {getTanzeemDisplayName(tanzeem as any)}
+      < Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+        {
+          Object.entries(tanzeemStats).map(([tanzeem, count]) => (
+            <Col xs={12} sm={8} md={4} key={tanzeem}>
+              <Card size="small">
+                <div style={{ textAlign: 'center' }}>
+                  <div style={{ fontSize: '16px', fontWeight: 'bold' }}>
+                    {getTanzeemDisplayName(tanzeem as any)}
+                  </div>
+                  <div style={{ fontSize: '20px', color: '#1890ff', marginTop: 8 }}>
+                    {count}
+                  </div>
                 </div>
-                <div style={{ fontSize: '20px', color: '#1890ff', marginTop: 8 }}>
-                  {count}
-                </div>
-              </div>
-            </Card>
-          </Col>
-        ))}
-      </Row>
+              </Card>
+            </Col>
+          ))
+        }
+      </Row >
 
       <Card>
         <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -340,7 +334,7 @@ const Graveyard: React.FC = () => {
           scroll={{ x: 1200 }}
         />
       </Card>
-    </div>
+    </div >
   );
 };
 
