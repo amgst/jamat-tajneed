@@ -110,14 +110,6 @@ const Members: React.FC = () => {
     };
   }, []);
 
-  const mapMemberToFormValues = (member: Member) => ({
-    ...member,
-    dateOfBirth: dayjs(member.dateOfBirth),
-    dateOfDeath: member.dateOfDeath ? dayjs(member.dateOfDeath) : undefined,
-    isBaitByBirth: member.isBaitByBirth ?? true, // Default to true if undefined
-    baitYear: member.baitYear,
-  });
-
   useEffect(() => {
     loadMembers();
   }, []);
@@ -142,7 +134,6 @@ const Members: React.FC = () => {
   const handleAddMember = () => {
     setEditingMember(null);
     setUploadedImage('');
-    form.resetFields();
     setModalVisible(true);
   };
 
@@ -153,9 +144,8 @@ const Members: React.FC = () => {
   };
 
   useEffect(() => {
-    if (modalVisible) {
-      if (editingMember) {
-        form.setFieldsValue({
+    if (modalVisible && editingMember) {
+      form.setFieldsValue({
           ...editingMember,
           isMoved: editingMember.isMoved ?? false,
           movedTo: editingMember.movedTo || '',
@@ -167,10 +157,7 @@ const Members: React.FC = () => {
           education: editingMember.education,
           bloodGroup: editingMember.bloodGroup,
           waqfeNauNumber: editingMember.waqfeNauNumber,
-        });
-      } else {
-        form.resetFields();
-      }
+      });
     }
   }, [modalVisible, editingMember, form]);
 
@@ -901,18 +888,12 @@ const Members: React.FC = () => {
         onCancel={() => setModalVisible(false)}
         width={600}
         destroyOnClose
-        afterOpenChange={(open) => {
-          if (open && editingMember) {
-            form.setFieldsValue(mapMemberToFormValues(editingMember));
-          }
-        }}
       >
         <Form
           form={form}
           layout="vertical"
           requiredMark={false}
           preserve={false}
-          initialValues={editingMember ? mapMemberToFormValues(editingMember) : undefined}
           onValuesChange={(changedValues, allValues) => {
             if (changedValues.isBaitByBirth !== undefined) {
               // Force update to re-render when bait type changes
