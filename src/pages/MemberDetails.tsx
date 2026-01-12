@@ -110,6 +110,13 @@ const MemberDetails: React.FC = () => {
                       </Button>
                     ) : '-'}
                   </Descriptions.Item>
+                  <Descriptions.Item label="Year of Bait">
+                    {member.isBaitByBirth ? 'By Birth' : (member.baitYear || '-')}
+                  </Descriptions.Item>
+                  <Descriptions.Item label="Wasit No">{member.wasitNo || '-'}</Descriptions.Item>
+                  <Descriptions.Item label="Education">{member.education || '-'}</Descriptions.Item>
+                  <Descriptions.Item label="Blood Group">{member.bloodGroup || '-'}</Descriptions.Item>
+                  <Descriptions.Item label="Waqf-e-Nau No">{member.waqfeNauNumber || '-'}</Descriptions.Item>
                   <Descriptions.Item label="Created At">{formatDate(member.createdAt)}</Descriptions.Item>
                   <Descriptions.Item label="Updated At">{formatDate(member.updatedAt)}</Descriptions.Item>
                   {member.isMoved && (
