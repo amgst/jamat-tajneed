@@ -60,12 +60,21 @@ interface MemberForm {
   dateOfBirth: dayjs.Dayjs;
   phone?: string;
   address: string;
-  graveNumber?: string;
+  graveNumber?: string; // Removed from UI but keeping type for now if needed, or better remove it if we strictly follow plan. Plan said remove.
+  // Actually, let's remove it from here as well to be consistent.
 
   isDeceased?: boolean;
   dateOfDeath?: dayjs.Dayjs;
   isMoved?: boolean;
   movedTo?: string;
+
+  // New fields
+  baitYear?: number;
+  isBaitByBirth?: boolean;
+  wasitNo?: string;
+  education?: string;
+  bloodGroup?: string;
+  waqfeNauNumber?: string;
 }
 
 const Members: React.FC = () => {
@@ -105,6 +114,8 @@ const Members: React.FC = () => {
     ...member,
     dateOfBirth: dayjs(member.dateOfBirth),
     dateOfDeath: member.dateOfDeath ? dayjs(member.dateOfDeath) : undefined,
+    isBaitByBirth: member.isBaitByBirth ?? true, // Default to true if undefined
+    baitYear: member.baitYear,
   });
 
   useEffect(() => {
@@ -150,6 +161,12 @@ const Members: React.FC = () => {
           movedTo: editingMember.movedTo || '',
           dateOfBirth: dayjs(editingMember.dateOfBirth),
           dateOfDeath: editingMember.dateOfDeath ? dayjs(editingMember.dateOfDeath) : undefined,
+          isBaitByBirth: editingMember.isBaitByBirth ?? true,
+          baitYear: editingMember.baitYear,
+          wasitNo: editingMember.wasitNo,
+          education: editingMember.education,
+          bloodGroup: editingMember.bloodGroup,
+          waqfeNauNumber: editingMember.waqfeNauNumber,
         });
       } else {
         form.resetFields();
@@ -287,9 +304,18 @@ const Members: React.FC = () => {
         profilePhoto: uploadedImage || generateAvatarFromName(formData.name),
         hasNewTanzeemTransition: false,
         isDeceased: formData.isDeceased || false,
-        graveNumber: formData.graveNumber || '',
+        // graveNumber: formData.graveNumber || '', // Removed
         isMoved: formData.isMoved || false,
         movedTo: formData.movedTo || '',
+
+        // New fields
+        isBaitByBirth: formData.isBaitByBirth,
+        baitYear: formData.isBaitByBirth ? undefined : formData.baitYear,
+        wasitNo: formData.wasitNo || '',
+        education: formData.education || '',
+        bloodGroup: formData.bloodGroup || '',
+        waqfeNauNumber: formData.waqfeNauNumber || '',
+
         updatedAt: new Date().toISOString(),
       };
 
@@ -887,60 +913,33 @@ const Members: React.FC = () => {
           requiredMark={false}
           preserve={false}
           initialValues={editingMember ? mapMemberToFormValues(editingMember) : undefined}
+          onValuesChange={(changedValues, allValues) => {
+            if (changedValues.isBaitByBirth !== undefined) {
+              // Force update to re-render when bait type changes
+              form.setFieldsValue({ ...allValues });
+            }
+          }}
         >
           <Row gutter={16}>
             <Col xs={24} md={12}>
               <Form.Item
                 name="name"
-                label="Full Name"
+                label="Name"
                 rules={[
-                  { required: true, message: 'Please enter full name' },
+                  { required: true, message: 'Please enter name' },
                   { min: 2, message: 'Name must be at least 2 characters' }
                 ]}
               >
-                <Input placeholder="Enter full name" />
+                <Input placeholder="Enter name" />
               </Form.Item>
             </Col>
             <Col xs={24} md={12}>
               <Form.Item
                 name="fatherName"
-                label="Father Name (Optional)"
+                label="Father Name"
               >
                 <Input placeholder="Enter father name" />
               </Form.Item>
-            </Col>
-          </Row>
-
-          <Row gutter={16}>
-            <Col xs={24} md={12}>
-              <Form.Item
-                name="husbandName"
-                label="Husband Name (Optional)"
-              >
-                <Input placeholder="Enter husband name" />
-              </Form.Item>
-            </Col>
-            <Col xs={24} md={12}>
-              <div style={{ marginTop: 30 }}>
-                <Space direction="vertical">
-                  <Checkbox
-                    onChange={(e) => {
-                      if (e.target.checked) {
-                        // Find the family head name
-                        const memberFamily = families.find(f => f.memberIds.includes(editingMember?.id || ''));
-                        if (memberFamily) {
-                          const headMember = members.find(m => m.id === memberFamily.headId);
-                          if (headMember) {
-                            form.setFieldsValue({ fatherName: headMember.name });
-                          }
-                        }
-                      }
-                    }}
-                  >
-                    Set Head as Father
-                  </Checkbox>
-                </Space>
-              </div>
             </Col>
           </Row>
 
@@ -961,6 +960,54 @@ const Members: React.FC = () => {
             </Col>
             <Col xs={24} md={12}>
               <Form.Item
+                label="Married"
+                style={{ marginBottom: 0 }}
+              >
+                <Form.Item
+                  name="isMarried"
+                  valuePropName="checked"
+                  noStyle
+                  shouldUpdate
+                >
+                  <Checkbox
+                    onChange={(e) => {
+                      if (!e.target.checked) {
+                        form.setFieldValue('husbandName', '');
+                      }
+                    }}
+                  >
+                    Married
+                  </Checkbox>
+                </Form.Item>
+              </Form.Item>
+              <Form.Item
+                noStyle
+                shouldUpdate={(prev, current) => prev.isMarried !== current.isMarried || prev.gender !== current.gender}
+              >
+                {({ getFieldValue }) => {
+                  const isMarried = getFieldValue('isMarried');
+                  const gender = getFieldValue('gender');
+
+                  if (isMarried && gender === 'female') {
+                    return (
+                      <Form.Item
+                        name="husbandName"
+                        label="Husband Name"
+                        style={{ marginTop: 8 }}
+                      >
+                        <Input placeholder="Enter husband name" />
+                      </Form.Item>
+                    )
+                  }
+                  return null;
+                }}
+              </Form.Item>
+            </Col>
+          </Row>
+
+          <Row gutter={16}>
+            <Col xs={24} md={12}>
+              <Form.Item
                 name="dateOfBirth"
                 label="Date of Birth"
                 rules={[
@@ -974,13 +1021,74 @@ const Members: React.FC = () => {
                 />
               </Form.Item>
             </Col>
+            <Col xs={24} md={12}>
+              <Row gutter={8}>
+                <Col span={12}>
+                  <Form.Item
+                    name="isBaitByBirth"
+                    label="Year of Bait"
+                    initialValue={true}
+                    valuePropName="checked"
+                    getValueFromEvent={(e) => {
+                      // If checkbox is checked, it means "By Birth" (true)
+                      // If unchecked, it means "Custom" (false)
+                      // But for a Select, we work differently. Let's use Select for "By Birth" vs "Custom"
+                      return e;
+                    }}
+                  >
+                    <Select
+                      onChange={(value) => {
+                        if (value) {
+                          form.setFieldValue('baitYear', undefined);
+                        }
+                      }}
+                    >
+                      <Option value={true}>By Birth</Option>
+                      <Option value={false}>Custom Year</Option>
+                    </Select>
+                  </Form.Item>
+                </Col>
+                <Col span={12}>
+                  <Form.Item
+                    noStyle
+                    shouldUpdate={(prev, current) => prev.isBaitByBirth !== current.isBaitByBirth}
+                  >
+                    {({ getFieldValue }) => {
+                      const isBaitByBirth = getFieldValue('isBaitByBirth');
+                      return !isBaitByBirth ? (
+                        <Form.Item
+                          name="baitYear"
+                          label=" "
+                          rules={[{ required: true, message: 'Enter year' }]}
+                        >
+                          <Input
+                            type="number"
+                            placeholder="Year"
+                            min={1900}
+                            max={new Date().getFullYear()}
+                          />
+                        </Form.Item>
+                      ) : null;
+                    }}
+                  </Form.Item>
+                </Col>
+              </Row>
+            </Col>
           </Row>
 
           <Row gutter={16}>
             <Col xs={24} md={12}>
               <Form.Item
+                name="phone"
+                label="Contact No"
+              >
+                <Input placeholder="Enter phone number" />
+              </Form.Item>
+            </Col>
+            <Col xs={24} md={12}>
+              <Form.Item
                 name="cnic"
-                label="CNIC (Optional)"
+                label="ID Card No"
                 rules={[
                   {
                     validator: (_, value) => {
@@ -993,17 +1101,56 @@ const Members: React.FC = () => {
                 ]}
               >
                 <Input
-                  placeholder="Enter CNIC (without dashes)"
+                  placeholder="Enter CNIC"
                   maxLength={15}
                 />
               </Form.Item>
             </Col>
+          </Row>
+
+          <Row gutter={16}>
             <Col xs={24} md={12}>
               <Form.Item
-                name="phone"
-                label="Phone (Optional)"
+                name="wasitNo"
+                label="Wasit No"
               >
-                <Input placeholder="Enter phone number" />
+                <Input placeholder="Enter wasit no" />
+              </Form.Item>
+            </Col>
+            <Col xs={24} md={12}>
+              <Form.Item
+                name="education"
+                label="Education"
+              >
+                <Input placeholder="Enter education" />
+              </Form.Item>
+            </Col>
+          </Row>
+
+          <Row gutter={16}>
+            <Col xs={24} md={12}>
+              <Form.Item
+                name="bloodGroup"
+                label="Blood Group"
+              >
+                <Select placeholder="Select blood group">
+                  <Option value="A+">A+</Option>
+                  <Option value="A-">A-</Option>
+                  <Option value="B+">B+</Option>
+                  <Option value="B-">B-</Option>
+                  <Option value="AB+">AB+</Option>
+                  <Option value="AB-">AB-</Option>
+                  <Option value="O+">O+</Option>
+                  <Option value="O-">O-</Option>
+                </Select>
+              </Form.Item>
+            </Col>
+            <Col xs={24} md={12}>
+              <Form.Item
+                name="waqfeNauNumber"
+                label="Waqfe-Neu No"
+              >
+                <Input placeholder="Enter Waqfe-Neu No" />
               </Form.Item>
             </Col>
           </Row>
@@ -1071,45 +1218,27 @@ const Members: React.FC = () => {
             </Col>
             <Col xs={24} md={12}>
               <Form.Item
-                name="dateOfDeath"
-                label="Date of Death"
-                dependencies={['isDeceased']}
-                rules={[
-                  ({ getFieldValue }) => ({
-                    validator(_, value) {
-                      if (getFieldValue('isDeceased') && !value) {
-                        return Promise.reject(new Error('Please select date of death'));
-                      }
-                      return Promise.resolve();
-                    },
-                  }),
-                ]}
+                noStyle
+                shouldUpdate={(prev, current) => prev.isDeceased !== current.isDeceased}
               >
-                <DatePicker
-                  style={{ width: '100%' }}
-                  placeholder="Select date of death"
-                  disabled={!Form.useWatch('isDeceased', form)}
-                  disabledDate={(current) => current && current > dayjs().endOf('day')}
-                />
+                {({ getFieldValue }) => {
+                  return getFieldValue('isDeceased') ? (
+                    <Form.Item
+                      name="dateOfDeath"
+                      label="Date of Death"
+                      rules={[{ required: true, message: 'Please select date of death' }]}
+                    >
+                      <DatePicker
+                        style={{ width: '100%' }}
+                        placeholder="Select date of death"
+                        disabledDate={(current) => current && current > dayjs().endOf('day')}
+                      />
+                    </Form.Item>
+                  ) : null;
+                }}
               </Form.Item>
             </Col>
           </Row>
-
-          <Row gutter={16}>
-            <Col xs={24} md={12}>
-              <Form.Item
-                name="graveNumber"
-                label="Grave Number"
-                rules={[
-                  { max: 50, message: 'Grave number cannot be longer than 50 characters' }
-                ]}
-              >
-                <Input placeholder="Enter grave number" />
-              </Form.Item>
-            </Col>
-          </Row>
-
-
 
           <Row gutter={16}>
             <Col xs={24} md={12}>
@@ -1122,24 +1251,20 @@ const Members: React.FC = () => {
             </Col>
             <Col xs={24} md={12}>
               <Form.Item
-                name="movedTo"
-                label="Moved To"
-                dependencies={['isMoved']}
-                rules={[
-                  ({ getFieldValue }) => ({
-                    validator(_, value) {
-                      if (getFieldValue('isMoved') && !value) {
-                        return Promise.reject(new Error('Please enter where member moved to'));
-                      }
-                      return Promise.resolve();
-                    },
-                  }),
-                ]}
+                noStyle
+                shouldUpdate={(prev, current) => prev.isMoved !== current.isMoved}
               >
-                <Input
-                  placeholder="Enter new location"
-                  disabled={!Form.useWatch('isMoved', form)}
-                />
+                {({ getFieldValue }) => {
+                  return getFieldValue('isMoved') ? (
+                    <Form.Item
+                      name="movedTo"
+                      label="Moved To"
+                      rules={[{ required: true, message: 'Please enter where member moved to' }]}
+                    >
+                      <Input placeholder="Enter new location" />
+                    </Form.Item>
+                  ) : null;
+                }}
               </Form.Item>
             </Col>
           </Row>

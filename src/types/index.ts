@@ -48,9 +48,16 @@ export interface Member {
   talem?: string;
   isDeceased?: boolean;
   dateOfDeath?: string;
-  graveNumber?: string;
   isMoved?: boolean;
   movedTo?: string;
+
+  // New fields
+  baitYear?: number; // Year of Bait (if not by birth)
+  isBaitByBirth?: boolean;
+  wasitNo?: string;
+  education?: string;
+  bloodGroup?: string;
+  waqfeNauNumber?: string;
 
   // Religious Activities (per member)
   religiousActivities?: ReligiousActivities;

@@ -11,13 +11,20 @@ import {
   Space,
   Typography,
   Button,
-
+  Modal,
+  message,
+  Form,
+  Input,
+  Select,
+  DatePicker,
+  Checkbox,
 } from 'antd';
 import {
   UserOutlined,
   TeamOutlined,
   DownloadOutlined,
-  FilePdfOutlined
+  FilePdfOutlined,
+  EditOutlined,
 } from '@ant-design/icons';
 import { Pie } from '@ant-design/charts';
 import { jsPDF } from 'jspdf';
@@ -26,12 +33,17 @@ import { ApiService } from '../services/apiService';
 import type { Member, Tanzeem } from '../types';
 import { getTanzeemDisplayName, formatDate, exportToCSV } from '../utils/helpers';
 
+import dayjs from 'dayjs';
+
 const { TabPane } = Tabs;
 const { Title, Text } = Typography;
 
 const TanzeemView: React.FC = () => {
   const [members, setMembers] = useState<Member[]>([]);
   const [loading, setLoading] = useState(false);
+  const [modalVisible, setModalVisible] = useState(false);
+  const [editingMember, setEditingMember] = useState<Member | null>(null);
+  const [form] = Form.useForm();
 
   useEffect(() => {
     loadMembers();
@@ -124,6 +136,52 @@ const TanzeemView: React.FC = () => {
     doc.save(`${getTanzeemDisplayName(tanzeem).toLowerCase()}_members.pdf`);
   };
 
+  const handleEdit = (member: Member) => {
+    setEditingMember(member);
+    form.setFieldsValue({
+      name: member.name,
+      fatherName: member.fatherName,
+      gender: member.gender,
+      dateOfBirth: member.dateOfBirth ? dayjs(member.dateOfBirth) : null,
+      cnic: member.cnic,
+      phone: member.phone,
+      address: member.address,
+      halqa: member.halqa,
+      isDeceased: member.isDeceased,
+      dateOfDeath: member.dateOfDeath ? dayjs(member.dateOfDeath) : null,
+      isMoved: member.isMoved,
+      movedTo: member.movedTo,
+    });
+    setModalVisible(true);
+  };
+
+  const handleModalCancel = () => {
+    setModalVisible(false);
+    setEditingMember(null);
+  };
+
+  const handleModalOk = async () => {
+    try {
+      const values = await form.validateFields();
+      if (editingMember) {
+        const updatedMember = {
+          ...editingMember,
+          ...values,
+          dateOfBirth: values.dateOfBirth ? values.dateOfBirth.format('YYYY-MM-DD') : undefined,
+          dateOfDeath: values.dateOfDeath ? values.dateOfDeath.format('YYYY-MM-DD') : undefined,
+        };
+        await ApiService.updateMember(updatedMember.id, updatedMember);
+        message.success('Member updated successfully');
+        setModalVisible(false);
+        setEditingMember(null);
+        loadMembers(); // Refresh the data
+      }
+    } catch (error) {
+      message.error('Failed to update member');
+      console.error(error);
+    }
+  };
+
   const createTanzeemTable = (tanzeem: Tanzeem) => {
     const tanzeemMembers = getMembersByTanzeem(tanzeem);
 
@@ -178,6 +236,23 @@ const TanzeemView: React.FC = () => {
         render: (createdAt: string) => formatDate(createdAt),
         sorter: (a: Member, b: Member) =>
           new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
+      },
+      {
+        title: 'Actions',
+        key: 'actions',
+        render: (__: any, record: Member) => (
+          <Space>
+            <Button
+              type="primary"
+              size="small"
+              icon={<EditOutlined />}
+              onClick={() => handleEdit(record)}
+            >
+              Edit
+            </Button>
+          </Space>
+        ),
+        width: 100,
       },
     ];
 
@@ -314,6 +389,142 @@ const TanzeemView: React.FC = () => {
           })}
         </Tabs>
       </Card>
+      {/* Edit Member Modal */}
+      <Modal
+        title={`Edit Member: ${editingMember?.name}`}
+        open={modalVisible}
+        onOk={handleModalOk}
+        onCancel={handleModalCancel}
+        width={600}
+      >
+        <Form
+          form={form}
+          layout="vertical"
+          requiredMark={false}
+        >
+          <Form.Item
+            name="name"
+            label="Full Name"
+            rules={[{ required: true, message: 'Please enter full name' }]}
+          >
+            <Input placeholder="Enter full name" />
+          </Form.Item>
+
+          <Form.Item
+            name="fatherName"
+            label="Father Name (Optional)"
+          >
+            <Input placeholder="Enter father name" />
+          </Form.Item>
+
+          <Form.Item
+            name="gender"
+            label="Gender"
+            rules={[{ required: true, message: 'Please select gender' }]}
+          >
+            <Select placeholder="Select gender">
+              <Select.Option value="male">Male</Select.Option>
+              <Select.Option value="female">Female</Select.Option>
+            </Select>
+          </Form.Item>
+
+          <Form.Item
+            name="dateOfBirth"
+            label="Date of Birth"
+            rules={[{ required: true, message: 'Please select date of birth' }]}
+          >
+            <DatePicker
+              style={{ width: '100%' }}
+              placeholder="Select date of birth"
+              disabledDate={(current) => current && current > dayjs().endOf('day')}
+            />
+          </Form.Item>
+
+          <Form.Item
+            name="cnic"
+            label="CNIC (Optional)"
+          >
+            <Input placeholder="Enter CNIC (without dashes)" maxLength={15} />
+          </Form.Item>
+
+          <Form.Item
+            name="phone"
+            label="Phone (Optional)"
+          >
+            <Input placeholder="Enter phone number" />
+          </Form.Item>
+
+          <Form.Item
+            name="address"
+            label="Address"
+            rules={[{ required: true, message: 'Please enter address' }]}
+          >
+            <Input.TextArea rows={3} placeholder="Enter complete address" />
+          </Form.Item>
+
+          <Form.Item
+            name="halqa"
+            label="Halqa (Optional)"
+          >
+            <Input placeholder="Enter halqa" />
+          </Form.Item>
+
+          <Form.Item
+            name="isDeceased"
+            valuePropName="checked"
+          >
+            <Checkbox>Deceased</Checkbox>
+          </Form.Item>
+
+          <Form.Item
+            name="dateOfDeath"
+            label="Date of Death"
+            dependencies={['isDeceased']}
+            rules={[{
+              validator(_, value) {
+                const isDeceased = form.getFieldValue('isDeceased');
+                if (isDeceased && !value) {
+                  return Promise.reject(new Error('Please select date of death'));
+                }
+                return Promise.resolve();
+              },
+            }]}
+          >
+            <DatePicker
+              style={{ width: '100%' }}
+              placeholder="Select date of death"
+              disabledDate={(current) => current && current > dayjs().endOf('day')}
+            />
+          </Form.Item>
+
+          <Form.Item
+            name="isMoved"
+            valuePropName="checked"
+          >
+            <Checkbox>Moved</Checkbox>
+          </Form.Item>
+
+          <Form.Item
+            name="movedTo"
+            label="Moved To"
+            dependencies={['isMoved']}
+            rules={[{
+              validator(_, value) {
+                const isMoved = form.getFieldValue('isMoved');
+                if (isMoved && !value) {
+                  return Promise.reject(new Error('Please enter where member moved to'));
+                }
+                return Promise.resolve();
+              },
+            }]}
+          >
+            <Input
+              placeholder="Enter new location"
+              disabled={!form.getFieldValue('isMoved')}
+            />
+          </Form.Item>
+        </Form>
+      </Modal>
     </div>
   );
 };

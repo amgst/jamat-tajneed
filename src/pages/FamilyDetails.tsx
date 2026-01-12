@@ -22,6 +22,7 @@ import {
   DatePicker,
   Upload,
   Checkbox,
+  Tabs,
 } from 'antd';
 import {
   ArrowLeftOutlined,
@@ -48,6 +49,7 @@ const FamilyDetails: React.FC = () => {
   const navigate = useNavigate();
   const [family, setFamily] = useState<Family | null>(null);
   const [familyMembers, setFamilyMembers] = useState<Member[]>([]);
+  const [movedFamilyMembers, setMovedFamilyMembers] = useState<Member[]>([]);
   const [allMembers, setAllMembers] = useState<Member[]>([]);
   const [allFamilies, setAllFamilies] = useState<Family[]>([]);
   const [loading, setLoading] = useState(true);
@@ -115,7 +117,12 @@ const FamilyDetails: React.FC = () => {
           return b.age - a.age;
         });
 
-        setFamilyMembers(sortedMembers);
+        // Separate active and moved members
+        const activeMembers = sortedMembers.filter(member => !member.isMoved);
+        const movedMembers = sortedMembers.filter(member => member.isMoved);
+        
+        setFamilyMembers(activeMembers);
+        setMovedFamilyMembers(movedMembers);
       } else {
         message.error('Family not found');
         navigate('/families');
@@ -635,7 +642,7 @@ const FamilyDetails: React.FC = () => {
         </Col>
       </Row>
 
-      {/* Family Members Table */}
+      {/* Family Members Tabs */}
       <Card
         title="Family Members"
         extra={
@@ -656,12 +663,36 @@ const FamilyDetails: React.FC = () => {
           </Space>
         }
       >
-        <Table
-          columns={columns}
-          dataSource={familyMembers}
-          rowKey="id"
-          pagination={false}
-          size="middle"
+        <Tabs
+          defaultActiveKey="active"
+          items={[
+            {
+              key: 'active',
+              label: `Active Members (${familyMembers.length})`,
+              children: (
+                <Table
+                  columns={columns}
+                  dataSource={familyMembers}
+                  rowKey="id"
+                  pagination={false}
+                  size="middle"
+                />
+              ),
+            },
+            {
+              key: 'moved',
+              label: `Moved (${movedFamilyMembers.length})`,
+              children: (
+                <Table
+                  columns={columns}
+                  dataSource={movedFamilyMembers}
+                  rowKey="id"
+                  pagination={false}
+                  size="middle"
+                />
+              ),
+            },
+          ]}
         />
       </Card>
 
