@@ -92,6 +92,7 @@ const Members: React.FC = () => {
   const [religiousModalVisible, setReligiousModalVisible] = useState(false);
   const [selectedMemberForReligious, setSelectedMemberForReligious] = useState<Member | null>(null);
   const [form] = Form.useForm();
+  const [isSaving, setIsSaving] = useState(false);
 
   // Add CSS for deceased member rows
   useEffect(() => {
@@ -273,6 +274,7 @@ const Members: React.FC = () => {
 
   const handleModalOk = async () => {
     try {
+      setIsSaving(true);
       const values = await form.validateFields();
       const formData: MemberForm = values;
 
@@ -349,12 +351,15 @@ const Members: React.FC = () => {
       loadMembers();
     } catch (error: any) {
       if (error.errorFields) {
-        console.log('Validation errors:', error.errorFields);
-        message.error('Please fix form validation errors');
+        // Format validation errors more clearly
+        const errors = error.errorFields.map((field: any) => field.errors).flat();
+        message.error(`Please fix the following errors: ${errors.join(', ')}`);
       } else {
         message.error('Failed to save member');
         console.error(error);
       }
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -903,6 +908,7 @@ const Members: React.FC = () => {
         }}
         width={600}
         destroyOnClose
+        confirmLoading={isSaving}
       >
         <Form
           form={form}
