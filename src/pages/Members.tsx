@@ -134,6 +134,7 @@ const Members: React.FC = () => {
   const handleAddMember = () => {
     setEditingMember(null);
     setUploadedImage('');
+    form.resetFields();
     setModalVisible(true);
   };
 
@@ -158,6 +159,9 @@ const Members: React.FC = () => {
           bloodGroup: editingMember.bloodGroup,
           waqfeNauNumber: editingMember.waqfeNauNumber,
       });
+    } else if (modalVisible && !editingMember) {
+      // Reset form when adding a new member
+      form.resetFields();
     }
   }, [modalVisible, editingMember, form]);
 
@@ -623,37 +627,45 @@ const Members: React.FC = () => {
       <Card
         title="Members Management"
         extra={
-          <Space>
+          <div className="flex flex-wrap gap-2 justify-end">
             <Button
               type="default"
               icon={<DownloadOutlined />}
               onClick={handleExport}
+              size="middle"
             >
-              Export CSV
+              <span className="hidden sm:inline">Export CSV</span>
+              <span className="sm:hidden">CSV</span>
             </Button>
             <Button
               type="default"
               icon={<DownloadOutlined />}
               onClick={handleFirebaseExport}
+              size="middle"
             >
-              Export Firebase Data
+              <span className="hidden sm:inline">Export Firebase</span>
+              <span className="sm:hidden">FB</span>
             </Button>
             <Button
               type="default"
               icon={<ReloadOutlined />}
               onClick={loadMembers}
               loading={loading}
+              size="middle"
             >
-              Refresh
+              <span className="hidden sm:inline">Refresh</span>
+              <span className="sm:hidden">Rfsh</span>
             </Button>
             <Button
               type="primary"
               icon={<PlusOutlined />}
               onClick={handleAddMember}
+              size="middle"
             >
-              Add Member
+              <span className="hidden sm:inline">Add Member</span>
+              <span className="sm:hidden">Add</span>
             </Button>
-          </Space>
+          </div>
         }
       >
         <Tabs
@@ -885,7 +897,10 @@ const Members: React.FC = () => {
         title={editingMember ? 'Edit Member' : 'Add New Member'}
         open={modalVisible}
         onOk={handleModalOk}
-        onCancel={() => setModalVisible(false)}
+        onCancel={() => {
+          setModalVisible(false);
+          form.resetFields();
+        }}
         width={600}
         destroyOnClose
       >
