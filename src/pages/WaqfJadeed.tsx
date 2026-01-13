@@ -39,10 +39,11 @@ import {
     EditOutlined,
     PrinterOutlined,
     FilePdfOutlined,
-    CopyOutlined,
     SaveOutlined,
     ShareAltOutlined
 } from '@ant-design/icons';
+import { db } from '../lib/firebase';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
 import WaqfReports from '../components/WaqfReports';
 import dayjs from 'dayjs';
 import { jsPDF } from 'jspdf';
@@ -156,6 +157,63 @@ const WaqfJadeed: React.FC = () => {
         };
         loadTarget();
     }, [selectedYear]);
+
+    const handleMoveFamily = (family: Family) => {
+        setSelectedFamilyForMove(family);
+        moveForm.setFieldsValue({ movedTo: family.movedTo || movedDestinations[0] });
+        setMovedModalVisible(true);
+    };
+
+    const handleRestoreFamily = async (family: Family) => {
+        try {
+            setLoading(true);
+            await ApiService.updateFamily(family.id, { isMoved: false, movedTo: null });
+            message.success('Family restored successfully');
+            await loadData();
+        } catch (error) {
+            console.error('Failed to restore family:', error);
+            message.error('Failed to restore family');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const onMoveFamilyFinish = async (values: any) => {
+        if (!selectedFamilyForMove) return;
+
+        try {
+            setLoading(true);
+            let destination = values.movedTo;
+
+            // Handle "Other" or custom destination
+            if (destination === 'other' && newDestination) {
+                destination = newDestination;
+                if (!movedDestinations.includes(newDestination)) {
+                    const newList = [...movedDestinations, newDestination];
+                    await setDoc(doc(db, 'settings', 'moved_destinations'), { list: newList });
+                    setMovedDestinations(newList);
+                }
+            }
+
+            await ApiService.updateFamily(selectedFamilyForMove.id, {
+                isMoved: true,
+                movedTo: destination,
+                updatedAt: new Date().toISOString()
+            });
+
+            message.success(`Family marked as moved to ${destination}`);
+            setMovedModalVisible(false);
+            setSelectedFamilyForMove(null);
+            setNewDestination('');
+            moveForm.resetFields();
+            await loadData();
+        } catch (error) {
+            console.error('Failed to move family:', error);
+            message.error('Failed to mark family as moved');
+        } finally {
+            setLoading(false);
+        }
+    };
 
     // Handler to save target amount
     // Handler to save target amount with debounce
@@ -505,11 +563,11 @@ const WaqfJadeed: React.FC = () => {
     type MemberData = ReturnType<typeof getMemberData>;
 
     const filteredMemberData = useMemo(() => {
+        // First filter members: exclude if member is moved OR their family is moved
+        const movedFamilyIds = new Set(families.filter(f => f.isMoved).map(f => f.id));
+
         let data = members
-            .filter(member => {
-                // Exclude deceased and moved members from main members list
-                return !member.isDeceased && !member.isMoved;
-            })
+            .filter(m => !m.isMoved && !movedFamilyIds.has(m.familyId || ''))
             .map(member => {
                 const record = records.find(r => r.memberId === member.id);
                 return {
@@ -531,10 +589,12 @@ const WaqfJadeed: React.FC = () => {
             );
         }
         return data;
-    }, [members, records, searchTerm]);
+    }, [members, records, families, searchTerm]);
 
     const filteredFamilyData = useMemo(() => {
-        let data = families;
+        // Filter based on familyViewTab (active vs moved)
+        let data = families.filter(f => familyViewTab === 'moved' ? f.isMoved : !f.isMoved);
+
         if (searchTerm) {
             const lower = searchTerm.toLowerCase();
             data = data.filter(f =>
@@ -548,7 +608,7 @@ const WaqfJadeed: React.FC = () => {
             const numB = b.familyNumber || 999999;
             return numA - numB;
         });
-    }, [families, searchTerm]);
+    }, [families, searchTerm, familyViewTab]);
 
     // Group members by tanzeem for Tanzeem Wise view
     const tanzeemGroupedData = useMemo(() => {
@@ -625,6 +685,17 @@ const WaqfJadeed: React.FC = () => {
             specialRecords.reduce((sum, r) => sum + (r.nagarparAmount || 0), 0);
         const percent = totalPromise > 0 ? (totalPaid / totalPromise) * 100 : 0;
         return { totalPromise, totalPaid, totalNagarParkar, percent };
+    }, [records, specialRecords]);
+
+    const allPayments = useMemo(() => {
+        const payments: Payment[] = [];
+        records.forEach(r => {
+            if (r.payments) payments.push(...r.payments);
+        });
+        specialRecords.forEach(sr => {
+            if (sr.payments) payments.push(...sr.payments);
+        });
+        return payments;
     }, [records, specialRecords]);
 
     // Tanzeem Stats Aggregation
@@ -1073,96 +1144,6 @@ const WaqfJadeed: React.FC = () => {
         }
     };
 
-    const handleCopyNamesFrom2025 = async () => {
-        try {
-            setLoading(true);
-            message.loading({ content: 'Copying names from 2025 to 2026...', key: 'copying', duration: 0 });
-
-            // Get 2025 records
-            const records2025 = await ApiService.getWaqfJadeedRecords(2025);
-
-            // Get 2026 records to check what already exists
-            const records2026 = await ApiService.getWaqfJadeedRecords(2026);
-            const existing2026MemberIds = new Set(records2026.map(r => r.memberId));
-
-            // Copy only names (create records with 0 promise and 0 paid)
-            let copiedMembers = 0;
-            let skippedMembers = 0;
-
-            for (const record2025 of records2025) {
-                // Skip if already exists in 2026
-                if (existing2026MemberIds.has(record2025.memberId)) {
-                    skippedMembers++;
-                    continue;
-                }
-
-                // Create new record with 0 promise and 0 paid
-                await ApiService.saveWaqfJadeedRecord({
-                    memberId: record2025.memberId,
-                    year: 2026,
-                    promiseAmount: 0,
-                    nagarparAmount: 0
-                });
-                copiedMembers++;
-            }
-
-            // Copy special records (including deceased and اضافی)
-            const special2025 = await ApiService.getWaqfJadeedSpecialRecords(2025);
-            const special2026 = await ApiService.getWaqfJadeedSpecialRecords(2026);
-
-            // Check by name and familyId combination to avoid duplicates (year is already 2026 for existing records)
-            const existing2026SpecialKeys = new Set(
-                special2026.map(r => `${r.familyId || 'no-family'}_${r.name || 'no-name'}`)
-            );
-
-            let copiedSpecial = 0;
-            let skippedSpecial = 0;
-
-            for (const special2025Record of special2025) {
-                const key = `${special2025Record.familyId || 'no-family'}_${special2025Record.name || 'no-name'}`;
-
-                // Skip if already exists in 2026
-                if (existing2026SpecialKeys.has(key)) {
-                    skippedSpecial++;
-                    continue;
-                }
-
-                try {
-                    // Create new record without the old ID so it gets a new one
-                    const { id, payments, paidAmount, ...specialDataWithoutId } = special2025Record;
-                    await ApiService.saveWaqfJadeedSpecialRecord({
-                        ...specialDataWithoutId,
-                        year: 2026,
-                        promiseAmount: 0,
-                        nagarparAmount: 0,
-                        paidAmount: 0,
-                        payments: []
-                    });
-                    copiedSpecial++;
-                } catch (err) {
-                    console.error('Error copying special record:', special2025Record.name, err);
-                    skippedSpecial++;
-                }
-            }
-
-            const totalCopied = copiedMembers + copiedSpecial;
-            const totalSkipped = skippedMembers + skippedSpecial;
-
-            message.success({
-                content: `Copied ${totalCopied} names (${copiedMembers} members, ${copiedSpecial} special) from 2025 to 2026. ${totalSkipped} already existed.`,
-                key: 'copying',
-                duration: 5
-            });
-
-            // Reload data
-            await loadData();
-        } catch (error) {
-            console.error('Error copying names:', error);
-            message.error({ content: `Failed to copy names: ${error instanceof Error ? error.message : 'Unknown error'}`, key: 'copying', duration: 5 });
-        } finally {
-            setLoading(false);
-        }
-    };
 
 
     return (
@@ -1193,22 +1174,6 @@ const WaqfJadeed: React.FC = () => {
                             allowClear
                         />
                     </Col>
-                    {selectedYear === 2026 && (
-                        <Col xs={24} sm={24} md={12}>
-                            <Button
-                                icon={<CopyOutlined />}
-                                onClick={handleCopyNamesFrom2025}
-                                loading={loading}
-                                type="dashed"
-                                block
-                                size="large"
-                                disabled={records.length > 0 || specialRecords.length > 0}
-                                title={records.length > 0 || specialRecords.length > 0 ? "Data already exists for 2026" : "Copy names from 2025"}
-                            >
-                                Copy All Names from 2025 (Members + Special)
-                            </Button>
-                        </Col>
-                    )}
                 </Row>
                 <Tabs activeKey={activeTab} onChange={setActiveTab} style={{ marginTop: 12 }} type="card">
                     <Tabs.TabPane tab="Members" key="members" />
@@ -1422,6 +1387,16 @@ const WaqfJadeed: React.FC = () => {
                 </Card>
             ) : activeTab === 'families' ? (
                 <div className="family-list">
+                    <Tabs
+                        activeKey={familyViewTab}
+                        onChange={(key) => setFamilyViewTab(key as 'active' | 'moved')}
+                        type="line"
+                        style={{ marginBottom: 16 }}
+                        items={[
+                            { label: `Active Families (${families.filter(f => !f.isMoved).length})`, key: 'active' },
+                            { label: `Moved Families (${families.filter(f => f.isMoved).length})`, key: 'moved' },
+                        ]}
+                    />
                     {loading ? <p>Loading...</p> : (
                         <Collapse defaultActiveKey={[]} ghost>
                             {filteredFamilyData.map(family => {
@@ -1450,38 +1425,66 @@ const WaqfJadeed: React.FC = () => {
                                         key={family.id}
                                         header={
                                             <Row justify="space-between" align="middle" style={{ width: '100%' }} gutter={[8, 8]}>
-                                                <Col xs={24} sm={16} md={16}>
+                                                <Col xs={24} sm={16} md={14}>
                                                     <Text strong style={{ fontSize: 'clamp(14px, 3.5vw, 16px)' }}>{family.familyName}</Text>
+                                                    {family.isMoved && family.movedTo && (
+                                                        <Tag color="orange" style={{ marginLeft: 8 }}>Moved to {family.movedTo}</Tag>
+                                                    )}
                                                     <br />
                                                     <Text type="secondary" style={{ fontSize: 'clamp(11px, 2.5vw, 12px)' }}>
                                                         {family.familyNumber ? <span>#{family.familyNumber} • </span> : ''}
                                                         Head: {getMemberData(family.headId)?.member.name || 'Unknown'} • {familyMembersCtx.length + familySpecialRecords.length} Cards
                                                     </Text>
                                                 </Col>
-                                                <Col xs={24} sm={8} md={6} style={{ textAlign: 'right' }}>
+                                                <Col xs={18} sm={6} md={6} style={{ textAlign: 'right' }}>
                                                     <Text type="secondary" style={{ fontSize: 'clamp(11px, 2.5vw, 12px)' }}>Paid / Promise</Text>
                                                     <div style={{ fontWeight: 500, fontSize: 'clamp(12px, 3vw, 14px)' }}>
                                                         {familyTotalPaid.toLocaleString()} / {familyTotalPromise.toLocaleString()}
                                                     </div>
                                                     <Progress percent={familyPercent} steps={5} size="small" strokeColor="#52c41a" />
                                                 </Col>
-                                                <Col xs={24} sm={24} md={2} style={{ textAlign: 'right' }}>
-                                                    <Button
-                                                        type="text"
-                                                        icon={<FilePdfOutlined />}
-                                                        size="small"
-                                                        onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            handleExportFamilyPDF(
-                                                                family,
-                                                                familyMembersCtx,
-                                                                familySpecialRecords,
-                                                                familyTotalPromise,
-                                                                familyTotalPaid
-                                                            );
-                                                        }}
-                                                        title="Export to PDF"
-                                                    />
+                                                <Col xs={6} sm={2} md={4} style={{ textAlign: 'right' }}>
+                                                    <Space>
+                                                        {family.isMoved ? (
+                                                            <Button
+                                                                type="text"
+                                                                icon={<PlusOutlined style={{ color: '#52c41a' }} />}
+                                                                size="small"
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    handleRestoreFamily(family);
+                                                                }}
+                                                                title="Restore Family"
+                                                            />
+                                                        ) : (
+                                                            <Button
+                                                                type="text"
+                                                                icon={<DeleteOutlined style={{ color: '#faad14' }} />}
+                                                                size="small"
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    handleMoveFamily(family);
+                                                                }}
+                                                                title="Mark as Moved"
+                                                            />
+                                                        )}
+                                                        <Button
+                                                            type="text"
+                                                            icon={<FilePdfOutlined />}
+                                                            size="small"
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                handleExportFamilyPDF(
+                                                                    family,
+                                                                    familyMembersCtx,
+                                                                    familySpecialRecords,
+                                                                    familyTotalPromise,
+                                                                    familyTotalPaid
+                                                                );
+                                                            }}
+                                                            title="Export to PDF"
+                                                        />
+                                                    </Space>
                                                 </Col>
                                             </Row>
                                         }
@@ -1828,18 +1831,10 @@ const WaqfJadeed: React.FC = () => {
             ) : activeTab === 'reports' ? (
                 <WaqfReports
                     members={members}
+                    families={families}
                     records={filteredMemberData}
                     specialRecords={specialRecords}
-                    allPayments={useMemo(() => {
-                        const payments: Payment[] = [];
-                        records.forEach(r => {
-                            if (r.payments) payments.push(...r.payments);
-                        });
-                        specialRecords.forEach(sr => {
-                            if (sr.payments) payments.push(...sr.payments);
-                        });
-                        return payments;
-                    }, [records, specialRecords])}
+                    allPayments={allPayments}
                     prevRecords={prevRecords}
                     prevSpecialRecords={prevSpecialRecords}
                     selectedYear={selectedYear}
@@ -2696,6 +2691,63 @@ const WaqfJadeed: React.FC = () => {
                         <Button type="primary" htmlType="submit" loading={submitting} block>
                             Create Book
                         </Button>
+                    </Form.Item>
+                </Form>
+            </Modal>
+
+            {/* Mark as Moved Modal */}
+            <Modal
+                title={`Mark Family as Moved: ${selectedFamilyForMove?.familyName}`}
+                open={movedModalVisible}
+                onCancel={() => {
+                    setMovedModalVisible(false);
+                    setSelectedFamilyForMove(null);
+                    setNewDestination('');
+                    moveForm.resetFields();
+                }}
+                onOk={() => moveForm.submit()}
+                confirmLoading={loading}
+                okText="Mark as Moved"
+                okButtonProps={{ danger: true }}
+            >
+                <Form form={moveForm} layout="vertical" onFinish={onMoveFamilyFinish}>
+                    <Form.Item
+                        name="movedTo"
+                        label="Destination"
+                        rules={[{ required: true, message: 'Please select a destination' }]}
+                    >
+                        <Select
+                            placeholder="Select destination"
+                            onChange={(value) => {
+                                if (value !== 'other') setNewDestination('');
+                            }}
+                        >
+                            {movedDestinations.map(d => (
+                                <Option key={d} value={d}>{d}</Option>
+                            ))}
+                            <Option value="other">+ Add Custom Destination</Option>
+                        </Select>
+                    </Form.Item>
+
+                    <Form.Item
+                        noStyle
+                        shouldUpdate={(prevValues, currentValues) => prevValues.movedTo !== currentValues.movedTo}
+                    >
+                        {({ getFieldValue }) =>
+                            getFieldValue('movedTo') === 'other' ? (
+                                <Form.Item
+                                    label="Custom Destination Name"
+                                    rules={[{ required: true, message: 'Please enter destination name' }]}
+                                    style={{ marginTop: 16 }}
+                                >
+                                    <Input
+                                        placeholder="e.g. USA, UK, Karachi"
+                                        value={newDestination}
+                                        onChange={(e) => setNewDestination(e.target.value)}
+                                    />
+                                </Form.Item>
+                            ) : null
+                        }
                     </Form.Item>
                 </Form>
             </Modal>
