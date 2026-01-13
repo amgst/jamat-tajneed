@@ -609,16 +609,20 @@ const WaqfJadeed: React.FC = () => {
 
     // Tanzeem Stats Aggregation
     const tanzeemStats = useMemo(() => {
-        const statsMap: Record<string, { promise: number; paid: number; count: number }> = {};
+        const statsMap: Record<string, { promise: number; promiseBase: number; nagarpar: number; paid: number; count: number }> = {};
 
         members.forEach(member => {
             const tanzeem = member.tanzeem || 'Unknown';
             if (!statsMap[tanzeem]) {
-                statsMap[tanzeem] = { promise: 0, paid: 0, count: 0 };
+                statsMap[tanzeem] = { promise: 0, promiseBase: 0, nagarpar: 0, paid: 0, count: 0 };
             }
             const record = records.find(r => r.memberId === member.id);
             if (record) {
-                statsMap[tanzeem].promise += (record.promiseAmount || 0) + (record.nagarparAmount || 0);
+                const base = record.promiseAmount || 0;
+                const nagar = record.nagarparAmount || 0;
+                statsMap[tanzeem].promiseBase += base;
+                statsMap[tanzeem].nagarpar += nagar;
+                statsMap[tanzeem].promise += base + nagar;
                 statsMap[tanzeem].paid += record.paidAmount || 0;
             }
             statsMap[tanzeem].count += 1;
@@ -636,22 +640,34 @@ const WaqfJadeed: React.FC = () => {
         const deceasedMaleRecords = specialRecords.filter(r => r.isDeceased && r.gender === 'male');
         const deceasedFemaleRecords = specialRecords.filter(r => r.isDeceased && r.gender === 'female');
 
-        const malePromiseAmount = deceasedMaleRecords.reduce((sum, r) => sum + (r.promiseAmount || 0) + (r.nagarparAmount || 0), 0);
+        const malePromiseBase = deceasedMaleRecords.reduce((sum, r) => sum + (r.promiseAmount || 0), 0);
+        const maleNagarpar = deceasedMaleRecords.reduce((sum, r) => sum + (r.nagarparAmount || 0), 0);
+        const malePromiseAmount = malePromiseBase + maleNagarpar;
         const malePaidAmount = deceasedMaleRecords.reduce((sum, r) => sum + (r.paidAmount || 0), 0);
 
-        const femalePromiseAmount = deceasedFemaleRecords.reduce((sum, r) => sum + (r.promiseAmount || 0) + (r.nagarparAmount || 0), 0);
+        const femalePromiseBase = deceasedFemaleRecords.reduce((sum, r) => sum + (r.promiseAmount || 0), 0);
+        const femaleNagarpar = deceasedFemaleRecords.reduce((sum, r) => sum + (r.nagarparAmount || 0), 0);
+        const femalePromiseAmount = femalePromiseBase + femaleNagarpar;
         const femalePaidAmount = deceasedFemaleRecords.reduce((sum, r) => sum + (r.paidAmount || 0), 0);
 
+        const totalDeceasedPromiseBase = malePromiseBase + femalePromiseBase;
+        const totalDeceasedNagarpar = maleNagarpar + femaleNagarpar;
         const totalDeceasedPromise = malePromiseAmount + femalePromiseAmount;
         const totalDeceasedPaid = malePaidAmount + femalePaidAmount;
 
         return {
             deceasedMales: deceasedMaleRecords.length,
             deceasedFemales: deceasedFemaleRecords.length,
+            malePromiseBase,
+            maleNagarpar,
             malePromiseAmount,
             malePaidAmount,
+            femalePromiseBase,
+            femaleNagarpar,
             femalePromiseAmount,
             femalePaidAmount,
+            totalDeceasedPromiseBase,
+            totalDeceasedNagarpar,
             totalDeceasedPromise,
             totalDeceasedPaid
         };
@@ -681,12 +697,12 @@ const WaqfJadeed: React.FC = () => {
         const totalDeceasedPaid = deceasedStats.totalDeceasedPaid || 0;
         const totalReceived = ansarPaid + lajnaPaid + khuddamPaid + totalDeceasedPaid;
 
-        // Calculate Total Promised for the same group
-        const ansarPromise = tanzeemStats.find(t => t.name === 'ansar')?.promise || 0;
-        const lajnaPromise = tanzeemStats.find(t => t.name === 'lajna')?.promise || 0;
-        const khuddamPromise = tanzeemStats.find(t => t.name === 'khuddam')?.promise || 0;
-        const totalDeceasedPromise = deceasedStats.totalDeceasedPromise || 0;
-        const totalPromised = ansarPromise + lajnaPromise + khuddamPromise + totalDeceasedPromise;
+        // Calculate Total Promised (Excluding Nagar Parkar and Dafar Atfal)
+        const ansarPromiseBase = tanzeemStats.find(t => t.name === 'ansar')?.promiseBase || 0;
+        const lajnaPromiseBase = tanzeemStats.find(t => t.name === 'lajna')?.promiseBase || 0;
+        const khuddamPromiseBase = tanzeemStats.find(t => t.name === 'khuddam')?.promiseBase || 0;
+        const totalDeceasedPromiseBase = deceasedStats.totalDeceasedPromiseBase || 0;
+        const totalPromised = ansarPromiseBase + lajnaPromiseBase + khuddamPromiseBase + totalDeceasedPromiseBase;
 
         // Calculate Dafar Atfal: Atfal + Saf-e-Awal boys + Saf-e-Awal girls + Nasirat
         const atfalPaid = tanzeemStats.find(t => t.name === 'atfal')?.paid || 0;
@@ -699,8 +715,8 @@ const WaqfJadeed: React.FC = () => {
             totalReceived,
             totalPromised,
             dafarAtfalTotal,
-            remainingFromTarget: targetAmount > 0 ? targetAmount - totalPromised : 0,
-            receivedPercent: targetAmount > 0 ? (totalPromised / targetAmount) * 100 : 0
+            remainingFromTarget: targetAmount > 0 ? targetAmount - totalReceived : 0,
+            receivedPercent: targetAmount > 0 ? (totalReceived / targetAmount) * 100 : 0
         };
     }, [tanzeemStats, deceasedStats, targetAmount]);
 
@@ -1814,8 +1830,8 @@ const WaqfJadeed: React.FC = () => {
                     {/* Target Section */}
                     <Card title={<Title level={4} style={{ margin: 0 }}>Target</Title>} style={{ marginBottom: 16 }}>
                         <Row gutter={[16, 16]}>
-                            <Col xs={24} sm={12} md={6}>
-                                <div>
+                            <Col xs={24} sm={12} md={6} lg={4}>
+                                <div style={{ marginBottom: 16 }}>
                                     <Text type="secondary" style={{ fontSize: 'clamp(12px, 2.5vw, 14px)', display: 'block', marginBottom: 8 }}>Target Amount</Text>
                                     <InputNumber
                                         value={targetAmount}
@@ -1829,91 +1845,83 @@ const WaqfJadeed: React.FC = () => {
                                         size="large"
                                     />
                                 </div>
+                                <div style={{ marginTop: 8 }}>
+                                    <Text type="secondary" style={{ fontSize: 'clamp(11px, 2.5vw, 12px)', display: 'block', marginBottom: 4 }}>
+                                        Progress: {targetSectionStats.receivedPercent.toFixed(1)}%
+                                    </Text>
+                                    <Progress
+                                        percent={Math.round(targetSectionStats.receivedPercent)}
+                                        size="small"
+                                        status={targetSectionStats.receivedPercent >= 100 ? "success" : "active"}
+                                        strokeColor={targetSectionStats.receivedPercent >= 100 ? "#52c41a" : "#1890ff"}
+                                    />
+                                </div>
                             </Col>
-                            <Col xs={24} sm={12} md={6}>
+                            <Col xs={24} sm={12} md={6} lg={5}>
                                 <Card bodyStyle={{ padding: 16 }}>
                                     <Statistic
-                                        title="Total Promised"
+                                        title={<span style={{ fontSize: '12px' }}>Total Promised</span>}
                                         value={targetSectionStats.totalPromised}
                                         prefix="Rs."
                                         precision={0}
-                                        valueStyle={{ fontSize: 'clamp(18px, 4vw, 28px)' }}
+                                        valueStyle={{ fontSize: 'clamp(18px, 4vw, 24px)' }}
                                     />
-                                    <div style={{ marginBottom: 4 }}>
-                                        <Text type="secondary" style={{ fontSize: 'clamp(11px, 2.5vw, 12px)' }}>
+                                    <div style={{ marginTop: 4 }}>
+                                        <Text type="secondary" style={{ fontSize: '11px' }}>
                                             Received: Rs. {targetSectionStats.totalReceived.toLocaleString()}
                                         </Text>
                                     </div>
+                                    <Text type="secondary" style={{ fontSize: '9px', display: 'block', opacity: 0.6, marginTop: 4 }}>
+                                        (Excl. Nagar Parkar & Atfal)
+                                    </Text>
                                 </Card>
                             </Col>
-                            <Col xs={24} sm={12} md={6}>
+                            <Col xs={24} sm={12} md={6} lg={5}>
                                 <Card bodyStyle={{ padding: 16 }}>
                                     <Statistic
-                                        title="Total Nagar Parkar"
+                                        title={<span style={{ fontSize: '12px' }}>Total Nagar Parkar</span>}
                                         value={stats.totalNagarParkar}
                                         prefix="Rs."
                                         precision={0}
-                                        valueStyle={{ fontSize: 'clamp(18px, 4vw, 28px)', color: '#fa8c16' }}
+                                        valueStyle={{ fontSize: 'clamp(18px, 4vw, 24px)', color: '#fa8c16' }}
                                     />
-                                    <div style={{ marginBottom: 4 }}>
-                                        <Text type="secondary" style={{ fontSize: 'clamp(11px, 2.5vw, 12px)' }}>
-                                            Special/Members Total
-                                        </Text>
-                                    </div>
-                                    <div style={{ marginTop: 8 }}>
-                                        <Progress
-                                            percent={Math.round(targetSectionStats.receivedPercent)}
-                                            size="small"
-                                            status={targetSectionStats.receivedPercent >= 100 ? "success" : "active"}
-                                            strokeColor={targetSectionStats.receivedPercent >= 100 ? "#52c41a" : "#1890ff"}
-                                        />
-                                        <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 4 }}>
-                                            <Text type="secondary" style={{ fontSize: 'clamp(11px, 2.5vw, 12px)' }}>
-                                                (Ansar + Lajna + Khuddam + Deceased)
-                                            </Text>
-                                            <Text type="secondary" style={{ fontSize: 'clamp(11px, 2.5vw, 12px)', fontWeight: 'bold' }}>
-                                                {targetSectionStats.receivedPercent.toFixed(1)}%
-                                            </Text>
-                                        </div>
-                                    </div>
+                                    <Text type="secondary" style={{ fontSize: '11px' }}>
+                                        Special/Members Total
+                                    </Text>
                                 </Card>
                             </Col>
-                            <Col xs={24} sm={12} md={6}>
+                            <Col xs={24} sm={12} md={6} lg={5}>
                                 <Card bodyStyle={{ padding: 16 }}>
                                     <Statistic
-                                        title="Remaining"
+                                        title={<span style={{ fontSize: '12px' }}>Remaining</span>}
                                         value={targetSectionStats.remainingFromTarget}
                                         prefix="Rs."
                                         precision={0}
                                         valueStyle={{
-                                            fontSize: 'clamp(18px, 4vw, 28px)',
-                                            color: targetSectionStats.remainingFromTarget >= 0 ? '#3f8600' : '#cf1322'
+                                            fontSize: 'clamp(18px, 4vw, 24px)',
+                                            color: targetSectionStats.remainingFromTarget <= 0 ? '#3f8600' : '#cf1322'
                                         }}
                                     />
-                                    <div style={{ marginTop: 8 }}>
-                                        <Text type="secondary" style={{ fontSize: 'clamp(11px, 2.5vw, 12px)' }}>
-                                            (Target - Total Promised)
-                                        </Text>
-                                    </div>
+                                    <Text type="secondary" style={{ fontSize: '11px' }}>
+                                        (Target - Received)
+                                    </Text>
                                 </Card>
                             </Col>
-                            <Col xs={24} sm={12} md={6}>
+                            <Col xs={24} sm={12} md={6} lg={5}>
                                 <Card bodyStyle={{ padding: 16 }}>
-                                    <div style={{ marginBottom: 8 }}>
-                                        <Title level={5} style={{ margin: 0, fontSize: 'clamp(14px, 3vw, 16px)' }}>دفتر اطفال</Title>
+                                    <div style={{ marginBottom: 4 }}>
+                                        <Text strong style={{ fontSize: '12px' }}>دفتر اطفال</Text>
                                     </div>
                                     <Statistic
-                                        title="Total"
+                                        title={<span style={{ fontSize: '11px' }}>Total Received</span>}
                                         value={targetSectionStats.dafarAtfalTotal}
                                         prefix="Rs."
                                         precision={0}
-                                        valueStyle={{ fontSize: 'clamp(18px, 4vw, 28px)' }}
+                                        valueStyle={{ fontSize: 'clamp(18px, 4vw, 24px)' }}
                                     />
-                                    <div style={{ marginTop: 8 }}>
-                                        <Text type="secondary" style={{ fontSize: 'clamp(11px, 2.5vw, 12px)' }}>
-                                            (Atfal + Saf-e-Awal Boys + Saf-e-Awal Girls + Nasirat)
-                                        </Text>
-                                    </div>
+                                    <Text type="secondary" style={{ fontSize: '10px' }}>
+                                        (Atfal + Saf-e-Awal + Nasirat)
+                                    </Text>
                                 </Card>
                             </Col>
                         </Row>
