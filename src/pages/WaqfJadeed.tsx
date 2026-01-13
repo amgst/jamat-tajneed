@@ -2030,66 +2030,32 @@ const WaqfJadeed: React.FC = () => {
                         </Row>
                     </Card>
 
-                    {/* Deceased Stats Cards with Amounts */}
+                    {/* Consolidated Special/Deceased Stats Card */}
                     <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
-                        <Col xs={24} sm={24} md={8}>
+                        <Col xs={24}>
                             <Card hoverable>
                                 <Statistic
-                                    title={<span style={{ fontSize: 'clamp(12px, 3vw, 14px)' }}>{`Deceased Males (${deceasedStats.deceasedMales})`}</span>}
-                                    value={deceasedStats.malePaidAmount || 0}
-                                    prefix="Rs."
-                                    precision={0}
-                                    valueStyle={{ fontSize: 'clamp(18px, 4.5vw, 28px)' }}
-                                />
-                                <Progress
-                                    percent={deceasedStats.deceasedMales > 0 ? Math.round((deceasedStats.malePaidAmount || 0) / (deceasedStats.malePromiseAmount || 1) * 100) : 0}
-                                    status={deceasedStats.malePaidAmount >= deceasedStats.malePromiseAmount && deceasedStats.malePromiseAmount > 0 ? 'success' : 'active'}
-                                    strokeColor={deceasedStats.malePaidAmount >= deceasedStats.malePromiseAmount && deceasedStats.malePromiseAmount > 0 ? '#52c41a' : '#1890ff'}
-                                />
-                                <div style={{ marginTop: 12, display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: 4 }}>
-                                    <Text type="secondary" style={{ fontSize: 'clamp(11px, 2.5vw, 12px)' }}>Promise: Rs. {(deceasedStats.malePromiseAmount || 0).toLocaleString()}</Text>
-                                    <Text type="secondary" style={{ fontSize: 'clamp(11px, 2.5vw, 12px)' }}>{deceasedStats.malePromiseAmount ? Math.round((deceasedStats.malePaidAmount || 0) / deceasedStats.malePromiseAmount * 100).toFixed(1) + '%' : '0%'}</Text>
-                                </div>
-                            </Card>
-                        </Col>
-                        <Col xs={24} sm={24} md={8}>
-                            <Card hoverable>
-                                <Statistic
-                                    title={<span style={{ fontSize: 'clamp(12px, 3vw, 14px)' }}>{`Deceased Females (${deceasedStats.deceasedFemales})`}</span>}
-                                    value={deceasedStats.femalePaidAmount || 0}
-                                    prefix="Rs."
-                                    precision={0}
-                                    valueStyle={{ fontSize: 'clamp(18px, 4.5vw, 28px)' }}
-                                />
-                                <Progress
-                                    percent={deceasedStats.deceasedFemales > 0 ? Math.round((deceasedStats.femalePaidAmount || 0) / (deceasedStats.femalePromiseAmount || 1) * 100) : 0}
-                                    status={deceasedStats.femalePaidAmount >= deceasedStats.femalePromiseAmount && deceasedStats.femalePromiseAmount > 0 ? 'success' : 'active'}
-                                    strokeColor={deceasedStats.femalePaidAmount >= deceasedStats.femalePromiseAmount && deceasedStats.femalePromiseAmount > 0 ? '#52c41a' : '#1890ff'}
-                                />
-                                <div style={{ marginTop: 12, display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: 4 }}>
-                                    <Text type="secondary" style={{ fontSize: 'clamp(11px, 2.5vw, 12px)' }}>Promise: Rs. {(deceasedStats.femalePromiseAmount || 0).toLocaleString()}</Text>
-                                    <Text type="secondary" style={{ fontSize: 'clamp(11px, 2.5vw, 12px)' }}>{deceasedStats.femalePromiseAmount ? Math.round((deceasedStats.femalePaidAmount || 0) / deceasedStats.femalePromiseAmount * 100).toFixed(1) + '%' : '0%'}</Text>
-                                </div>
-                            </Card>
-                        </Col>
-                        <Col xs={24} sm={24} md={8}>
-                            <Card hoverable>
-                                <Statistic
-                                    title={<span style={{ fontSize: 'clamp(12px, 3vw, 14px)' }}>{`Total Deceased (${deceasedStats.deceasedMales + deceasedStats.deceasedFemales})`}</span>}
+                                    title={<span style={{ fontSize: 'clamp(14px, 3vw, 16px)', fontWeight: 600 }}>Total Special/Deceased Collection</span>}
                                     value={deceasedStats.totalDeceasedPaid || 0}
                                     prefix="Rs."
                                     precision={0}
-                                    valueStyle={{ fontSize: 'clamp(18px, 4.5vw, 28px)' }}
+                                    valueStyle={{ fontSize: 'clamp(24px, 5vw, 36px)', color: '#1890ff' }}
                                 />
+                                <div style={{ marginTop: 8 }}>
+                                    <Text type="secondary" style={{ fontSize: 'clamp(12px, 2.5vw, 14px)' }}>
+                                        Total Members: <strong>{(deceasedStats.deceasedMales + deceasedStats.deceasedFemales).toLocaleString()}</strong>
+                                    </Text>
+                                    <br />
+                                    <Text type="secondary" style={{ fontSize: 'clamp(11px, 2.5vw, 13px)' }}>
+                                        Total Promised: Rs. {(deceasedStats.totalDeceasedPromise || 0).toLocaleString()} • {deceasedStats.totalDeceasedPromise > 0 ? (deceasedStats.totalDeceasedPaid / deceasedStats.totalDeceasedPromise * 100).toFixed(1) : '0'}% Collected
+                                    </Text>
+                                </div>
                                 <Progress
                                     percent={deceasedStats.totalDeceasedPromise > 0 ? Math.round(deceasedStats.totalDeceasedPaid / deceasedStats.totalDeceasedPromise * 100) : 0}
                                     status={deceasedStats.totalDeceasedPaid >= deceasedStats.totalDeceasedPromise && deceasedStats.totalDeceasedPromise > 0 ? 'success' : 'active'}
-                                    strokeColor={deceasedStats.totalDeceasedPaid >= deceasedStats.totalDeceasedPromise && deceasedStats.totalDeceasedPromise > 0 ? '#52c41a' : '#1890ff'}
+                                    strokeColor="#1890ff"
+                                    style={{ marginTop: 12 }}
                                 />
-                                <div style={{ marginTop: 12, display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: 4 }}>
-                                    <Text type="secondary" style={{ fontSize: 'clamp(11px, 2.5vw, 12px)' }}>Promise: Rs. {(deceasedStats.totalDeceasedPromise || 0).toLocaleString()}</Text>
-                                    <Text type="secondary" style={{ fontSize: 'clamp(11px, 2.5vw, 12px)' }}>{deceasedStats.totalDeceasedPromise ? Math.round(deceasedStats.totalDeceasedPaid / deceasedStats.totalDeceasedPromise * 100).toFixed(1) + '%' : '0%'}</Text>
-                                </div>
                             </Card>
                         </Col>
                     </Row>
