@@ -5,8 +5,6 @@ import {
     Typography,
     Tabs,
     Row,
-    Col,
-    Statistic,
     Progress,
     Tag,
     Button,
@@ -20,9 +18,8 @@ import {
     LineChartOutlined,
     PieChartOutlined
 } from '@ant-design/icons';
-import { Member, WaqfJadeedRecord, WaqfJadeedSpecialRecord, Tanzeem, Payment } from '../types';
-import { getTanzeemDisplayName, getTanzeemUrduName } from '../utils/helpers';
-import { exportToCSV } from '../utils/helpers';
+import type { Member, WaqfJadeedRecord, WaqfJadeedSpecialRecord, Payment } from '../types';
+import { getTanzeemDisplayName, exportToCSV } from '../utils/helpers';
 import dayjs from 'dayjs';
 
 const { Title, Text } = Typography;

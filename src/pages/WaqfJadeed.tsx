@@ -41,8 +41,7 @@ import {
     FilePdfOutlined,
     CopyOutlined,
     SaveOutlined,
-    ShareAltOutlined,
-    BarChartOutlined
+    ShareAltOutlined
 } from '@ant-design/icons';
 import WaqfReports from '../components/WaqfReports';
 import dayjs from 'dayjs';
