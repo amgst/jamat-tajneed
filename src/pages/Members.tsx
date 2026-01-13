@@ -148,17 +148,17 @@ const Members: React.FC = () => {
   useEffect(() => {
     if (modalVisible && editingMember) {
       form.setFieldsValue({
-          ...editingMember,
-          isMoved: editingMember.isMoved ?? false,
-          movedTo: editingMember.movedTo || '',
-          dateOfBirth: dayjs(editingMember.dateOfBirth),
-          dateOfDeath: editingMember.dateOfDeath ? dayjs(editingMember.dateOfDeath) : undefined,
-          isBaitByBirth: editingMember.isBaitByBirth ?? true,
-          baitYear: editingMember.baitYear,
-          wasitNo: editingMember.wasitNo,
-          education: editingMember.education,
-          bloodGroup: editingMember.bloodGroup,
-          waqfeNauNumber: editingMember.waqfeNauNumber,
+        ...editingMember,
+        isMoved: editingMember.isMoved ?? false,
+        movedTo: editingMember.movedTo || '',
+        dateOfBirth: dayjs(editingMember.dateOfBirth),
+        dateOfDeath: editingMember.dateOfDeath ? dayjs(editingMember.dateOfDeath) : undefined,
+        isBaitByBirth: editingMember.isBaitByBirth ?? true,
+        baitYear: editingMember.baitYear,
+        wasitNo: editingMember.wasitNo,
+        education: editingMember.education,
+        bloodGroup: editingMember.bloodGroup,
+        waqfeNauNumber: editingMember.waqfeNauNumber,
       });
     } else if (modalVisible && !editingMember) {
       // Reset form when adding a new member
@@ -913,7 +913,7 @@ const Members: React.FC = () => {
         <Form
           form={form}
           layout="vertical"
-          requiredMark={false}
+          requiredMark={true}
           preserve={false}
           onValuesChange={(changedValues, allValues) => {
             if (changedValues.isBaitByBirth !== undefined) {
@@ -1030,13 +1030,6 @@ const Members: React.FC = () => {
                     name="isBaitByBirth"
                     label="Year of Bait"
                     initialValue={true}
-                    valuePropName="checked"
-                    getValueFromEvent={(e) => {
-                      // If checkbox is checked, it means "By Birth" (true)
-                      // If unchecked, it means "Custom" (false)
-                      // But for a Select, we work differently. Let's use Select for "By Birth" vs "Custom"
-                      return e;
-                    }}
                   >
                     <Select
                       onChange={(value) => {
@@ -1124,7 +1117,17 @@ const Members: React.FC = () => {
                 name="education"
                 label="Education"
               >
-                <Input placeholder="Enter education" />
+                <Select placeholder="Select education">
+                  <Option value="None">None</Option>
+                  <Option value="Primary">Primary</Option>
+                  <Option value="Middle">Middle</Option>
+                  <Option value="Matric">Matric</Option>
+                  <Option value="Intermediate">Intermediate</Option>
+                  <Option value="Graduate">Graduate</Option>
+                  <Option value="Postgraduate">Postgraduate</Option>
+                  <Option value="Doctorate">Doctorate</Option>
+                  <Option value="Other">Other</Option>
+                </Select>
               </Form.Item>
             </Col>
           </Row>

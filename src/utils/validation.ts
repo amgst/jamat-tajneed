@@ -190,7 +190,7 @@ export const validateMemberData = (data: any): { valid: boolean; errors: string[
   }
 
   // Validate husband name if provided
-  if (data.husbandName && !validateName(data.husbandName)) {
+  if (data.husbandName && data.husbandName.trim() && !validateName(data.husbandName)) {
     errors.push('Husband name must be 2-100 characters');
   }
 
@@ -200,12 +200,12 @@ export const validateMemberData = (data: any): { valid: boolean; errors: string[
   }
 
   // Validate CNIC if provided
-  if (data.cnic && !validateCNIC(data.cnic)) {
+  if (data.cnic && data.cnic.trim() && !validateCNIC(data.cnic)) {
     errors.push('CNIC must be 13 digits');
   }
 
-  // Validate phone if provided
-  if (data.phone && !validatePhone(data.phone)) {
+  // Validate phone if provided (making it non-compulsory)
+  if (data.phone && data.phone.trim() && !validatePhone(data.phone)) {
     errors.push('Phone number is invalid');
   }
 

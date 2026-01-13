@@ -111,7 +111,7 @@ const ReligiousActivitiesModal: React.FC<ReligiousActivitiesModalProps> = ({
       <Form
         form={form}
         layout="vertical"
-        requiredMark={false}
+        requiredMark={true}
         disabled={readOnly}
         preserve={false}
       >
@@ -129,7 +129,7 @@ const ReligiousActivitiesModal: React.FC<ReligiousActivitiesModalProps> = ({
         </Row>
 
         <Divider>Daily tasks</Divider>
-        
+
         <Row gutter={16}>
           <Col span={8}>
             <Form.Item

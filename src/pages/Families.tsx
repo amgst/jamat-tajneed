@@ -459,7 +459,7 @@ const Families: React.FC = () => {
         <Form
           form={form}
           layout="vertical"
-          requiredMark={false}
+          requiredMark={true}
         >
           <Form.Item
             name="familyName"

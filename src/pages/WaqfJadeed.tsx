@@ -2168,7 +2168,7 @@ const WaqfJadeed: React.FC = () => {
                     </Button>
                 }
             >
-                <Form form={form} layout="vertical">
+                <Form form={form} layout="vertical" requiredMark={true}>
                     <Row gutter={[16, 16]}>
                         <Col xs={24} sm={12} md={12} lg={6}>
                             <Form.Item label="Promise">
@@ -2266,7 +2266,7 @@ const WaqfJadeed: React.FC = () => {
 
                 <div id="payment-form-container" style={{ marginTop: 24, padding: 16, border: paymentEditingId ? '2px solid #1890ff' : '1px solid #f0f0f0', borderRadius: 8, background: '#fafafa' }}>
                     <Title level={5} style={{ fontSize: 'clamp(14px, 3.5vw, 16px)' }}>{paymentEditingId ? 'Edit Payment' : 'Add New Payment'}</Title>
-                    <Form form={paymentForm} layout="vertical" onFinish={handleAddPayment}>
+                    <Form form={paymentForm} layout="vertical" onFinish={handleAddPayment} requiredMark={true}>
                         <Row gutter={[8, 8]}>
                             <Col xs={24} sm={12} md={6}>
                                 <Form.Item name="bookId" label="Book" rules={[{ required: true, message: 'Required' }]} style={{ marginBottom: 8 }}>
@@ -2458,7 +2458,7 @@ const WaqfJadeed: React.FC = () => {
                 okText="Save"
                 confirmLoading={submitting}
             >
-                <Form form={specialForm} layout="vertical">
+                <Form form={specialForm} layout="vertical" requiredMark={true}>
                     <Form.Item name="id" hidden><Input /></Form.Item>
 
                     <Form.Item label="Quick Select">
@@ -2526,7 +2526,7 @@ const WaqfJadeed: React.FC = () => {
                 onCancel={() => setAddBookModalVisible(false)}
                 footer={null}
             >
-                <Form form={newBookForm} layout="vertical" onFinish={handleAddBook}>
+                <Form form={newBookForm} layout="vertical" onFinish={handleAddBook} requiredMark={true}>
                     <Form.Item name="bookNo" label="Book Number" rules={[{ required: true, message: 'Required' }]}>
                         <Input placeholder="e.g. A-1, B-2" />
                     </Form.Item>

@@ -758,7 +758,7 @@ const TahreqJadeed: React.FC = () => {
                     </Button>
                 }
             >
-                <Form form={form} layout="vertical">
+                <Form form={form} layout="vertical" requiredMark={true}>
                     <Row gutter={16}>
                         <Col span={6}>
                             <Form.Item label="Promised Amount">
@@ -844,7 +844,7 @@ const TahreqJadeed: React.FC = () => {
 
                 <div style={{ marginTop: 24, padding: '16px 0', borderTop: '1px solid #f0f0f0' }}>
                     <Title level={5}>Add Payment</Title>
-                    <Form form={paymentForm} layout="inline" onFinish={handleAddPayment}>
+                    <Form form={paymentForm} layout="vertical" onFinish={handleAddPayment} requiredMark={true}>
                         <div style={{ display: 'flex', gap: 8, width: '100%', flexWrap: 'wrap' }}>
                             <Form.Item name="amount" rules={[{ required: true, message: 'Req' }]} style={{ flex: 1, minWidth: 100, margin: 0 }}>
                                 <InputNumber placeholder="Amount" style={{ width: '100%' }} />
@@ -904,7 +904,7 @@ const TahreqJadeed: React.FC = () => {
                 {/* Payment Plans Section */}
                 {editingMember && (
                     <div style={{ marginTop: 24 }}>
-                        <PaymentPlanManager 
+                        <PaymentPlanManager
                             memberId={editingMember.id}
                             year={selectedYear}
                             totalAmount={
@@ -960,7 +960,7 @@ const TahreqJadeed: React.FC = () => {
                 okText="Save"
                 confirmLoading={submitting}
             >
-                <Form form={specialForm} layout="vertical">
+                <Form form={specialForm} layout="vertical" requiredMark={true}>
                     <Form.Item name="id" hidden><Input /></Form.Item>
 
                     <Form.Item label="Quick Select">

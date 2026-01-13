@@ -83,7 +83,7 @@ const FamilyDetails: React.FC = () => {
         let members = allMembersData.filter((member: Member) =>
           familyData.memberIds.includes(member.id)
         );
-        
+
         // Ensure family head is included even if not in memberIds
         if (familyData.headId) {
           const headMember = allMembersData.find(member => member.id === familyData.headId);
@@ -120,7 +120,7 @@ const FamilyDetails: React.FC = () => {
         // Separate active and moved members
         const activeMembers = sortedMembers.filter(member => !member.isMoved);
         const movedMembers = sortedMembers.filter(member => member.isMoved);
-        
+
         setFamilyMembers(activeMembers);
         setMovedFamilyMembers(movedMembers);
       } else {
@@ -330,11 +330,11 @@ const FamilyDetails: React.FC = () => {
   // Get available members (not in current family)
   const getAvailableMembers = () => {
     if (!family) return allMembers;
-    
+
     // Return all members that are not in the current family
     // This includes members with no family, members in other families, and deceased members
     const available = allMembers.filter(member => !family.memberIds.includes(member.id));
-    
+
     // Sort by name for easier selection
     return available.sort((a, b) => a.name.localeCompare(b.name));
   };
@@ -349,12 +349,12 @@ const FamilyDetails: React.FC = () => {
   const getFamilyHead = () => {
     // First try to find in family members
     let head = familyMembers.find(member => member.id === family?.headId);
-    
+
     // If not found in family members, try to find in all members
     if (!head && family?.headId) {
       head = allMembers.find(member => member.id === family?.headId);
     }
-    
+
     return head;
   };
 
@@ -780,7 +780,7 @@ const FamilyDetails: React.FC = () => {
         <Form
           form={memberForm}
           layout="vertical"
-          requiredMark={false}
+          requiredMark={true}
         >
           <Row gutter={16}>
             <Col xs={24} md={12}>
@@ -1016,7 +1016,7 @@ const FamilyDetails: React.FC = () => {
                   validator(_, value) {
                     const isMoved = memberForm.getFieldValue('isMoved');
                     if (isMoved && !value) {
-                      return Promise.reject(new Error('Please enter where member moved to')); 
+                      return Promise.reject(new Error('Please enter where member moved to'));
                     }
                     return Promise.resolve();
                   },
