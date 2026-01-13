@@ -601,8 +601,10 @@ const WaqfJadeed: React.FC = () => {
 
         const totalPromise = records.reduce((sum, r) => sum + (r.promiseAmount || 0) + (r.nagarparAmount || 0), 0) + specialPromise;
         const totalPaid = records.reduce((sum, r) => sum + (r.paidAmount || 0), 0) + specialPaid;
+        const totalNagarParkar = records.reduce((sum, r) => sum + (r.nagarparAmount || 0), 0) +
+            specialRecords.reduce((sum, r) => sum + (r.nagarparAmount || 0), 0);
         const percent = totalPromise > 0 ? (totalPaid / totalPromise) * 100 : 0;
-        return { totalPromise, totalPaid, percent };
+        return { totalPromise, totalPaid, totalNagarParkar, percent };
     }, [records, specialRecords]);
 
     // Tanzeem Stats Aggregation
@@ -1842,6 +1844,22 @@ const WaqfJadeed: React.FC = () => {
                                             Received: Rs. {targetSectionStats.totalReceived.toLocaleString()}
                                         </Text>
                                     </div>
+                                </Card>
+                            </Col>
+                            <Col xs={24} sm={12} md={6}>
+                                <Card bodyStyle={{ padding: 16 }}>
+                                    <Statistic
+                                        title="Total Nagar Parkar"
+                                        value={stats.totalNagarParkar}
+                                        prefix="Rs."
+                                        precision={0}
+                                        valueStyle={{ fontSize: 'clamp(18px, 4vw, 28px)', color: '#fa8c16' }}
+                                    />
+                                    <div style={{ marginBottom: 4 }}>
+                                        <Text type="secondary" style={{ fontSize: 'clamp(11px, 2.5vw, 12px)' }}>
+                                            Special/Members Total
+                                        </Text>
+                                    </div>
                                     <div style={{ marginTop: 8 }}>
                                         <Progress
                                             percent={Math.round(targetSectionStats.receivedPercent)}
@@ -2268,7 +2286,8 @@ const WaqfJadeed: React.FC = () => {
                         </div>
                     </Card>
                 </div>
-            ) : null}
+            ) : null
+            }
 
             {/* Edit Drawer */}
             <Drawer
@@ -2652,7 +2671,7 @@ const WaqfJadeed: React.FC = () => {
                     </Form.Item>
                 </Form>
             </Modal>
-        </div>
+        </div >
     );
 };
 
