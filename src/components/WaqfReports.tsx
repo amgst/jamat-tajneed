@@ -8,7 +8,8 @@ import {
     Progress,
     Tag,
     Button,
-    Space
+    Space,
+    Select
 } from 'antd';
 import {
     FilterOutlined,
@@ -17,7 +18,8 @@ import {
     UserOutlined,
     LineChartOutlined,
     PieChartOutlined,
-    EnvironmentOutlined
+    EnvironmentOutlined,
+    BookOutlined
 } from '@ant-design/icons';
 import type { Member, WaqfJadeedRecord, WaqfJadeedSpecialRecord, Payment, Family } from '../types';
 import { getTanzeemDisplayName, exportToCSV } from '../utils/helpers';
@@ -47,8 +49,24 @@ const WaqfReports: React.FC<WaqfReportsProps> = ({
     selectedYear
 }) => {
     const [activeReport, setActiveReport] = useState('halqa');
+    const [selectedBook, setSelectedBook] = useState<string | null>(null);
 
     // --- Data Calculations ---
+
+    const uniqueBooks = useMemo(() => {
+        const books = new Set<string>();
+        allPayments.forEach(p => {
+            if (p.bookNo) books.add(p.bookNo.toString());
+        });
+        return Array.from(books).sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+    }, [allPayments]);
+
+    // Set initial book if none selected
+    React.useEffect(() => {
+        if (!selectedBook && uniqueBooks.length > 0) {
+            setSelectedBook(uniqueBooks[0]);
+        }
+    }, [uniqueBooks, selectedBook]);
 
     const halqaStats = useMemo(() => {
         const stats: Record<string, { promised: number; paid: number; count: number }> = {};
@@ -143,11 +161,14 @@ const WaqfReports: React.FC<WaqfReportsProps> = ({
             }
 
             return {
-                ...p,
-                name,
+                Date: dayjs(p.date).format('DD MMM YYYY'),
+                Member: name,
+                'Book #': p.bookNo || 'N/A',
+                'Receipt #': p.receiptNo || 'N/A',
+                Amount: p.amount,
                 key: p.id
             };
-        }).sort((a, b) => dayjs(b.date).unix() - dayjs(a.date).unix());
+        }).sort((a, b) => dayjs(b.Date).unix() - dayjs(a.Date).unix());
     }, [allPayments, records, specialRecords]);
 
     const comparisonStats = useMemo(() => {
@@ -209,6 +230,41 @@ const WaqfReports: React.FC<WaqfReportsProps> = ({
             .sort((a, b) => b.familyName.localeCompare(a.familyName));
     }, [families, members]);
 
+    const bookDetails = useMemo(() => {
+        if (!selectedBook) return [];
+
+        const data = [];
+        // Generate receipts 1 to 100
+        for (let i = 1; i <= 100; i++) {
+            const receiptPrefix = i;
+            const payment = allPayments.find(p =>
+                p.bookNo?.toString() === selectedBook &&
+                p.receiptNo?.toString() === receiptPrefix.toString()
+            );
+
+            let memberName = 'N/A';
+            if (payment) {
+                const memberRecord = records.find(r => r.record?.id === payment.waqfJadeedId);
+                if (memberRecord) {
+                    memberName = memberRecord.member.name;
+                } else {
+                    const special = specialRecords.find(sr => sr.id === payment.waqfJadeedId);
+                    if (special) memberName = `${special.name} (Special)`;
+                }
+            }
+
+            data.push({
+                key: i,
+                receiptNo: i,
+                status: payment ? 'Paid' : 'Pending',
+                name: memberName,
+                amount: payment?.amount || 0,
+                date: payment?.date ? dayjs(payment.date).format('DD MMM YYYY') : 'N/A'
+            });
+        }
+        return data;
+    }, [selectedBook, allPayments, records, specialRecords]);
+
     // --- Export Functions ---
 
     const exportReport = (data: any[], filename: string) => {
@@ -216,6 +272,21 @@ const WaqfReports: React.FC<WaqfReportsProps> = ({
     };
 
     // --- Columns Definitions ---
+
+    const receiptBookColumns = [
+        { title: 'Receipt #', dataIndex: 'receiptNo', key: 'receiptNo', width: 100 },
+        {
+            title: 'Status',
+            dataIndex: 'status',
+            key: 'status',
+            render: (status: string) => (
+                <Tag color={status === 'Paid' ? 'success' : 'warning'}>{status}</Tag>
+            )
+        },
+        { title: 'Member Name', dataIndex: 'name', key: 'name' },
+        { title: 'Amount', dataIndex: 'amount', key: 'amount', render: (val: number) => val > 0 ? `Rs. ${val.toLocaleString()}` : '-', align: 'right' as const },
+        { title: 'Date', dataIndex: 'date', key: 'date' }
+    ];
 
     const movedFamilyColumns = [
         { title: 'Family Name', dataIndex: 'familyName', key: 'familyName' },
@@ -252,10 +323,11 @@ const WaqfReports: React.FC<WaqfReportsProps> = ({
     ];
 
     const transactionColumns = [
-        { title: 'Date', dataIndex: 'date', key: 'date', render: (d: string) => dayjs(d).format('DD MMM YYYY') },
-        { title: 'Member', dataIndex: 'name', key: 'name' },
-        { title: 'Receipt #', dataIndex: 'receiptNo', key: 'receiptNo', render: (val: any, r: any) => r.bookNo ? `${r.bookNo}-${val}` : val || 'N/A' },
-        { title: 'Amount', dataIndex: 'amount', key: 'amount', render: (val: number) => <Text strong style={{ color: '#52c41a' }}>Rs. {val.toLocaleString()}</Text>, align: 'right' as const }
+        { title: 'Date', dataIndex: 'Date', key: 'Date' },
+        { title: 'Member', dataIndex: 'Member', key: 'Member' },
+        { title: 'Book #', dataIndex: 'Book #', key: 'Book #', width: 100 },
+        { title: 'Receipt #', dataIndex: 'Receipt #', key: 'Receipt #', width: 100 },
+        { title: 'Amount', dataIndex: 'Amount', key: 'Amount', render: (val: number) => <Text strong style={{ color: '#52c41a' }}>Rs. {val.toLocaleString()}</Text>, align: 'right' as const }
     ];
 
     const comparisonColumns = [
@@ -345,6 +417,40 @@ const WaqfReports: React.FC<WaqfReportsProps> = ({
                                     columns={movedFamilyColumns}
                                     pagination={{ pageSize: 15 }}
                                     scroll={{ x: 600 }}
+                                />
+                            </div>
+                        )
+                    },
+                    {
+                        key: 'receipt_books',
+                        label: <span><BookOutlined /> Receipt Books</span>,
+                        children: (
+                            <div>
+                                <Row justify="space-between" align="middle" style={{ marginBottom: 16 }}>
+                                    <Space size="large">
+                                        <Title level={5} style={{ margin: 0 }}>Receipt Book Status (1-100)</Title>
+                                        <Select
+                                            placeholder="Select Book #"
+                                            style={{ width: 150 }}
+                                            value={selectedBook}
+                                            onChange={setSelectedBook}
+                                            options={uniqueBooks.map(b => ({ label: `Book ${b}`, value: b }))}
+                                        />
+                                    </Space>
+                                    <Button
+                                        icon={<DownloadOutlined />}
+                                        disabled={!selectedBook}
+                                        onClick={() => exportReport(bookDetails, `receipt_book_${selectedBook}`)}
+                                    >
+                                        Export CSV
+                                    </Button>
+                                </Row>
+                                <Table
+                                    dataSource={bookDetails}
+                                    columns={receiptBookColumns}
+                                    pagination={false}
+                                    rowKey="receiptNo"
+                                    scroll={{ y: 500, x: 600 }}
                                 />
                             </div>
                         )

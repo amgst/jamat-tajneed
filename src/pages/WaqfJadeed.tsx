@@ -1143,6 +1143,82 @@ const WaqfJadeed: React.FC = () => {
             message.error({ content: 'Failed to generate card', key: 'card-export' });
         }
     };
+    const handleExportFamilyCard = async (family: Family, totalPromised: number, totalPaid: number) => {
+        try {
+            message.loading({ content: 'Generating card...', key: 'family-card', duration: 0 });
+
+            const balance = totalPromised - totalPaid;
+            const percent = totalPromised > 0 ? Math.round((totalPaid / totalPromised) * 100) : 0;
+            const head = members.find(m => m.id === family.headId);
+
+            const cardDiv = document.createElement('div');
+            cardDiv.style.width = '400px';
+            cardDiv.style.padding = '30px';
+            cardDiv.style.background = 'linear-gradient(135deg, #1e293b 0%, #0f172a 100%)';
+            cardDiv.style.color = '#ffffff';
+            cardDiv.style.fontFamily = "'Inter', system-ui, -apple-system, sans-serif";
+            cardDiv.style.borderRadius = '20px';
+            cardDiv.style.position = 'fixed';
+            cardDiv.style.left = '-9999px';
+            cardDiv.style.top = '0';
+            cardDiv.style.boxShadow = '0 25px 50px -12px rgba(0, 0, 0, 0.5)';
+
+            cardDiv.innerHTML = `
+                <div style="text-align: center; margin-bottom: 30px;">
+                    <h2 style="margin: 0; color: #34d399; font-size: 24px; letter-spacing: 1px;">WAQF-E-JADEED</h2>
+                    <p style="margin: 5px 0 0 0; font-size: 14px; opacity: 0.7;">Family Collection Summary ${selectedYear}</p>
+                </div>
+
+                <div style="margin-bottom: 30px; text-align: center; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 20px;">
+                    <p style="margin: 0; font-size: 14px; opacity: 0.7; text-transform: uppercase;">Family Name / سر براہ</p>
+                    <h1 style="margin: 10px 0 0 0; font-size: 28px; font-weight: 800;">${family.familyName}</h1>
+                    <p style="margin: 5px 0 0 0; font-size: 16px; opacity: 0.9;">Head: ${head?.name || 'N/A'}</p>
+                </div>
+
+                <div style="background: rgba(255,255,255,0.1); padding: 25px; border-radius: 12px; backdrop-filter: blur(5px); margin-bottom: 30px;">
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 15px;">
+                        <span style="opacity: 0.8;">Total Promised (کل وعدہ)</span>
+                        <span style="font-weight: bold;">Rs. ${totalPromised.toLocaleString()}</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 15px;">
+                        <span style="opacity: 0.8;">Total Paid (کل ادا شدہ)</span>
+                        <span style="font-weight: bold; color: #34d399;">Rs. ${totalPaid.toLocaleString()}</span>
+                    </div>
+                    <hr style="border: none; border-top: 1px solid rgba(255,255,255,0.2); margin: 15px 0;">
+                    <div style="display: flex; justify-content: space-between;">
+                        <span style="font-weight: bold;">Total Balance (بقیہ)</span>
+                        <span style="font-weight: bold; color: #f87171;">Rs. ${balance.toLocaleString()}</span>
+                    </div>
+                </div>
+
+                <div style="text-align: center;">
+                    <div style="width: 100%; height: 10px; background: rgba(255,255,255,0.2); border-radius: 5px; margin-bottom: 10px; overflow: hidden;">
+                        <div style="width: ${percent}%; height: 100%; background: #34d399;"></div>
+                    </div>
+                    <p style="margin: 0; font-size: 16px; font-weight: bold;">${percent}% Completed</p>
+                    <p style="margin: 30px 0 0 0; font-size: 11px; opacity: 0.5;">Generated on ${new Date().toLocaleDateString()} • Jamat Tajneed System</p>
+                </div>
+            `;
+
+            document.body.appendChild(cardDiv);
+            const canvas = await html2canvas(cardDiv, {
+                scale: 2,
+                backgroundColor: null,
+                useCORS: true
+            });
+            document.body.removeChild(cardDiv);
+
+            const link = document.createElement('a');
+            link.download = `Family_${family.familyName.replace(/\s+/g, '_')}_${selectedYear}.png`;
+            link.href = canvas.toDataURL('image/png');
+            link.click();
+
+            message.success({ content: 'Family card generated!', key: 'family-card' });
+        } catch (error) {
+            console.error('Error generating family card:', error);
+            message.error({ content: 'Failed to generate card', key: 'family-card' });
+        }
+    };
 
 
 
@@ -1470,6 +1546,16 @@ const WaqfJadeed: React.FC = () => {
                                                         )}
                                                         <Button
                                                             type="text"
+                                                            icon={<ShareAltOutlined />}
+                                                            size="small"
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                handleExportFamilyCard(family, familyTotalPromise, familyTotalPaid);
+                                                            }}
+                                                            title="Share Family Card"
+                                                        />
+                                                        <Button
+                                                            type="text"
                                                             icon={<FilePdfOutlined />}
                                                             size="small"
                                                             onClick={(e) => {
@@ -1482,7 +1568,7 @@ const WaqfJadeed: React.FC = () => {
                                                                     familyTotalPaid
                                                                 );
                                                             }}
-                                                            title="Export to PDF"
+                                                            title="Download PDF"
                                                         />
                                                     </Space>
                                                 </Col>
@@ -1898,11 +1984,13 @@ const WaqfJadeed: React.FC = () => {
                                         value={stats.totalNagarParkar}
                                         prefix="Rs."
                                         precision={0}
-                                        valueStyle={{ fontSize: 'clamp(18px, 4vw, 24px)', color: '#fa8c16' }}
+                                        valueStyle={{ fontSize: 'clamp(18px, 4vw, 24px)' }}
                                     />
-                                    <Text type="secondary" style={{ fontSize: '11px' }}>
-                                        Special/Members Total
-                                    </Text>
+                                    <div style={{ marginTop: 4 }}>
+                                        <Text type="secondary" style={{ fontSize: '11px', opacity: 0.8 }}>
+                                            Total Promises & Collection
+                                        </Text>
+                                    </div>
                                 </Card>
                             </Col>
                             <Col xs={24} sm={12} md={6} lg={5}>
