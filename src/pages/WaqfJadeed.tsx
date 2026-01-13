@@ -101,6 +101,14 @@ const WaqfJadeed: React.FC = () => {
     const [tanzeemMembersCurrentPage, setTanzeemMembersCurrentPage] = useState<Record<string, number>>({});
     const [tanzeemMembersPageSize, setTanzeemMembersPageSize] = useState<Record<string, number>>({});
 
+    // Moved Families states
+    const [familyViewTab, setFamilyViewTab] = useState<'active' | 'moved'>('active');
+    const [movedDestinations, setMovedDestinations] = useState<string[]>(['Germany', 'Thailand']);
+    const [movedModalVisible, setMovedModalVisible] = useState(false);
+    const [selectedFamilyForMove, setSelectedFamilyForMove] = useState<Family | null>(null);
+    const [moveForm] = Form.useForm();
+    const [newDestination, setNewDestination] = useState('');
+
     const [books, setBooks] = useState<ReceiptBook[]>([]);
     const [addBookModalVisible, setAddBookModalVisible] = useState(false);
     const [newBookForm] = Form.useForm();
@@ -108,7 +116,19 @@ const WaqfJadeed: React.FC = () => {
     useEffect(() => {
         loadData();
         loadBooks();
+        loadMovedDestinations();
     }, [selectedYear]);
+
+    const loadMovedDestinations = async () => {
+        try {
+            const snap = await getDoc(doc(db, 'settings', 'moved_destinations'));
+            if (snap.exists() && snap.data().list) {
+                setMovedDestinations(snap.data().list);
+            }
+        } catch (error) {
+            console.error('Failed to load moved destinations:', error);
+        }
+    };
 
     const loadBooks = async () => {
         try {

@@ -92,6 +92,8 @@ export interface Family {
   totalMembers: number;
   halqa?: string;
   familyHistory?: string; // Family history and background notes
+  isMoved?: boolean;
+  movedTo?: string;
   createdAt: string;
   updatedAt: string;
 }
