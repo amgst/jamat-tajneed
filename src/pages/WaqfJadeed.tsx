@@ -40,8 +40,11 @@ import {
     PrinterOutlined,
     FilePdfOutlined,
     CopyOutlined,
-    SaveOutlined
+    SaveOutlined,
+    ShareAltOutlined,
+    BarChartOutlined
 } from '@ant-design/icons';
+import WaqfReports from '../components/WaqfReports';
 import dayjs from 'dayjs';
 import { jsPDF } from 'jspdf';
 import html2canvas from 'html2canvas';
@@ -954,6 +957,85 @@ const WaqfJadeed: React.FC = () => {
         }
     };
 
+    const handleExportMemberCard = async (memberData: any, isSpecial: boolean = false) => {
+        try {
+            message.loading({ content: 'Generating shareable card...', key: 'card-export' });
+
+            const cardDiv = document.createElement('div');
+            cardDiv.style.width = '360px';
+            cardDiv.style.height = '640px';
+            cardDiv.style.position = 'fixed';
+            cardDiv.style.left = '-9999px';
+            cardDiv.style.background = 'linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%)';
+            cardDiv.style.color = 'white';
+            cardDiv.style.fontFamily = '"Noto Sans Arabic", Arial, sans-serif';
+            cardDiv.style.padding = '30px';
+            cardDiv.style.boxSizing = 'border-box';
+            cardDiv.style.display = 'flex';
+            cardDiv.style.flexDirection = 'column';
+            cardDiv.style.justifyContent = 'space-between';
+            cardDiv.style.borderRadius = '12px';
+
+            const name = isSpecial ? memberData.name : memberData.member.name;
+            const promised = isSpecial ? (memberData.promiseAmount || 0) + (memberData.nagarparAmount || 0) : memberData.promise;
+            const paid = isSpecial ? memberData.paidAmount : memberData.paid;
+            const balance = promised - paid;
+            const percent = promised > 0 ? Math.min(100, Math.round((paid / promised) * 100)) : 0;
+
+            cardDiv.innerHTML = `
+                <div style="text-align: center;">
+                    <h2 style="margin: 0; font-size: 24px; color: #fbbf24;">Waqf-e-Jadeed ${selectedYear}</h2>
+                    <p style="margin: 5px 0 20px 0; opacity: 0.8; font-size: 14px;">Personal Collection Card</p>
+                    <div style="width: 80px; height: 80px; background: rgba(255,255,255,0.2); border-radius: 50%; margin: 0 auto 15px; display: flex; align-items: center; justify-content: center; font-size: 32px;">👤</div>
+                    <h1 style="margin: 0; font-size: 28px; direction: rtl;">${getUrduName(name)}</h1>
+                    <p style="margin: 5px 0 0 0; font-size: 16px; opacity: 0.9;">${name}</p>
+                </div>
+
+                <div style="background: rgba(255,255,255,0.1); padding: 20px; border-radius: 12px; backdrop-filter: blur(5px);">
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 15px;">
+                        <span style="opacity: 0.8;">Promised (وعدہ)</span>
+                        <span style="font-weight: bold;">Rs. ${promised.toLocaleString()}</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 15px;">
+                        <span style="opacity: 0.8;">Paid (ادا شدہ)</span>
+                        <span style="font-weight: bold; color: #34d399;">Rs. ${paid.toLocaleString()}</span>
+                    </div>
+                    <hr style="border: none; border-top: 1px solid rgba(255,255,255,0.2); margin: 15px 0;">
+                    <div style="display: flex; justify-content: space-between;">
+                        <span style="font-weight: bold;">Balance (بقیہ)</span>
+                        <span style="font-weight: bold; color: #f87171;">Rs. ${balance.toLocaleString()}</span>
+                    </div>
+                </div>
+
+                <div style="text-align: center;">
+                    <div style="width: 100%; height: 8px; background: rgba(255,255,255,0.2); border-radius: 4px; margin-bottom: 8px; overflow: hidden;">
+                        <div style="width: ${percent}%; height: 100%; background: #34d399;"></div>
+                    </div>
+                    <p style="margin: 0; font-size: 14px; font-weight: bold;">${percent}% Completed</p>
+                    <p style="margin: 20px 0 0 0; font-size: 10px; opacity: 0.6;">Generated on ${new Date().toLocaleDateString()} • Jamat Tajneed System</p>
+                </div>
+            `;
+
+            document.body.appendChild(cardDiv);
+            const canvas = await html2canvas(cardDiv, {
+                scale: 2,
+                backgroundColor: null,
+                useCORS: true
+            });
+            document.body.removeChild(cardDiv);
+
+            const link = document.createElement('a');
+            link.download = `${name.replace(/\s+/g, '_')}_WJ_${selectedYear}.png`;
+            link.href = canvas.toDataURL('image/png');
+            link.click();
+
+            message.success({ content: 'Card generated successfully!', key: 'card-export' });
+        } catch (error) {
+            console.error('Error generating card:', error);
+            message.error({ content: 'Failed to generate card', key: 'card-export' });
+        }
+    };
+
     const handleCopyNamesFrom2025 = async () => {
         try {
             setLoading(true);
@@ -1095,6 +1177,7 @@ const WaqfJadeed: React.FC = () => {
                     <Tabs.TabPane tab="Members" key="members" />
                     <Tabs.TabPane tab="Family Wise" key="families" />
                     <Tabs.TabPane tab="Tanzeem Wise" key="tanzeem" />
+                    <Tabs.TabPane tab="Reports" key="reports" />
                     <Tabs.TabPane tab="Dashboard" key="dashboard" />
                     <Tabs.TabPane tab="About" key="about" />
                 </Tabs>
@@ -1273,16 +1356,27 @@ const WaqfJadeed: React.FC = () => {
                                 width: 100,
                                 fixed: 'right',
                                 render: (_, record) => (
-                                    <Button
-                                        type="link"
-                                        icon={<EditOutlined />}
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            handleEdit(record.member);
-                                        }}
-                                    >
-                                        Edit
-                                    </Button>
+                                    <Space size="small">
+                                        <Button
+                                            type="link"
+                                            icon={<EditOutlined />}
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                handleEdit(record.member);
+                                            }}
+                                        >
+                                            Edit
+                                        </Button>
+                                        <Button
+                                            type="link"
+                                            icon={<ShareAltOutlined />}
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                handleExportMemberCard(record);
+                                            }}
+                                            title="Share Card"
+                                        />
+                                    </Space>
                                 ),
                                 sorter: false
                             }
@@ -1438,6 +1532,7 @@ const WaqfJadeed: React.FC = () => {
                                                 render: (_, record) => (
                                                     <Space size="small">
                                                         <Button size="small" icon={<EditOutlined />} onClick={() => handleEdit(record.member)} />
+                                                        <Button size="small" icon={<ShareAltOutlined />} onClick={() => handleExportMemberCard(record)} title="Share Card" />
                                                     </Space>
                                                 ),
                                             },
@@ -1549,6 +1644,7 @@ const WaqfJadeed: React.FC = () => {
                                                     render: (_, record) => (
                                                         <Space size="small">
                                                             <Button size="small" icon={<EditOutlined />} onClick={() => handleEditSpecial(record)} />
+                                                            <Button size="small" icon={<ShareAltOutlined />} onClick={() => handleExportMemberCard(record, true)} title="Share Card" />
                                                             <Button size="small" icon={<DeleteOutlined />} danger onClick={() => handleDeleteSpecial(record.id)} />
                                                         </Space>
                                                     ),
@@ -1680,6 +1776,7 @@ const WaqfJadeed: React.FC = () => {
                                                 render: (_, record) => (
                                                     <Space size="small">
                                                         <Button size="small" icon={<EditOutlined />} onClick={() => handleEdit(record.member)} />
+                                                        <Button size="small" icon={<ShareAltOutlined />} onClick={() => handleExportMemberCard(record)} title="Share Card" />
                                                     </Space>
                                                 ),
                                             },
@@ -1691,6 +1788,25 @@ const WaqfJadeed: React.FC = () => {
                         </Collapse>
                     )}
                 </div>
+            ) : activeTab === 'reports' ? (
+                <WaqfReports
+                    members={members}
+                    records={filteredMemberData}
+                    specialRecords={specialRecords}
+                    allPayments={useMemo(() => {
+                        const payments: Payment[] = [];
+                        records.forEach(r => {
+                            if (r.payments) payments.push(...r.payments);
+                        });
+                        specialRecords.forEach(sr => {
+                            if (sr.payments) payments.push(...sr.payments);
+                        });
+                        return payments;
+                    }, [records, specialRecords])}
+                    prevRecords={prevRecords}
+                    prevSpecialRecords={prevSpecialRecords}
+                    selectedYear={selectedYear}
+                />
             ) : activeTab === 'dashboard' ? (
                 // Dashboard Tab (Tanzeem Wise)
                 <div className="dashboard-view">
