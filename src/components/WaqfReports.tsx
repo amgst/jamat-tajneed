@@ -239,13 +239,34 @@ const WaqfReports: React.FC<WaqfReportsProps> = ({
         // Generate receipts 1 to 100
         for (let i = 1; i <= 100; i++) {
             const receiptPrefix = i;
-            const payment = allPayments.find(p =>
+            const paymentsForReceipt = allPayments.filter(p =>
                 p.bookNo?.toString() === selectedBook &&
                 p.receiptNo?.toString() === receiptPrefix.toString()
             );
 
-            let memberName = 'N/A';
-            if (payment) {
+            if (paymentsForReceipt.length === 0) {
+                data.push({
+                    key: i,
+                    receiptNo: i,
+                    status: 'Pending',
+                    name: 'N/A',
+                    amount: 0,
+                    date: 'N/A',
+                    isMultiple: false
+                });
+                continue;
+            }
+
+            // Group multiple payments
+            const names: string[] = [];
+            let totalAmount = 0;
+            const dates: string[] = [];
+
+            paymentsForReceipt.forEach(payment => {
+                totalAmount += payment.amount || 0;
+                dates.push(dayjs(payment.date).format('DD MMM YYYY'));
+
+                let memberName = 'Unknown';
                 const memberRecord = records.find(r => r.record?.id === payment.waqfJadeedId);
                 if (memberRecord) {
                     memberName = memberRecord.member.name;
@@ -253,15 +274,17 @@ const WaqfReports: React.FC<WaqfReportsProps> = ({
                     const special = specialRecords.find(sr => sr.id === payment.waqfJadeedId);
                     if (special) memberName = `${special.name} (Special)`;
                 }
-            }
+                names.push(memberName);
+            });
 
             data.push({
                 key: i,
                 receiptNo: i,
-                status: payment ? 'Paid' : 'Pending',
-                name: memberName,
-                amount: payment?.amount || 0,
-                date: payment?.date ? dayjs(payment.date).format('DD MMM YYYY') : 'N/A'
+                status: 'Paid',
+                name: names.join(', '),
+                amount: totalAmount,
+                date: [...new Set(dates)].join(', '),
+                isMultiple: paymentsForReceipt.length > 1
             });
         }
         return data;
@@ -294,7 +317,17 @@ const WaqfReports: React.FC<WaqfReportsProps> = ({
                 <Tag color={status === 'Paid' ? 'success' : 'warning'}>{status}</Tag>
             )
         },
-        { title: 'Member Name', dataIndex: 'name', key: 'name' },
+        {
+            title: 'Member Name',
+            dataIndex: 'name',
+            key: 'name',
+            render: (name: string, record: any) => (
+                <Space>
+                    {name}
+                    {record?.isMultiple && <Tag color="blue">Multiple</Tag>}
+                </Space>
+            )
+        },
         { title: 'Amount', dataIndex: 'amount', key: 'amount', render: (val: number) => val > 0 ? `Rs. ${val.toLocaleString()}` : '-', align: 'right' as const },
         { title: 'Date', dataIndex: 'date', key: 'date' }
     ];
