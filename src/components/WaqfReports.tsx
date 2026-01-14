@@ -5,6 +5,8 @@ import {
     Typography,
     Tabs,
     Row,
+    Col,
+    Statistic,
     Progress,
     Tag,
     Button,
@@ -265,6 +267,15 @@ const WaqfReports: React.FC<WaqfReportsProps> = ({
         return data;
     }, [selectedBook, allPayments, records, specialRecords]);
 
+    const bookStats = useMemo(() => {
+        const used = bookDetails.filter(d => d.status === 'Paid');
+        const totalAmount = used.reduce((sum, d) => sum + d.amount, 0);
+        return {
+            count: used.length,
+            totalAmount
+        };
+    }, [bookDetails]);
+
     // --- Export Functions ---
 
     const exportReport = (data: any[], filename: string) => {
@@ -444,6 +455,28 @@ const WaqfReports: React.FC<WaqfReportsProps> = ({
                                     >
                                         Export CSV
                                     </Button>
+                                </Row>
+                                <Row gutter={16} style={{ marginBottom: 16 }}>
+                                    <Col xs={24} sm={12}>
+                                        <Card size="small">
+                                            <Statistic
+                                                title="Total Amount Collected"
+                                                value={bookStats.totalAmount}
+                                                precision={0}
+                                                prefix="Rs."
+                                                valueStyle={{ color: '#3f8600' }}
+                                            />
+                                        </Card>
+                                    </Col>
+                                    <Col xs={24} sm={12}>
+                                        <Card size="small">
+                                            <Statistic
+                                                title="Receipts Used"
+                                                value={bookStats.count}
+                                                suffix="/ 100"
+                                            />
+                                        </Card>
+                                    </Col>
                                 </Row>
                                 <Table
                                     dataSource={bookDetails}
