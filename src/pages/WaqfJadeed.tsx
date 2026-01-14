@@ -735,13 +735,50 @@ const WaqfJadeed: React.FC = () => {
                 statsMap[tanzeem].paid += record.paidAmount || 0;
             }
             statsMap[tanzeem].count += 1;
+
+            // Also aggregate into Daftar Atfal if applicable
+            if (['atfal', 'saf-e-awal', 'saf-e-awal-girls', 'nasirat'].includes(tanzeem)) {
+                if (!statsMap['dafar-atfal']) {
+                    statsMap['dafar-atfal'] = { promise: 0, promiseBase: 0, nagarpar: 0, paid: 0, count: 0 };
+                }
+                const record = records.find(r => r.memberId === member.id);
+                if (record) {
+                    const base = record.promiseAmount || 0;
+                    const nagar = record.nagarparAmount || 0;
+                    statsMap['dafar-atfal'].promiseBase += base;
+                    statsMap['dafar-atfal'].nagarpar += nagar;
+                    statsMap['dafar-atfal'].promise += base + nagar;
+                    statsMap['dafar-atfal'].paid += record.paidAmount || 0;
+                }
+                statsMap['dafar-atfal'].count += 1;
+            }
         });
 
-        return Object.entries(statsMap).map(([name, data]) => ({
-            name,
-            ...data,
-            percent: data.promise > 0 ? (data.paid / data.promise) * 100 : 0
-        })).sort((a, b) => b.promise - a.promise); // Sort by highest promise
+        return Object.entries(statsMap)
+            .filter(([name]) => name !== 'dafar-atfal') // Exclude grouping from the list itself
+            .map(([name, data]) => ({
+                name,
+                ...data,
+                percent: data.promise > 0 ? (data.paid / data.promise) * 100 : 0
+            })).sort((a, b) => b.promise - a.promise); // Sort by highest promise
+    }, [members, records]);
+
+    // Export grouping specifically for targetSection
+    const dafarAtfalStats = useMemo(() => {
+        const stats = { promise: 0, promiseBase: 0, nagarpar: 0, paid: 0, count: 0 };
+        members.forEach(member => {
+            if (['atfal', 'saf-e-awal', 'saf-e-awal-girls', 'nasirat'].includes(member.tanzeem || '')) {
+                const record = records.find(r => r.memberId === member.id);
+                if (record) {
+                    stats.promiseBase += record.promiseAmount || 0;
+                    stats.nagarpar += record.nagarparAmount || 0;
+                    stats.promise += (record.promiseAmount || 0) + (record.nagarparAmount || 0);
+                    stats.paid += record.paidAmount || 0;
+                }
+                stats.count += 1;
+            }
+        });
+        return stats;
     }, [members, records]);
 
     // Deceased Stats
@@ -814,20 +851,16 @@ const WaqfJadeed: React.FC = () => {
         const totalPromised = ansarPromiseBase + lajnaPromiseBase + khuddamPromiseBase + totalDeceasedPromiseBase;
 
         // Calculate Dafar Atfal: Atfal + Saf-e-Awal boys + Saf-e-Awal girls + Nasirat
-        const atfalPaid = tanzeemStats.find(t => t.name === 'atfal')?.paid || 0;
-        const safEawalPaid = tanzeemStats.find(t => t.name === 'saf-e-awal')?.paid || 0;
-        const safEawalGirlsPaid = tanzeemStats.find(t => t.name === 'saf-e-awal-girls')?.paid || 0;
-        const nasiratPaid = tanzeemStats.find(t => t.name === 'nasirat')?.paid || 0;
-        const dafarAtfalTotal = atfalPaid + safEawalPaid + safEawalGirlsPaid + nasiratPaid;
+        const dafarAtfalTotal = dafarAtfalStats.paid;
 
         return {
             totalReceived,
             totalPromised,
             dafarAtfalTotal,
-            remainingFromTarget: targetAmount > 0 ? targetAmount - totalReceived : 0,
+            remainingFromTarget: targetAmount > 0 ? Math.max(0, targetAmount - totalReceived) : 0,
             receivedPercent: targetAmount > 0 ? (totalReceived / targetAmount) * 100 : 0
         };
-    }, [tanzeemStats, deceasedStats, targetAmount]);
+    }, [tanzeemStats, deceasedStats, dafarAtfalStats, targetAmount]);
 
     // Helper function to convert English names to Urdu for display
     const getUrduName = (name: string): string => {

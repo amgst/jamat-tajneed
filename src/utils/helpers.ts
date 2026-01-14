@@ -29,33 +29,35 @@ export const determineTanzeem = (age: number, gender: 'male' | 'female'): Tanzee
 /**
  * Get Tanzeem display name
  */
-export const getTanzeemDisplayName = (tanzeem: Tanzeem): string => {
-  const names: Record<Tanzeem, string> = {
+export const getTanzeemDisplayName = (tanzeem: Tanzeem | string): string => {
+  const names: Record<string, string> = {
     'saf-e-awal': 'Saf-e-Awal',
     'saf-e-awal-girls': 'Saf-e-Awal (Girls)',
     'atfal': 'Atfal',
     'nasirat': 'Nasirat',
     'khuddam': 'Khuddam',
     'lajna': 'Lajna',
-    'ansar': 'Ansar'
+    'ansar': 'Ansar',
+    'dafar-atfal': 'Daftar Atfal'
   };
-  return names[tanzeem];
+  return names[tanzeem] || tanzeem;
 };
 
 /**
  * Get Tanzeem Urdu display name
  */
-export const getTanzeemUrduName = (tanzeem: Tanzeem): string => {
-  const names: Record<Tanzeem, string> = {
+export const getTanzeemUrduName = (tanzeem: Tanzeem | string): string => {
+  const names: Record<string, string> = {
     'saf-e-awal': 'صف اول',
     'saf-e-awal-girls': 'صف اول (لڑکیاں)',
     'atfal': 'اطفال',
     'nasirat': 'ناصرات',
     'khuddam': 'خدام',
     'lajna': 'لجنہ',
-    'ansar': 'انصار'
+    'ansar': 'انصار',
+    'dafar-atfal': 'دفتر اطفال'
   };
-  return names[tanzeem];
+  return names[tanzeem] || tanzeem;
 };
 
 /**
