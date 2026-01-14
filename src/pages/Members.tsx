@@ -6,11 +6,8 @@ import {
   Button,
   Space,
   Modal,
-  Form,
   Input,
   Select,
-  DatePicker,
-  Upload,
   message,
   Popconfirm,
   Tag,
@@ -18,22 +15,20 @@ import {
   Typography,
   Row,
   Col,
-  Tabs,
-  Checkbox
+  Tabs
 } from 'antd';
 import {
-  PlusOutlined,
   EditOutlined,
   DeleteOutlined,
-  UploadOutlined,
-  DownloadOutlined,
-  UserOutlined,
-  ReloadOutlined,
   SearchOutlined,
-  TeamOutlined
+  ReloadOutlined,
+  PlusOutlined,
+  DownloadOutlined,
+  TeamOutlined,
+  UserOutlined
 } from '@ant-design/icons';
 import ReligiousActivitiesModal from '../components/ReligiousActivitiesModal';
-import dayjs from 'dayjs';
+import MemberForm from '../components/MemberForm';
 import { ApiService } from '../services/apiService';
 import type { Member, Tanzeem, Family } from '../types';
 import {
@@ -41,41 +36,14 @@ import {
   determineTanzeem,
   getTanzeemDisplayName,
   formatCNIC,
-  validateCNIC,
   formatDate,
   exportToCSV
 } from '../utils/helpers';
-import { processImageFile, generateAvatarFromName } from '../utils/imageUtils';
+import { generateAvatarFromName } from '../utils/imageUtils';
 import { validateMemberData, sanitizeMemberData } from '../utils/validation';
 
 const { Option } = Select;
 const { Text } = Typography;
-
-interface MemberForm {
-  name: string;
-  fatherName: string;
-  husbandName?: string;
-  gender: 'male' | 'female';
-  cnic?: string;
-  dateOfBirth: dayjs.Dayjs;
-  phone?: string;
-  address: string;
-  graveNumber?: string; // Removed from UI but keeping type for now if needed, or better remove it if we strictly follow plan. Plan said remove.
-  // Actually, let's remove it from here as well to be consistent.
-
-  isDeceased?: boolean;
-  dateOfDeath?: dayjs.Dayjs;
-  isMoved?: boolean;
-  movedTo?: string;
-
-  // New fields
-  baitYear?: number;
-  isBaitByBirth?: boolean;
-  wasitNo?: string;
-  education?: string;
-  bloodGroup?: string;
-  waqfeNauNumber?: string;
-}
 
 const Members: React.FC = () => {
   const navigate = useNavigate();
@@ -84,14 +52,11 @@ const Members: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
   const [editingMember, setEditingMember] = useState<Member | null>(null);
-  const [uploadedImage, setUploadedImage] = useState<string>('');
-  const [imageUploading, setImageUploading] = useState(false);
   const [searchText, setSearchText] = useState('');
   const [selectedFamilyId, setSelectedFamilyId] = useState<string>('');
   const [activeTab, setActiveTab] = useState<string>('active');
   const [religiousModalVisible, setReligiousModalVisible] = useState(false);
   const [selectedMemberForReligious, setSelectedMemberForReligious] = useState<Member | null>(null);
-  const [form] = Form.useForm();
   const [isSaving, setIsSaving] = useState(false);
 
   // Add CSS for deceased member rows
@@ -134,149 +99,18 @@ const Members: React.FC = () => {
 
   const handleAddMember = () => {
     setEditingMember(null);
-    setUploadedImage('');
-    form.resetFields();
     setModalVisible(true);
   };
 
   const handleEditMember = (member: Member) => {
     setEditingMember(member);
-    setUploadedImage(member.profilePhoto || '');
     setModalVisible(true);
   };
 
-  useEffect(() => {
-    if (modalVisible && editingMember) {
-      form.setFieldsValue({
-        ...editingMember,
-        isMoved: editingMember.isMoved ?? false,
-        movedTo: editingMember.movedTo || '',
-        dateOfBirth: dayjs(editingMember.dateOfBirth),
-        dateOfDeath: editingMember.dateOfDeath ? dayjs(editingMember.dateOfDeath) : undefined,
-        isBaitByBirth: editingMember.isBaitByBirth ?? true,
-        baitYear: editingMember.baitYear,
-        wasitNo: editingMember.wasitNo,
-        education: editingMember.education,
-        bloodGroup: editingMember.bloodGroup,
-        waqfeNauNumber: editingMember.waqfeNauNumber,
-      });
-    } else if (modalVisible && !editingMember) {
-      // Reset form when adding a new member
-      form.resetFields();
-    }
-  }, [modalVisible, editingMember, form]);
-
-  const handleDeleteMember = async (id: string) => {
-    try {
-      await ApiService.deleteMember(id);
-      message.success('Member deleted successfully');
-      loadMembers();
-    } catch (error) {
-      message.error('Failed to delete member');
-      console.error(error);
-    }
-  };
-
-
-
-  const getFamilyMembers = (familyId: string): Member[] => {
-    const family = families.find(f => f.id === familyId);
-    if (!family) return [];
-    return members.filter(member => family.memberIds.includes(member.id));
-  };
-
-  const getFilteredAndSortedMembers = (): Member[] => {
-    let filtered = members;
-
-    // Filter by status based on active tab
-    filtered = filtered.filter(member => {
-      if (activeTab === 'deceased') {
-        return member.isDeceased === true;
-      } else if (activeTab === 'moved') {
-        return member.isMoved === true;
-      } else {
-        // Active members are neither deceased nor moved
-        return !member.isDeceased && !member.isMoved;
-      }
-    });
-
-    // Apply family filter
-    if (selectedFamilyId) {
-      const familyMembers = getFamilyMembers(selectedFamilyId);
-      filtered = filtered.filter(member => familyMembers.some(fm => fm.id === member.id));
-    }
-
-    // Apply search filter
-    if (searchText.trim()) {
-      const searchLower = searchText.toLowerCase();
-      filtered = filtered.filter(member => {
-        const name = member.name.toLowerCase();
-        const fatherName = (member.fatherName || '').toLowerCase();
-        const phone = (member.phone || '').toLowerCase();
-        const address = (member.address || '').toLowerCase();
-        const halqa = (member.halqa || '').toLowerCase();
-
-        return name.includes(searchLower) ||
-          fatherName.includes(searchLower) ||
-          phone.includes(searchLower) ||
-          address.includes(searchLower) ||
-          halqa.includes(searchLower);
-      });
-    }
-
-    // Sort by family number, then by family role
-    filtered.sort((a, b) => {
-      const familyA = families.find(f => f.memberIds.includes(a.id));
-      const familyB = families.find(f => f.memberIds.includes(b.id));
-
-      // First sort by family number
-      const familyNumA = familyA?.familyNumber || 999999; // Put members without family number at end
-      const familyNumB = familyB?.familyNumber || 999999;
-
-      if (familyNumA !== familyNumB) {
-        return familyNumA - familyNumB;
-      }
-
-      // Within same family, sort by role
-      if (familyA && a.id === familyA.headId) return -1;
-      if (familyB && b.id === familyB.headId) return 1;
-
-      // Then by gender (wife after head)
-      if (a.gender === 'female' && b.gender === 'male') return -1;
-      if (a.gender === 'male' && b.gender === 'female') return 1;
-
-      // Finally by age (older first)
-      return b.age - a.age;
-    });
-
-    return filtered;
-  };
-
-  const handleImageUpload = async (file: File): Promise<boolean> => {
-    setImageUploading(true);
-    try {
-      const result = await processImageFile(file);
-      if (result.success && result.data) {
-        setUploadedImage(result.data);
-        message.success('Image uploaded successfully');
-        return false; // Prevent default upload behavior
-      } else {
-        message.error(result.error || 'Failed to upload image');
-        return false;
-      }
-    } catch {
-      message.error('Failed to process image');
-      return false;
-    } finally {
-      setImageUploading(false);
-    }
-  };
-
-  const handleModalOk = async () => {
+  const handleModalOk = async (values: any) => {
     try {
       setIsSaving(true);
-      const values = await form.validateFields();
-      const formData: MemberForm = values;
+      const formData = values;
 
       const age = calculateAge(formData.dateOfBirth.format('YYYY-MM-DD'));
       const tanzeem = determineTanzeem(age, formData.gender);
@@ -294,10 +128,9 @@ const Members: React.FC = () => {
         address: formData.address,
         tanzeem,
         halqa: '',
-        profilePhoto: uploadedImage || generateAvatarFromName(formData.name),
+        profilePhoto: formData.profilePhoto || generateAvatarFromName(formData.name),
         hasNewTanzeemTransition: false,
         isDeceased: formData.isDeceased || false,
-        // graveNumber: formData.graveNumber || '', // Removed
         isMoved: formData.isMoved || false,
         movedTo: formData.movedTo || '',
 
@@ -316,27 +149,21 @@ const Members: React.FC = () => {
       if (!editingMember) {
         memberDataRaw.createdAt = new Date().toISOString();
       } else {
-        // Preserve the original createdAt when updating
         memberDataRaw.createdAt = editingMember.createdAt;
-        // Ensure isMoved and movedTo are properly set when updating
-        memberDataRaw.isMoved = formData.isMoved || false;
-        memberDataRaw.movedTo = formData.movedTo || '';
       }
 
-      // Only add dateOfDeath if it has a value (Firebase doesn't accept undefined)
+      // Only add dateOfDeath if it has a value
       if (formData.dateOfDeath) {
         memberDataRaw.dateOfDeath = formData.dateOfDeath.format('YYYY-MM-DD');
       }
 
       // Validate and sanitize input
       const validation = validateMemberData(memberDataRaw);
-
       if (!validation.valid) {
         message.error(`Validation failed: ${validation.errors.join(', ')}`);
         return;
       }
 
-      // Sanitize all input data
       const memberData = sanitizeMemberData(memberDataRaw);
 
       if (editingMember) {
@@ -351,7 +178,6 @@ const Members: React.FC = () => {
       loadMembers();
     } catch (error: any) {
       if (error.errorFields) {
-        // Format validation errors more clearly
         const errors = error.errorFields.map((field: any) => field.errors).flat();
         message.error(`Please fix the following errors: ${errors.join(', ')}`);
       } else {
@@ -392,9 +218,9 @@ const Members: React.FC = () => {
     };
 
     members.forEach(member => {
-      (firebaseData.members as Record<string, any>)[member.id] = {
+      firebaseData.members[member.id] = {
         ...member,
-        id: undefined // Remove id from data
+        id: undefined
       };
       delete firebaseData.members[member.id].id;
     });
@@ -402,7 +228,7 @@ const Members: React.FC = () => {
     families.forEach(family => {
       firebaseData.families[family.id] = {
         ...family,
-        id: undefined // Remove id from data
+        id: undefined
       };
       delete firebaseData.families[family.id].id;
     });
@@ -415,6 +241,63 @@ const Members: React.FC = () => {
     a.click();
     URL.revokeObjectURL(url);
     message.success('Firebase data exported successfully');
+  };
+
+  const getFamilyMembers = (familyId: string): Member[] => {
+    return members.filter(m => m.familyId === familyId);
+  };
+
+  const getFilteredAndSortedMembers = (): Member[] => {
+    let filtered = members;
+
+    if (activeTab === 'deceased') {
+      filtered = filtered.filter(m => m.isDeceased);
+    } else if (activeTab === 'moved') {
+      filtered = filtered.filter(m => m.isMoved);
+    } else {
+      filtered = filtered.filter(m => !m.isDeceased && !m.isMoved);
+    }
+
+    if (selectedFamilyId) {
+      filtered = filtered.filter(m => m.familyId === selectedFamilyId);
+    }
+
+    if (searchText.trim()) {
+      const searchLower = searchText.toLowerCase();
+      filtered = filtered.filter(m => {
+        const family = families.find(f => f.memberIds.includes(m.id));
+        return (
+          m.name.toLowerCase().includes(searchLower) ||
+          (m.fatherName || '').toLowerCase().includes(searchLower) ||
+          (m.phone || '').toLowerCase().includes(searchLower) ||
+          m.address.toLowerCase().includes(searchLower) ||
+          (family?.halqa || '').toLowerCase().includes(searchLower)
+        );
+      });
+    }
+
+    // Sort by family number, then by family role
+    filtered.sort((a, b) => {
+      const familyA = families.find(f => f.memberIds.includes(a.id));
+      const familyB = families.find(f => f.memberIds.includes(b.id));
+
+      const familyNumA = familyA?.familyNumber || 999999;
+      const familyNumB = familyB?.familyNumber || 999999;
+
+      if (familyNumA !== familyNumB) {
+        return familyNumA - familyNumB;
+      }
+
+      if (familyA && a.id === familyA.headId) return -1;
+      if (familyB && b.id === familyB.headId) return 1;
+
+      if (a.gender === 'female' && b.gender === 'male') return -1;
+      if (a.gender === 'male' && b.gender === 'female') return 1;
+
+      return b.age - a.age;
+    });
+
+    return filtered;
   };
 
   const columns = [
@@ -454,9 +337,7 @@ const Members: React.FC = () => {
               {family.familyName}
             </div>
             {isHead && (
-              <Tag color="red">
-                Head
-              </Tag>
+              <Tag color="red">Head</Tag>
             )}
           </div>
         );
@@ -483,9 +364,7 @@ const Members: React.FC = () => {
             >
               {name}
               {record.isDeceased && (
-                <Tag color="red" style={{ fontSize: '10px', padding: '0 4px' }}>
-                  Deceased
-                </Tag>
+                <Tag color="red" style={{ fontSize: '10px', padding: '0 4px' }}>Deceased</Tag>
               )}
             </div>
             <Text type="secondary" style={{ fontSize: '12px' }}>
@@ -505,9 +384,7 @@ const Members: React.FC = () => {
       dataIndex: 'gender',
       key: 'gender',
       render: (gender: string) => (
-        <Tag color={gender === 'male' ? 'blue' : 'pink'}>
-          {gender.toUpperCase()}
-        </Tag>
+        <Tag color={gender === 'male' ? 'blue' : 'pink'}>{gender.toUpperCase()}</Tag>
       ),
     },
     {
@@ -537,13 +414,6 @@ const Members: React.FC = () => {
     {
       title: 'Halqa',
       key: 'halqa',
-      sorter: (a: Member, b: Member) => {
-        const familyA = families.find(f => f.memberIds.includes(a.id));
-        const familyB = families.find(f => f.memberIds.includes(b.id));
-        const halqaA = familyA?.halqa || '';
-        const halqaB = familyB?.halqa || '';
-        return halqaA.localeCompare(halqaB);
-      },
       render: (record: Member) => {
         const family = families.find(f => f.memberIds.includes(record.id));
         return family?.halqa || '-';
@@ -553,21 +423,17 @@ const Members: React.FC = () => {
       title: 'Status',
       key: 'status',
       render: (record: Member) => {
-        if (record.isDeceased) {
-          return <Tag color="red">Deceased</Tag>;
-        }
-        if (record.isMoved) {
-          return <Tag color="orange">Moved to {record.movedTo || 'location unknown'}</Tag>;
-        }
+        if (record.isDeceased) return <Tag color="red">Deceased</Tag>;
+        if (record.isMoved) return <Tag color="orange">Moved</Tag>;
         return <Tag color="green">Active</Tag>;
       },
-      width: 120,
+      width: 100,
     },
     {
       title: 'Religious Data',
       key: 'religious',
       render: (record: Member) => {
-        const hasData = record.religiousActivities;
+        const hasData = !!record.religiousActivities;
         return (
           <Button
             type={hasData ? 'primary' : 'default'}
@@ -600,21 +466,19 @@ const Members: React.FC = () => {
             onClick={() => handleEditMember(record)}
           />
           <Popconfirm
-            title="Are you sure you want to delete this member?"
-            onConfirm={() => handleDeleteMember(record.id)}
-            okText="Yes"
-            cancelText="No"
+            title="Are you sure?"
+            onConfirm={() => {
+              ApiService.deleteMember(record.id).then(() => {
+                message.success('Deleted');
+                loadMembers();
+              });
+            }}
           >
-            <Button
-              type="primary"
-              danger
-              size="small"
-              icon={<DeleteOutlined />}
-            />
+            <Button type="primary" danger size="small" icon={<DeleteOutlined />} />
           </Popconfirm>
         </Space>
       ),
-      width: 120,
+      width: 100,
     },
   ];
 
@@ -632,45 +496,12 @@ const Members: React.FC = () => {
       <Card
         title="Members Management"
         extra={
-          <div className="flex flex-wrap gap-2 justify-end">
-            <Button
-              type="default"
-              icon={<DownloadOutlined />}
-              onClick={handleExport}
-              size="middle"
-            >
-              <span className="hidden sm:inline">Export CSV</span>
-              <span className="sm:hidden">CSV</span>
-            </Button>
-            <Button
-              type="default"
-              icon={<DownloadOutlined />}
-              onClick={handleFirebaseExport}
-              size="middle"
-            >
-              <span className="hidden sm:inline">Export Firebase</span>
-              <span className="sm:hidden">FB</span>
-            </Button>
-            <Button
-              type="default"
-              icon={<ReloadOutlined />}
-              onClick={loadMembers}
-              loading={loading}
-              size="middle"
-            >
-              <span className="hidden sm:inline">Refresh</span>
-              <span className="sm:hidden">Rfsh</span>
-            </Button>
-            <Button
-              type="primary"
-              icon={<PlusOutlined />}
-              onClick={handleAddMember}
-              size="middle"
-            >
-              <span className="hidden sm:inline">Add Member</span>
-              <span className="sm:hidden">Add</span>
-            </Button>
-          </div>
+          <Space>
+            <Button icon={<DownloadOutlined />} onClick={handleExport}>Export CSV</Button>
+            <Button icon={<DownloadOutlined />} onClick={handleFirebaseExport}>Firebase</Button>
+            <Button icon={<ReloadOutlined />} onClick={loadMembers} loading={loading}>Refresh</Button>
+            <Button type="primary" icon={<PlusOutlined />} onClick={handleAddMember}>Add</Button>
+          </Space>
         }
       >
         <Tabs
@@ -679,221 +510,73 @@ const Members: React.FC = () => {
           items={[
             {
               key: 'active',
-              label: `Active Members (${activeCount})`,
+              label: `Active (${activeCount})`,
               children: (
-                <div>
-                  {/* Search and Filter Controls */}
+                <>
                   <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
-                    <Col xs={24} sm={12} md={8}>
+                    <Col xs={24} md={12}>
                       <Input
-                        placeholder="Search by name, father, phone, address, or halqa..."
+                        placeholder="Search..."
                         prefix={<SearchOutlined />}
                         value={searchText}
-                        onChange={(e) => setSearchText(e.target.value)}
+                        onChange={e => setSearchText(e.target.value)}
                         allowClear
-                        style={{ width: '100%' }}
                       />
                     </Col>
-                    <Col xs={24} sm={12} md={8}>
+                    <Col xs={24} md={12}>
                       <Select
-                        placeholder="Filter by family..."
+                        placeholder="Filter by family"
                         value={selectedFamilyId}
                         onChange={setSelectedFamilyId}
                         allowClear
                         style={{ width: '100%' }}
                       >
-                        {families.map(family => (
-                          <Option key={family.id} value={family.id}>
-                            <Space>
-                              <TeamOutlined />
-                              {family.familyName}
-                              <Tag color="blue">
-                                {getFamilyMembers(family.id).length} members
-                              </Tag>
-                            </Space>
-                          </Option>
+                        {families.map(f => (
+                          <Option key={f.id} value={f.id}>{f.familyName}</Option>
                         ))}
                       </Select>
                     </Col>
-                    <Col xs={24} sm={12} md={8}>
-                      <Button
-                        type="default"
-                        onClick={() => {
-                          setSearchText('');
-                          setSelectedFamilyId('');
-                        }}
-                        style={{ width: '100%' }}
-                      >
-                        Clear Filters
-                      </Button>
-                    </Col>
                   </Row>
-
                   <Table
                     columns={columns}
                     dataSource={getFilteredAndSortedMembers()}
                     rowKey="id"
                     loading={loading}
-                    pagination={{
-                      defaultPageSize: 10,
-                      pageSizeOptions: [10, 20, 50, 100],
-                      showSizeChanger: true,
-                      showQuickJumper: true,
-                      showTotal: (total, range) =>
-                        `${range[0]}-${range[1]} of ${total} items`,
-                      responsive: true,
-                    }}
+                    pagination={{ pageSize: 10 }}
                     scroll={{ x: 1000 }}
                   />
-                </div>
-              ),
+                </>
+              )
             },
             {
               key: 'deceased',
-              label: `Deceased Members (${deceasedCount})`,
+              label: `Deceased (${deceasedCount})`,
               children: (
-                <div>
-                  {/* Search and Filter Controls for Deceased */}
-                  <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
-                    <Col xs={24} sm={12} md={8}>
-                      <Input
-                        placeholder="Search deceased members..."
-                        prefix={<SearchOutlined />}
-                        value={searchText}
-                        onChange={(e) => setSearchText(e.target.value)}
-                        allowClear
-                        style={{ width: '100%' }}
-                      />
-                    </Col>
-                    <Col xs={24} sm={12} md={8}>
-                      <Select
-                        placeholder="Filter by family..."
-                        value={selectedFamilyId}
-                        onChange={setSelectedFamilyId}
-                        allowClear
-                        style={{ width: '100%' }}
-                      >
-                        {families.map(family => (
-                          <Option key={family.id} value={family.id}>
-                            <Space>
-                              <TeamOutlined />
-                              {family.familyName}
-                            </Space>
-                          </Option>
-                        ))}
-                      </Select>
-                    </Col>
-                    <Col xs={24} sm={12} md={8}>
-                      <Button
-                        type="default"
-                        onClick={() => {
-                          setSearchText('');
-                          setSelectedFamilyId('');
-                        }}
-                        style={{ width: '100%' }}
-                      >
-                        Clear Filters
-                      </Button>
-                    </Col>
-                  </Row>
-
-                  <Table
-                    columns={[...columns.slice(0, -1), {
-                      title: 'Date of Death',
-                      dataIndex: 'dateOfDeath',
-                      key: 'dateOfDeath',
-                      render: (dateOfDeath: string) => dateOfDeath ? formatDate(dateOfDeath) : '-',
-                    }, columns[columns.length - 1]]}
-                    dataSource={getFilteredAndSortedMembers()}
-                    rowKey="id"
-                    loading={loading}
-                    pagination={{
-                      defaultPageSize: 10,
-                      pageSizeOptions: [10, 20, 50, 100],
-                      showSizeChanger: true,
-                      showQuickJumper: true,
-                      showTotal: (total, range) =>
-                        `${range[0]}-${range[1]} of ${total} items`,
-                      responsive: true,
-                    }}
-                    scroll={{ x: 1000 }}
-                    rowClassName={(record: Member) => record.isDeceased ? 'deceased-member' : ''}
-                  />
-                </div>
-              ),
+                <Table
+                  columns={columns}
+                  dataSource={getFilteredAndSortedMembers()}
+                  rowKey="id"
+                  loading={loading}
+                  pagination={{ pageSize: 10 }}
+                  scroll={{ x: 1000 }}
+                  rowClassName={() => 'deceased-member'}
+                />
+              )
             },
             {
               key: 'moved',
-              label: `Moved Members (${movedCount})`,
+              label: `Moved (${movedCount})`,
               children: (
-                <div>
-                  {/* Search and Filter Controls for Moved */}
-                  <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
-                    <Col xs={24} sm={12} md={8}>
-                      <Input
-                        placeholder="Search moved members..."
-                        prefix={<SearchOutlined />}
-                        value={searchText}
-                        onChange={(e) => setSearchText(e.target.value)}
-                        allowClear
-                        style={{ width: '100%' }}
-                      />
-                    </Col>
-                    <Col xs={24} sm={12} md={8}>
-                      <Select
-                        placeholder="Filter by family..."
-                        value={selectedFamilyId}
-                        onChange={setSelectedFamilyId}
-                        allowClear
-                        style={{ width: '100%' }}
-                      >
-                        {families.map(family => (
-                          <Option key={family.id} value={family.id}>
-                            <Space>
-                              <TeamOutlined />
-                              {family.familyName}
-                            </Space>
-                          </Option>
-                        ))}
-                      </Select>
-                    </Col>
-                    <Col xs={24} sm={12} md={8}>
-                      <Button
-                        type="default"
-                        onClick={() => {
-                          setSearchText('');
-                          setSelectedFamilyId('');
-                        }}
-                        style={{ width: '100%' }}
-                      >
-                        Clear Filters
-                      </Button>
-                    </Col>
-                  </Row>
-
-                  <Table
-                    columns={[...columns.slice(0, -1), {
-                      title: 'Moved To',
-                      dataIndex: 'movedTo',
-                      key: 'movedTo',
-                    }, columns[columns.length - 1]]}
-                    dataSource={getFilteredAndSortedMembers()}
-                    rowKey="id"
-                    loading={loading}
-                    pagination={{
-                      defaultPageSize: 10,
-                      pageSizeOptions: [10, 20, 50, 100],
-                      showSizeChanger: true,
-                      showQuickJumper: true,
-                      showTotal: (total, range) =>
-                        `${range[0]}-${range[1]} of ${total} items`,
-                      responsive: true,
-                    }}
-                    scroll={{ x: 1000 }}
-                  />
-                </div>
-              ),
-            },
+                <Table
+                  columns={columns}
+                  dataSource={getFilteredAndSortedMembers()}
+                  rowKey="id"
+                  loading={loading}
+                  pagination={{ pageSize: 10 }}
+                  scroll={{ x: 1000 }}
+                />
+              )
+            }
           ]}
         />
       </Card>
@@ -901,408 +584,31 @@ const Members: React.FC = () => {
       <Modal
         title={editingMember ? 'Edit Member' : 'Add New Member'}
         open={modalVisible}
-        onOk={handleModalOk}
         onCancel={() => {
           setModalVisible(false);
-          form.resetFields();
+          setEditingMember(null);
         }}
-        width={600}
+        width={700}
         destroyOnClose
-        confirmLoading={isSaving}
+        footer={null}
       >
-        <Form
-          form={form}
-          layout="vertical"
-          requiredMark={true}
-          preserve={false}
-          onValuesChange={(changedValues, allValues) => {
-            if (changedValues.isBaitByBirth !== undefined) {
-              // Force update to re-render when bait type changes
-              form.setFieldsValue({ ...allValues });
-            }
-          }}
-        >
-          <Row gutter={16}>
-            <Col xs={24} md={12}>
-              <Form.Item
-                name="name"
-                label="Name"
-                rules={[
-                  { required: true, message: 'Please enter name' },
-                  { min: 2, message: 'Name must be at least 2 characters' }
-                ]}
-              >
-                <Input placeholder="Enter name" />
-              </Form.Item>
-            </Col>
-            <Col xs={24} md={12}>
-              <Form.Item
-                name="fatherName"
-                label="Father Name"
-              >
-                <Input placeholder="Enter father name" />
-              </Form.Item>
-            </Col>
-          </Row>
-
-          <Row gutter={16}>
-            <Col xs={24} md={12}>
-              <Form.Item
-                name="gender"
-                label="Gender"
-                rules={[
-                  { required: true, message: 'Please select gender' }
-                ]}
-              >
-                <Select placeholder="Select gender">
-                  <Option value="male">Male</Option>
-                  <Option value="female">Female</Option>
-                </Select>
-              </Form.Item>
-            </Col>
-            <Col xs={24} md={12}>
-              <Form.Item
-                label="Married"
-                style={{ marginBottom: 0 }}
-              >
-                <Form.Item
-                  name="isMarried"
-                  valuePropName="checked"
-                  noStyle
-                  shouldUpdate
-                >
-                  <Checkbox
-                    onChange={(e) => {
-                      if (!e.target.checked) {
-                        form.setFieldValue('husbandName', '');
-                      }
-                    }}
-                  >
-                    Married
-                  </Checkbox>
-                </Form.Item>
-              </Form.Item>
-              <Form.Item
-                noStyle
-                shouldUpdate={(prev, current) => prev.isMarried !== current.isMarried || prev.gender !== current.gender}
-              >
-                {({ getFieldValue }) => {
-                  const isMarried = getFieldValue('isMarried');
-                  const gender = getFieldValue('gender');
-
-                  if (isMarried && gender === 'female') {
-                    return (
-                      <Form.Item
-                        name="husbandName"
-                        label="Husband Name"
-                        style={{ marginTop: 8 }}
-                      >
-                        <Input placeholder="Enter husband name" />
-                      </Form.Item>
-                    )
-                  }
-                  return null;
-                }}
-              </Form.Item>
-            </Col>
-          </Row>
-
-          <Row gutter={16}>
-            <Col xs={24} md={12}>
-              <Form.Item
-                name="dateOfBirth"
-                label="Date of Birth"
-                rules={[
-                  { required: true, message: 'Please select date of birth' }
-                ]}
-              >
-                <DatePicker
-                  style={{ width: '100%' }}
-                  placeholder="Select date of birth"
-                  disabledDate={(current) => current && current > dayjs().endOf('day')}
-                />
-              </Form.Item>
-            </Col>
-            <Col xs={24} md={12}>
-              <Row gutter={8}>
-                <Col span={12}>
-                  <Form.Item
-                    name="isBaitByBirth"
-                    label="Year of Bait"
-                    initialValue={true}
-                  >
-                    <Select
-                      onChange={(value) => {
-                        if (value) {
-                          form.setFieldValue('baitYear', undefined);
-                        }
-                      }}
-                    >
-                      <Option value={true}>By Birth</Option>
-                      <Option value={false}>Custom Year</Option>
-                    </Select>
-                  </Form.Item>
-                </Col>
-                <Col span={12}>
-                  <Form.Item
-                    noStyle
-                    shouldUpdate={(prev, current) => prev.isBaitByBirth !== current.isBaitByBirth}
-                  >
-                    {({ getFieldValue }) => {
-                      const isBaitByBirth = getFieldValue('isBaitByBirth');
-                      return !isBaitByBirth ? (
-                        <Form.Item
-                          name="baitYear"
-                          label=" "
-                          rules={[{ required: true, message: 'Enter year' }]}
-                        >
-                          <Input
-                            type="number"
-                            placeholder="Year"
-                            min={1900}
-                            max={new Date().getFullYear()}
-                          />
-                        </Form.Item>
-                      ) : null;
-                    }}
-                  </Form.Item>
-                </Col>
-              </Row>
-            </Col>
-          </Row>
-
-          <Row gutter={16}>
-            <Col xs={24} md={12}>
-              <Form.Item
-                name="phone"
-                label="Contact No"
-              >
-                <Input placeholder="Enter phone number" />
-              </Form.Item>
-            </Col>
-            <Col xs={24} md={12}>
-              <Form.Item
-                name="cnic"
-                label="ID Card No"
-                rules={[
-                  {
-                    validator: (_, value) => {
-                      if (!value || validateCNIC(value)) {
-                        return Promise.resolve();
-                      }
-                      return Promise.reject(new Error('Please enter a valid CNIC (13 digits)'));
-                    }
-                  }
-                ]}
-              >
-                <Input
-                  placeholder="Enter CNIC"
-                  maxLength={15}
-                />
-              </Form.Item>
-            </Col>
-          </Row>
-
-          <Row gutter={16}>
-            <Col xs={24} md={12}>
-              <Form.Item
-                name="wasitNo"
-                label="Wasit No"
-              >
-                <Input placeholder="Enter wasit no" />
-              </Form.Item>
-            </Col>
-            <Col xs={24} md={12}>
-              <Form.Item
-                name="education"
-                label="Education"
-              >
-                <Select placeholder="Select education">
-                  <Option value="None">None</Option>
-                  <Option value="Primary">Primary</Option>
-                  <Option value="Middle">Middle</Option>
-                  <Option value="Matric">Matric</Option>
-                  <Option value="Intermediate">Intermediate</Option>
-                  <Option value="Graduate">Graduate</Option>
-                  <Option value="Postgraduate">Postgraduate</Option>
-                  <Option value="Doctorate">Doctorate</Option>
-                  <Option value="Other">Other</Option>
-                </Select>
-              </Form.Item>
-            </Col>
-          </Row>
-
-          <Row gutter={16}>
-            <Col xs={24} md={12}>
-              <Form.Item
-                name="bloodGroup"
-                label="Blood Group"
-              >
-                <Select placeholder="Select blood group">
-                  <Option value="A+">A+</Option>
-                  <Option value="A-">A-</Option>
-                  <Option value="B+">B+</Option>
-                  <Option value="B-">B-</Option>
-                  <Option value="AB+">AB+</Option>
-                  <Option value="AB-">AB-</Option>
-                  <Option value="O+">O+</Option>
-                  <Option value="O-">O-</Option>
-                </Select>
-              </Form.Item>
-            </Col>
-            <Col xs={24} md={12}>
-              <Form.Item
-                name="waqfeNauNumber"
-                label="Waqfe-Neu No"
-              >
-                <Input placeholder="Enter Waqfe-Neu No" />
-              </Form.Item>
-            </Col>
-          </Row>
-
-          <Row gutter={16}>
-            <Col xs={24} md={12}>
-              <Form.Item
-                label="Halqa"
-              >
-                <Input
-                  disabled
-                  value={(() => {
-                    if (editingMember) {
-                      const family = families.find(f => f.memberIds.includes(editingMember.id));
-                      return family?.halqa || 'Not assigned to family';
-                    }
-                    return 'Will be set by family assignment';
-                  })()}
-                  placeholder="Halqa is managed at family level"
-                />
-              </Form.Item>
-            </Col>
-            <Col xs={24} md={12}>
-              <Form.Item
-                name="profilePhoto"
-                label="Profile Photo (Optional)"
-              >
-                <Upload
-                  listType="picture-card"
-                  maxCount={1}
-                  beforeUpload={handleImageUpload}
-                  fileList={uploadedImage ? [{
-                    uid: '-1',
-                    name: 'profile.jpg',
-                    status: 'done',
-                    url: uploadedImage,
-                  }] : []}
-                  onRemove={() => {
-                    setUploadedImage('');
-                    return true;
-                  }}
-                  disabled={imageUploading}
-                >
-                  {!uploadedImage && (
-                    <div>
-                      <UploadOutlined />
-                      <div style={{ marginTop: 8 }}>
-                        {imageUploading ? 'Uploading...' : 'Upload'}
-                      </div>
-                    </div>
-                  )}
-                </Upload>
-              </Form.Item>
-            </Col>
-          </Row>
-
-          <Row gutter={16}>
-            <Col xs={24} md={12}>
-              <Form.Item
-                name="isDeceased"
-                valuePropName="checked"
-              >
-                <Checkbox>Deceased</Checkbox>
-              </Form.Item>
-            </Col>
-            <Col xs={24} md={12}>
-              <Form.Item
-                noStyle
-                shouldUpdate={(prev, current) => prev.isDeceased !== current.isDeceased}
-              >
-                {({ getFieldValue }) => {
-                  return getFieldValue('isDeceased') ? (
-                    <Form.Item
-                      name="dateOfDeath"
-                      label="Date of Death"
-                      rules={[{ required: true, message: 'Please select date of death' }]}
-                    >
-                      <DatePicker
-                        style={{ width: '100%' }}
-                        placeholder="Select date of death"
-                        disabledDate={(current) => current && current > dayjs().endOf('day')}
-                      />
-                    </Form.Item>
-                  ) : null;
-                }}
-              </Form.Item>
-            </Col>
-          </Row>
-
-          <Row gutter={16}>
-            <Col xs={24} md={12}>
-              <Form.Item
-                name="isMoved"
-                valuePropName="checked"
-              >
-                <Checkbox>Moved</Checkbox>
-              </Form.Item>
-            </Col>
-            <Col xs={24} md={12}>
-              <Form.Item
-                noStyle
-                shouldUpdate={(prev, current) => prev.isMoved !== current.isMoved}
-              >
-                {({ getFieldValue }) => {
-                  return getFieldValue('isMoved') ? (
-                    <Form.Item
-                      name="movedTo"
-                      label="Moved To"
-                      rules={[{ required: true, message: 'Please enter where member moved to' }]}
-                    >
-                      <Input placeholder="Enter new location" />
-                    </Form.Item>
-                  ) : null;
-                }}
-              </Form.Item>
-            </Col>
-          </Row>
-
-          <Row>
-            <Col xs={24}>
-              <Form.Item
-                name="address"
-                label="Address"
-                rules={[
-                  { required: true, message: 'Please enter address' }
-                ]}
-              >
-                <Input.TextArea
-                  rows={3}
-                  placeholder="Enter complete address"
-                />
-              </Form.Item>
-            </Col>
-          </Row>
-        </Form>
+        <MemberForm
+          initialValues={editingMember || undefined}
+          onFinish={handleModalOk}
+          isSaving={isSaving}
+          familyHalqa={editingMember ? families.find(f => f.memberIds.includes(editingMember.id))?.halqa : undefined}
+          showCancel
+          onCancel={() => setModalVisible(false)}
+        />
       </Modal>
 
-      {/* Religious Activities Modal */}
       <ReligiousActivitiesModal
         visible={religiousModalVisible}
         member={selectedMemberForReligious}
         onClose={() => setReligiousModalVisible(false)}
-        onSuccess={() => {
-          loadMembers(); // Refresh the members list
-        }}
+        onSuccess={loadMembers}
       />
-    </div >
+    </div>
   );
 };
 

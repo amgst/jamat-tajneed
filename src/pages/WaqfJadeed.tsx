@@ -52,7 +52,10 @@ import { ApiService } from '../services/apiService';
 import type { Member, WaqfJadeedRecord, Family, Payment, WaqfJadeedSpecialRecord, ReceiptBook } from '../types';
 import { ReceiptTemplate } from '../components/ReceiptTemplate';
 import PaymentPlanManager from '../components/PaymentPlanManager';
-import { getTanzeemDisplayName, calculateAge, determineTanzeem, getTanzeemUrduName } from '../utils/helpers';
+import { getTanzeemDisplayName, calculateAge, determineTanzeem, getTanzeemUrduName, formatCNIC } from '../utils/helpers';
+import MemberForm from '../components/MemberForm';
+import { generateAvatarFromName } from '../utils/imageUtils';
+import { validateMemberData, sanitizeMemberData } from '../utils/validation';
 
 const WaqfJadeed: React.FC = () => {
     const { message } = App.useApp();
@@ -329,6 +332,10 @@ const WaqfJadeed: React.FC = () => {
         });
     };
 
+    const updateLocalMember = (updatedMember: Member) => {
+        setMembers(prev => prev.map(m => m.id === updatedMember.id ? updatedMember : m));
+    };
+
     const handleEdit = (member: Member) => {
         setEditingMember(member);
         setEditingSpecial(null);
@@ -469,11 +476,69 @@ const WaqfJadeed: React.FC = () => {
                     message.success('Payment added');
                 }
             }
-
             paymentForm.resetFields();
         } catch (error) {
             console.error('Payment Operation Failed:', error);
             message.error(paymentEditingId ? 'Failed to update payment' : 'Failed to add payment');
+        } finally {
+            setSubmitting(false);
+        }
+    };
+
+    const handlePersonalDetailsSave = async (values: any) => {
+        if (!editingMember) return;
+        try {
+            setSubmitting(true);
+            const formData = values;
+
+            const age = calculateAge(formData.dateOfBirth.format('YYYY-MM-DD'));
+            const tanzeem = determineTanzeem(age, formData.gender);
+
+            const memberDataRaw: any = {
+                ...editingMember,
+                name: formData.name,
+                fatherName: formData.fatherName || '',
+                husbandName: formData.husbandName || '',
+                gender: formData.gender,
+                cnic: formData.cnic ? formatCNIC(formData.cnic) : '',
+                dateOfBirth: formData.dateOfBirth.format('YYYY-MM-DD'),
+                age,
+                phone: formData.phone || '',
+                address: formData.address,
+                tanzeem,
+                profilePhoto: formData.profilePhoto || generateAvatarFromName(formData.name),
+                isDeceased: formData.isDeceased || false,
+                isMoved: formData.isMoved || false,
+                movedTo: formData.movedTo || '',
+                isBaitByBirth: formData.isBaitByBirth,
+                baitYear: formData.isBaitByBirth ? undefined : formData.baitYear,
+                wasitNo: formData.wasitNo || '',
+                education: formData.education || '',
+                bloodGroup: formData.bloodGroup || '',
+                waqfeNauNumber: formData.waqfeNauNumber || '',
+                updatedAt: new Date().toISOString(),
+            };
+
+            if (formData.dateOfDeath) {
+                memberDataRaw.dateOfDeath = formData.dateOfDeath.format('YYYY-MM-DD');
+            }
+
+            const validation = validateMemberData(memberDataRaw);
+            if (!validation.valid) {
+                message.error(`Validation failed: ${validation.errors.join(', ')}`);
+                return;
+            }
+
+            const memberData = sanitizeMemberData(memberDataRaw);
+            await ApiService.updateMember(editingMember.id, memberData);
+
+            const updatedMember = { ...editingMember, ...memberData };
+            updateLocalMember(updatedMember);
+            setEditingMember(updatedMember);
+            message.success('Personal details updated successfully');
+        } catch (error) {
+            message.error('Failed to update personal details');
+            console.error(error);
         } finally {
             setSubmitting(false);
         }
@@ -2425,255 +2490,281 @@ const WaqfJadeed: React.FC = () => {
                 onClose={() => setDrawerVisible(false)}
                 open={drawerVisible}
                 extra={
-                    <Button type="primary" onClick={handleSave} loading={submitting} size="small">
-                        Save
-                    </Button>
+                    <Space>
+                        <Button type="primary" onClick={handleSave} loading={submitting} size="small">
+                            Save Financial
+                        </Button>
+                        <Button onClick={() => setDrawerVisible(false)} size="small">
+                            Close
+                        </Button>
+                    </Space>
                 }
             >
-                <Form form={form} layout="vertical" requiredMark={true}>
-                    <Row gutter={[16, 16]}>
-                        <Col xs={24} sm={12} md={12} lg={6}>
-                            <Form.Item label="Promise">
-                                {isEditingPromise ? (
-                                    <div style={{ display: 'flex', gap: 8 }}>
-                                        <Form.Item name="promiseAmount" noStyle>
-                                            <InputNumber
-                                                style={{ width: '100%' }}
+                <Tabs defaultActiveKey="financial">
+                    <Tabs.TabPane tab="Financial Records" key="financial">
+                        <Form form={form} layout="vertical" requiredMark={true}>
+                            <Row gutter={[16, 16]}>
+                                <Col xs={24} sm={12} md={12} lg={6}>
+                                    <Form.Item label="Promise">
+                                        {isEditingPromise ? (
+                                            <div style={{ display: 'flex', gap: 8 }}>
+                                                <Form.Item name="promiseAmount" noStyle>
+                                                    <InputNumber
+                                                        style={{ width: '100%' }}
+                                                        formatter={value => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
+                                                        parser={value => value!.replace(/\$\s?|(,*)/g, '') as any}
+                                                        size="large"
+                                                        autoFocus
+                                                    />
+                                                </Form.Item>
+                                                <Button
+                                                    type="primary"
+                                                    onClick={handleSave}
+                                                    icon={<CheckCircleOutlined />}
+                                                    loading={submitting}
+                                                />
+                                            </div>
+                                        ) : (
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                                <Title level={4} style={{ margin: 0 }}>
+                                                    {(editingMember
+                                                        ? (records.find(r => r.memberId === editingMember.id)?.promiseAmount || 0)
+                                                        : (editingSpecial?.promiseAmount || 0)
+                                                    ).toLocaleString()}
+                                                </Title>
+                                                <Button
+                                                    size="small"
+                                                    icon={<EditOutlined />}
+                                                    onClick={() => setIsEditingPromise(true)}
+                                                />
+                                            </div>
+                                        )}
+                                        {/* PREVIOUS YEAR PROMISE DISPLAY */}
+                                        <div style={{ marginTop: 4 }}>
+                                            <Text type="secondary" style={{ fontSize: 12 }}>
+                                                {selectedYear - 1} Promise: {' '}
+                                                <Text strong>
+                                                    {editingMember
+                                                        ? (prevRecords.find(r => r.memberId === editingMember.id)?.promiseAmount || 0).toLocaleString()
+                                                        : (prevSpecialRecords.find(r => r.id === editingSpecial?.id)?.promiseAmount || 0).toLocaleString()
+                                                    }
+                                                </Text>
+                                            </Text>
+                                        </div>
+                                    </Form.Item>
+                                </Col>
+                                <Col xs={24} sm={12} md={12} lg={6}>
+                                    <Form.Item label="Nagarpar">
+                                        {isEditingPromise ? (
+                                            <Form.Item name="nagarparAmount" noStyle>
+                                                <InputNumber
+                                                    style={{ width: '100%' }}
+                                                    formatter={value => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
+                                                    parser={value => value!.replace(/\$\s?|(,*)/g, '') as any}
+                                                    size="large"
+                                                />
+                                            </Form.Item>
+                                        ) : (
+                                            <Title level={4} style={{ margin: 0 }}>
+                                                {(editingMember
+                                                    ? (records.find(r => r.memberId === editingMember.id)?.nagarparAmount || 0)
+                                                    : (editingSpecial?.nagarparAmount || 0)
+                                                ).toLocaleString()}
+                                            </Title>
+                                        )}
+                                    </Form.Item>
+                                </Col>
+                                <Col xs={24} sm={12} md={12} lg={6}>
+                                    <Form.Item label="Total Promise">
+                                        <Title level={4} style={{ margin: 0, marginTop: 4 }}>
+                                            {((editingMember
+                                                ? ((records.find(r => r.memberId === editingMember.id)?.promiseAmount || 0) + (records.find(r => r.memberId === editingMember.id)?.nagarparAmount || 0))
+                                                : ((editingSpecial?.promiseAmount || 0) + (editingSpecial?.nagarparAmount || 0))
+                                            ).toLocaleString())}
+                                        </Title>
+                                    </Form.Item>
+                                </Col>
+                                <Col xs={24} sm={12} md={12} lg={6}>
+                                    <Form.Item label="Total Paid">
+                                        <Title level={4} style={{ margin: 0, marginTop: 4 }}>
+                                            {editingMember
+                                                ? (records.find(r => r.memberId === editingMember.id)?.paidAmount?.toLocaleString() || 0)
+                                                : (editingSpecial?.paidAmount?.toLocaleString() || 0)
+                                            }
+                                        </Title>
+                                    </Form.Item>
+                                </Col>
+                            </Row>
+                            {/* Notes field removed as per request */}
+                        </Form>
+
+                        <div id="payment-form-container" style={{ marginTop: 24, padding: 16, border: paymentEditingId ? '2px solid #1890ff' : '1px solid #f0f0f0', borderRadius: 8, background: '#fafafa' }}>
+                            <Title level={5} style={{ fontSize: 'clamp(14px, 3.5vw, 16px)' }}>{paymentEditingId ? 'Edit Payment' : 'Add New Payment'}</Title>
+                            <Form form={paymentForm} layout="vertical" onFinish={handleAddPayment} requiredMark={true}>
+                                <Row gutter={[8, 8]}>
+                                    <Col xs={24} sm={12} md={6}>
+                                        <Form.Item name="bookId" label="Book" rules={[{ required: true, message: 'Required' }]} style={{ marginBottom: 8 }}>
+                                            <Select
+                                                placeholder="Select Book"
+                                                dropdownRender={menu => (
+                                                    <>
+                                                        {menu}
+                                                        <Button type="text" block icon={<PlusOutlined />} onClick={() => setAddBookModalVisible(true)}>
+                                                            Add New Book
+                                                        </Button>
+                                                    </>
+                                                )}
+                                            >
+                                                {books.map(book => (
+                                                    <Option key={book.id} value={book.id}>{book.bookNo} ({book.status})</Option>
+                                                ))}
+                                            </Select>
+                                        </Form.Item>
+                                    </Col>
+                                    <Col xs={12} sm={6} md={4}>
+                                        <Form.Item name="receiptNo" label="Receipt #" rules={[{ required: true, message: 'Required' }]} style={{ marginBottom: 8 }}>
+                                            <InputNumber placeholder="No." style={{ width: '100%' }} />
+                                        </Form.Item>
+                                    </Col>
+                                    <Col xs={12} sm={6} md={6}>
+                                        <Form.Item name="amount" label="Amount" rules={[{ required: true, message: 'Required' }]} style={{ marginBottom: 8 }}>
+                                            <InputNumber placeholder="Amount" style={{ width: '100%' }}
                                                 formatter={value => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
                                                 parser={value => value!.replace(/\$\s?|(,*)/g, '') as any}
-                                                size="large"
-                                                autoFocus
                                             />
                                         </Form.Item>
-                                        <Button
-                                            type="primary"
-                                            onClick={handleSave}
-                                            icon={<CheckCircleOutlined />}
-                                            loading={submitting}
-                                        />
-                                    </div>
-                                ) : (
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                                        <Title level={4} style={{ margin: 0 }}>
-                                            {(editingMember
-                                                ? (records.find(r => r.memberId === editingMember.id)?.promiseAmount || 0)
-                                                : (editingSpecial?.promiseAmount || 0)
-                                            ).toLocaleString()}
-                                        </Title>
-                                        <Button
-                                            size="small"
-                                            icon={<EditOutlined />}
-                                            onClick={() => setIsEditingPromise(true)}
-                                        />
-                                    </div>
-                                )}
-                                {/* PREVIOUS YEAR PROMISE DISPLAY */}
-                                <div style={{ marginTop: 4 }}>
-                                    <Text type="secondary" style={{ fontSize: 12 }}>
-                                        {selectedYear - 1} Promise: {' '}
-                                        <Text strong>
-                                            {editingMember
-                                                ? (prevRecords.find(r => r.memberId === editingMember.id)?.promiseAmount || 0).toLocaleString()
-                                                : (prevSpecialRecords.find(r => r.id === editingSpecial?.id)?.promiseAmount || 0).toLocaleString()
-                                            }
-                                        </Text>
-                                    </Text>
-                                </div>
-                            </Form.Item>
-                        </Col>
-                        <Col xs={24} sm={12} md={12} lg={6}>
-                            <Form.Item label="Nagarpar">
-                                {isEditingPromise ? (
-                                    <Form.Item name="nagarparAmount" noStyle>
-                                        <InputNumber
-                                            style={{ width: '100%' }}
-                                            formatter={value => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
-                                            parser={value => value!.replace(/\$\s?|(,*)/g, '') as any}
-                                            size="large"
-                                        />
-                                    </Form.Item>
-                                ) : (
-                                    <Title level={4} style={{ margin: 0 }}>
-                                        {(editingMember
-                                            ? (records.find(r => r.memberId === editingMember.id)?.nagarparAmount || 0)
-                                            : (editingSpecial?.nagarparAmount || 0)
-                                        ).toLocaleString()}
-                                    </Title>
-                                )}
-                            </Form.Item>
-                        </Col>
-                        <Col xs={24} sm={12} md={12} lg={6}>
-                            <Form.Item label="Total Promise">
-                                <Title level={4} style={{ margin: 0, marginTop: 4 }}>
-                                    {((editingMember
-                                        ? ((records.find(r => r.memberId === editingMember.id)?.promiseAmount || 0) + (records.find(r => r.memberId === editingMember.id)?.nagarparAmount || 0))
-                                        : ((editingSpecial?.promiseAmount || 0) + (editingSpecial?.nagarparAmount || 0))
-                                    ).toLocaleString())}
-                                </Title>
-                            </Form.Item>
-                        </Col>
-                        <Col xs={24} sm={12} md={12} lg={6}>
-                            <Form.Item label="Total Paid">
-                                <Title level={4} style={{ margin: 0, marginTop: 4 }}>
-                                    {editingMember
-                                        ? (records.find(r => r.memberId === editingMember.id)?.paidAmount?.toLocaleString() || 0)
-                                        : (editingSpecial?.paidAmount?.toLocaleString() || 0)
-                                    }
-                                </Title>
-                            </Form.Item>
-                        </Col>
-                    </Row>
-                    {/* Notes field removed as per request */}
-                </Form>
-
-                <div id="payment-form-container" style={{ marginTop: 24, padding: 16, border: paymentEditingId ? '2px solid #1890ff' : '1px solid #f0f0f0', borderRadius: 8, background: '#fafafa' }}>
-                    <Title level={5} style={{ fontSize: 'clamp(14px, 3.5vw, 16px)' }}>{paymentEditingId ? 'Edit Payment' : 'Add New Payment'}</Title>
-                    <Form form={paymentForm} layout="vertical" onFinish={handleAddPayment} requiredMark={true}>
-                        <Row gutter={[8, 8]}>
-                            <Col xs={24} sm={12} md={6}>
-                                <Form.Item name="bookId" label="Book" rules={[{ required: true, message: 'Required' }]} style={{ marginBottom: 8 }}>
-                                    <Select
-                                        placeholder="Select Book"
-                                        dropdownRender={menu => (
-                                            <>
-                                                {menu}
-                                                <Button type="text" block icon={<PlusOutlined />} onClick={() => setAddBookModalVisible(true)}>
-                                                    Add New Book
-                                                </Button>
-                                            </>
+                                    </Col>
+                                    <Col xs={24} sm={24} md={8}>
+                                        <Form.Item name="notes" label="Notes" style={{ marginBottom: 8 }}>
+                                            <Input placeholder="Optional notes" />
+                                        </Form.Item>
+                                    </Col>
+                                    <Col xs={24} sm={24} md={24} style={{ textAlign: 'right', display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+                                        <Button onClick={() => {
+                                            setEditingMember(null);
+                                            setEditingSpecial(null);
+                                            setPaymentEditingId(null);
+                                        }}>
+                                            Close
+                                        </Button>
+                                        {paymentEditingId && (
+                                            <Button onClick={() => {
+                                                setPaymentEditingId(null);
+                                                paymentForm.resetFields();
+                                            }}>
+                                                Cancel Edit
+                                            </Button>
                                         )}
-                                    >
-                                        {books.map(book => (
-                                            <Option key={book.id} value={book.id}>{book.bookNo} ({book.status})</Option>
-                                        ))}
-                                    </Select>
-                                </Form.Item>
-                            </Col>
-                            <Col xs={12} sm={6} md={4}>
-                                <Form.Item name="receiptNo" label="Receipt #" rules={[{ required: true, message: 'Required' }]} style={{ marginBottom: 8 }}>
-                                    <InputNumber placeholder="No." style={{ width: '100%' }} />
-                                </Form.Item>
-                            </Col>
-                            <Col xs={12} sm={6} md={6}>
-                                <Form.Item name="amount" label="Amount" rules={[{ required: true, message: 'Required' }]} style={{ marginBottom: 8 }}>
-                                    <InputNumber placeholder="Amount" style={{ width: '100%' }}
-                                        formatter={value => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
-                                        parser={value => value!.replace(/\$\s?|(,*)/g, '') as any}
-                                    />
-                                </Form.Item>
-                            </Col>
-                            <Col xs={24} sm={24} md={8}>
-                                <Form.Item name="notes" label="Notes" style={{ marginBottom: 8 }}>
-                                    <Input placeholder="Optional notes" />
-                                </Form.Item>
-                            </Col>
-                            <Col xs={24} sm={24} md={24} style={{ textAlign: 'right', display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
-                                <Button onClick={() => {
-                                    setEditingMember(null);
-                                    setEditingSpecial(null);
-                                    setPaymentEditingId(null);
-                                }}>
-                                    Close
-                                </Button>
-                                {paymentEditingId && (
-                                    <Button onClick={() => {
-                                        setPaymentEditingId(null);
-                                        paymentForm.resetFields();
-                                    }}>
-                                        Cancel Edit
-                                    </Button>
-                                )}
-                                <Button type="primary" htmlType="submit" icon={paymentEditingId ? <SaveOutlined /> : <PlusOutlined />} loading={submitting}>
-                                    {paymentEditingId ? 'Update Payment' : 'Add Payment'}
-                                </Button>
-                            </Col>
-                        </Row>
-                    </Form>
-                </div>
+                                        <Button type="primary" htmlType="submit" icon={paymentEditingId ? <SaveOutlined /> : <PlusOutlined />} loading={submitting}>
+                                            {paymentEditingId ? 'Update Payment' : 'Add Payment'}
+                                        </Button>
+                                    </Col>
+                                </Row>
+                            </Form>
+                        </div>
 
-                <div style={{ marginTop: 24 }}>
-                    <Title level={5}>Payment History</Title>
-                    <List
-                        size="small"
-                        dataSource={editingMember
-                            ? (records.find(r => r.memberId === editingMember.id)?.payments || [])
-                            : (editingSpecial?.payments || [])
-                        }
-                        renderItem={(item: Payment) => (
-                            <List.Item>
-                                <List.Item.Meta
-                                    title={`Rs. ${item.amount.toLocaleString()}`}
-                                    description={
-                                        <Space direction="vertical" size={0}>
-                                            <Text type="secondary">{dayjs(item.date).format('DD MMM YYYY')}</Text>
-                                            <Space split={<Text type="secondary">|</Text>}>
-                                                {item.bookNo && <Text strong>Book: {item.bookNo}</Text>}
-                                                {item.receiptNo && <Text strong>Rcpt: {item.receiptNo}</Text>}
-                                            </Space>
-                                            {item.notes && <Text type="secondary">{item.notes}</Text>}
-                                        </Space>
-                                    }
-                                />
-                                <Space>
-                                    <Button
-                                        type="text"
-                                        icon={<EditOutlined />}
-                                        onClick={() => {
-                                            setPaymentEditingId(item.id);
-                                            paymentForm.setFieldsValue({
-                                                amount: item.amount,
-                                                bookId: item.bookId,
-                                                receiptNo: item.receiptNo,
-                                                notes: item.notes
-                                            });
-                                            // Scroll form into view
-                                            const formElement = document.getElementById('payment-form-container');
-                                            if (formElement) {
-                                                formElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        <div style={{ marginTop: 24 }}>
+                            <Title level={5}>Payment History</Title>
+                            <List
+                                size="small"
+                                dataSource={editingMember
+                                    ? (records.find(r => r.memberId === editingMember.id)?.payments || [])
+                                    : (editingSpecial?.payments || [])
+                                }
+                                renderItem={(item: Payment) => (
+                                    <List.Item>
+                                        <List.Item.Meta
+                                            title={`Rs. ${item.amount.toLocaleString()}`}
+                                            description={
+                                                <Space direction="vertical" size={0}>
+                                                    <Text type="secondary">{dayjs(item.date).format('DD MMM YYYY')}</Text>
+                                                    <Space split={<Text type="secondary">|</Text>}>
+                                                        {item.bookNo && <Text strong>Book: {item.bookNo}</Text>}
+                                                        {item.receiptNo && <Text strong>Rcpt: {item.receiptNo}</Text>}
+                                                    </Space>
+                                                    {item.notes && <Text type="secondary">{item.notes}</Text>}
+                                                </Space>
                                             }
-                                        }}
-                                    />
-                                    <Button
-                                        type="text"
-                                        icon={<PrinterOutlined />}
-                                        onClick={() => {
-                                            setPrintingPayment({
-                                                payment: item,
-                                                recordName: editingMember ? editingMember.name : (editingSpecial?.name || 'Unknown'),
-                                                memberCode: undefined
-                                            });
-                                        }}
-                                    />
-                                    <Button
-                                        type="text"
-                                        danger
-                                        icon={<DeleteOutlined />}
-                                        onClick={() => handleDeletePayment(item.id)}
-                                    />
-                                </Space>
-                            </List.Item>
+                                        />
+                                        <Space>
+                                            <Button
+                                                type="text"
+                                                icon={<EditOutlined />}
+                                                onClick={() => {
+                                                    setPaymentEditingId(item.id);
+                                                    paymentForm.setFieldsValue({
+                                                        amount: item.amount,
+                                                        bookId: item.bookId,
+                                                        receiptNo: item.receiptNo,
+                                                        notes: item.notes
+                                                    });
+                                                    // Scroll form into view
+                                                    const formElement = document.getElementById('payment-form-container');
+                                                    if (formElement) {
+                                                        formElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                                    }
+                                                }}
+                                            />
+                                            <Button
+                                                type="text"
+                                                icon={<PrinterOutlined />}
+                                                onClick={() => {
+                                                    setPrintingPayment({
+                                                        payment: item,
+                                                        recordName: editingMember ? editingMember.name : (editingSpecial?.name || 'Unknown'),
+                                                        memberCode: undefined
+                                                    });
+                                                }}
+                                            />
+                                            <Button
+                                                type="text"
+                                                danger
+                                                icon={<DeleteOutlined />}
+                                                onClick={() => handleDeletePayment(item.id)}
+                                            />
+                                        </Space>
+                                    </List.Item>
+                                )}
+                            />
+                        </div>
+
+                        {/* Payment Plans Section */}
+                        {editingMember && (
+                            <div style={{ marginTop: 24 }}>
+                                <PaymentPlanManager
+                                    memberId={editingMember.id}
+                                    year={selectedYear}
+                                    totalAmount={
+                                        (records.find(r => r.memberId === editingMember.id)?.promiseAmount || 0) +
+                                        (records.find(r => r.memberId === editingMember.id)?.nagarparAmount || 0)
+                                    }
+                                    onUpdate={loadData}
+                                />
+                            </div>
                         )}
-                    />
-                </div>
 
-                {/* Payment Plans Section */}
-                {editingMember && (
-                    <div style={{ marginTop: 24 }}>
-                        <PaymentPlanManager
-                            memberId={editingMember.id}
-                            year={selectedYear}
-                            totalAmount={
-                                (records.find(r => r.memberId === editingMember.id)?.promiseAmount || 0) +
-                                (records.find(r => r.memberId === editingMember.id)?.nagarparAmount || 0)
-                            }
-                            onUpdate={loadData}
-                        />
-                    </div>
-                )}
-
-                <div style={{ marginTop: 20, textAlign: 'center' }}>
-                    <Text type="secondary">Year: {selectedYear}</Text>
-                </div>
+                        <div style={{ marginTop: 20, textAlign: 'center' }}>
+                            <Text type="secondary">Year: {selectedYear}</Text>
+                        </div>
+                    </Tabs.TabPane>
+                    <Tabs.TabPane tab="Personal Details" key="personal">
+                        {editingMember ? (
+                            <div style={{ padding: '0 16px 24px' }}>
+                                <MemberForm
+                                    initialValues={editingMember}
+                                    onFinish={handlePersonalDetailsSave}
+                                    isSaving={submitting}
+                                    familyHalqa={families.find(f => f.memberIds.includes(editingMember.id))?.halqa}
+                                    submitText="Update Personal Details"
+                                />
+                            </div>
+                        ) : (
+                            <div style={{ padding: 40, textAlign: 'center' }}>
+                                <Text type="secondary">Personal details can only be edited for regular members.</Text>
+                            </div>
+                        )}
+                    </Tabs.TabPane>
+                </Tabs>
             </Drawer>
 
             {/* Receipt Modal */}
