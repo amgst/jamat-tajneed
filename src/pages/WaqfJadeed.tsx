@@ -167,9 +167,9 @@ const WaqfJadeed: React.FC = () => {
     const handleRestoreFamily = async (family: Family) => {
         try {
             setLoading(true);
-            await ApiService.updateFamily(family.id, { isMoved: false, movedTo: null });
+            const updated = await ApiService.updateFamily(family.id, { isMoved: false, movedTo: null });
+            setFamilies(prev => prev.map(f => f.id === updated.id ? updated : f));
             message.success('Family restored successfully');
-            await loadData();
         } catch (error) {
             console.error('Failed to restore family:', error);
             message.error('Failed to restore family');
@@ -195,18 +195,19 @@ const WaqfJadeed: React.FC = () => {
                 }
             }
 
-            await ApiService.updateFamily(selectedFamilyForMove.id, {
+            const updated = await ApiService.updateFamily(selectedFamilyForMove.id, {
                 isMoved: true,
                 movedTo: destination,
                 updatedAt: new Date().toISOString()
             });
+
+            setFamilies(prev => prev.map(f => f.id === updated.id ? updated : f));
 
             message.success(`Family marked as moved to ${destination}`);
             setMovedModalVisible(false);
             setSelectedFamilyForMove(null);
             setNewDestination('');
             moveForm.resetFields();
-            await loadData();
         } catch (error) {
             console.error('Failed to move family:', error);
             message.error('Failed to mark family as moved');
@@ -315,6 +316,19 @@ const WaqfJadeed: React.FC = () => {
         });
     };
 
+    const updateLocalSpecialRecord = (savedRecord: WaqfJadeedSpecialRecord) => {
+        setSpecialRecords(prev => {
+            const idx = prev.findIndex(r => r.id === savedRecord.id);
+            if (idx >= 0) {
+                const newRecords = [...prev];
+                newRecords[idx] = savedRecord;
+                return newRecords;
+            } else {
+                return [...prev, savedRecord];
+            }
+        });
+    };
+
     const handleEdit = (member: Member) => {
         setEditingMember(member);
         setEditingSpecial(null);
@@ -364,17 +378,12 @@ const WaqfJadeed: React.FC = () => {
                     nagarparAmount: values.nagarparAmount,
                 };
                 const saved = await ApiService.saveWaqfJadeedSpecialRecord(payload);
-                setSpecialRecords(prev => {
-                    const idx = prev.findIndex(r => r.id === saved.id);
-                    if (idx >= 0) {
-                        const newRecs = [...prev];
-                        // Preserve payments
-                        const oldPayments = prev[idx].payments;
-                        newRecs[idx] = { ...saved, isDeceased: !!saved.isDeceased, payments: oldPayments } as WaqfJadeedSpecialRecord;
-                        return newRecs;
-                    }
-                    return [...prev, { ...saved, isDeceased: !!saved.isDeceased } as WaqfJadeedSpecialRecord];
-                });
+                if (saved) {
+                    // Preserving payments as saveWaqfJadeedSpecialRecord doesn't return them if just saving core data
+                    // Actually, the API returns the snap, but we usually want to keep payments in state
+                    updateLocalSpecialRecord({ ...saved, payments: editingSpecial.payments } as WaqfJadeedSpecialRecord);
+                    setEditingSpecial({ ...saved, payments: editingSpecial.payments } as WaqfJadeedSpecialRecord);
+                }
             }
 
             message.success('Promise updated');
@@ -431,28 +440,37 @@ const WaqfJadeed: React.FC = () => {
             if (paymentEditingId) {
                 if (editingMember) {
                     console.log('Updating Member Payment');
-                    await ApiService.updateWaqfJadeedPayment(paymentData as any);
+                    const updatedRecord = await ApiService.updateWaqfJadeedPayment(paymentData as any);
+                    if (updatedRecord) updateLocalRecord(updatedRecord);
                     message.success('Payment updated');
                 } else if (editingSpecial) {
                     console.log('Updating Special Payment');
-                    await ApiService.updateWaqfJadeedSpecialPayment(paymentData as any);
+                    const updatedRecord = await ApiService.updateWaqfJadeedSpecialPayment(paymentData as any);
+                    if (updatedRecord) {
+                        updateLocalSpecialRecord(updatedRecord as WaqfJadeedSpecialRecord);
+                        setEditingSpecial(updatedRecord as WaqfJadeedSpecialRecord);
+                    }
                     message.success('Payment updated');
                 }
                 setPaymentEditingId(null);
             } else {
                 if (editingMember) {
                     console.log('Adding Member Payment');
-                    await ApiService.addWaqfJadeedPayment(paymentData as any);
+                    const updatedRecord = await ApiService.addWaqfJadeedPayment(paymentData as any);
+                    if (updatedRecord) updateLocalRecord(updatedRecord);
                     message.success('Payment added');
                 } else if (editingSpecial) {
                     console.log('Adding Special Payment');
-                    await ApiService.addWaqfJadeedSpecialPayment(paymentData as any);
+                    const updatedRecord = await ApiService.addWaqfJadeedSpecialPayment(paymentData as any);
+                    if (updatedRecord) {
+                        updateLocalSpecialRecord(updatedRecord as WaqfJadeedSpecialRecord);
+                        setEditingSpecial(updatedRecord as WaqfJadeedSpecialRecord);
+                    }
                     message.success('Payment added');
                 }
             }
 
             paymentForm.resetFields();
-            await loadData();
         } catch (error) {
             console.error('Payment Operation Failed:', error);
             message.error(paymentEditingId ? 'Failed to update payment' : 'Failed to add payment');

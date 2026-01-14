@@ -37,10 +37,10 @@ export class ApiService {
     const id = member.id || crypto.randomUUID();
     // Extract id to avoid storing it twice in the document
     const { id: _, ...memberData } = member;
-    const memberWithTimestamps = { 
-      ...memberData, 
-      id, 
-      createdAt: new Date().toISOString(), 
+    const memberWithTimestamps = {
+      ...memberData,
+      id,
+      createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     };
     await setDoc(doc(db, 'members', id), memberWithTimestamps);
@@ -52,8 +52,8 @@ export class ApiService {
     // Extract id to avoid storing it in the document
     const { id: _, ...memberData } = member;
     // Ensure isMoved and movedTo are properly included in the update
-    const updateData = { 
-      ...memberData, 
+    const updateData = {
+      ...memberData,
       updatedAt: new Date().toISOString()
     };
     await updateDoc(ref, updateData);
@@ -243,7 +243,7 @@ export class ApiService {
     return this.getWaqfJadeedRecordById(record.id);
   }
 
-  static async updateWaqfJadeedPayment(data: { id: string; waqfJadeedId: string; amount: number; date: string; notes?: string; bookId?: string; bookNo?: string; receiptNo?: number }): Promise<void> {
+  static async updateWaqfJadeedPayment(data: { id: string; waqfJadeedId: string; amount: number; date: string; notes?: string; bookId?: string; bookNo?: string; receiptNo?: number }): Promise<WaqfJadeedRecord | null> {
     await updateDoc(doc(db, 'waqfJadeedPayments', data.id), {
       amount: data.amount,
       date: data.date,
@@ -253,6 +253,7 @@ export class ApiService {
       receiptNo: data.receiptNo || null
     });
     await this.recalculatePaidAmount(data.waqfJadeedId);
+    return this.getWaqfJadeedRecordById(data.waqfJadeedId);
   }
 
   static async deleteWaqfJadeedPayment(id: string) {
@@ -341,7 +342,7 @@ export class ApiService {
     return this.getWaqfJadeedSpecialRecordById(data.specialId);
   }
 
-  static async updateWaqfJadeedSpecialPayment(data: { id: string; specialId: string; amount: number; date: string; notes?: string; bookId?: string; bookNo?: string; receiptNo?: number }): Promise<void> {
+  static async updateWaqfJadeedSpecialPayment(data: { id: string; specialId: string; amount: number; date: string; notes?: string; bookId?: string; bookNo?: string; receiptNo?: number }): Promise<WaqfJadeedSpecialRecord | null> {
     await updateDoc(doc(db, 'waqfJadeedPayments', data.id), {
       amount: data.amount,
       date: data.date,
@@ -351,6 +352,7 @@ export class ApiService {
       receiptNo: data.receiptNo || null
     });
     await this.recalculateSpecialPaidAmount(data.specialId);
+    return this.getWaqfJadeedSpecialRecordById(data.specialId);
   }
 
   static async recalculateSpecialPaidAmount(specialId: string) {
