@@ -826,35 +826,52 @@ const WaqfJadeed: React.FC = () => {
         };
     }, [specialRecords]);
 
-    // Target Section Calculations
+    // Daftar Baligan Stats (Ansar, Khuddam, Lajna, special member, decesed, additional)
+    const baliganStats = useMemo(() => {
+        const ansar = tanzeemStats.find(t => t.name === 'ansar') || { promiseBase: 0, paid: 0, count: 0 };
+        const khuddam = tanzeemStats.find(t => t.name === 'khuddam') || { promiseBase: 0, paid: 0, count: 0 };
+        const lajna = tanzeemStats.find(t => t.name === 'lajna') || { promiseBase: 0, paid: 0, count: 0 };
+
+        const specialMembers = specialRecords.filter(r => !r.isDeceased && r.name !== 'اضافی');
+        const specialPaid = specialMembers.reduce((sum, r) => sum + (r.paidAmount || 0), 0);
+        const specialPromiseBase = specialMembers.reduce((sum, r) => sum + (r.promiseAmount || 0), 0);
+
+        const totalPromised = ansar.promiseBase + khuddam.promiseBase + lajna.promiseBase +
+            deceasedStats.totalDeceasedPromiseBase + azafiStats.promiseBase + specialPromiseBase;
+
+        const totalPaid = ansar.paid + khuddam.paid + lajna.paid +
+            deceasedStats.totalDeceasedPaid + azafiStats.paidAmount + specialPaid;
+
+        return {
+            ansar,
+            khuddam,
+            lajna,
+            deceased: deceasedStats,
+            additional: azafiStats,
+            special: {
+                paid: specialPaid,
+                promiseBase: specialPromiseBase,
+                count: specialMembers.length
+            },
+            totalPromised,
+            totalPaid
+        };
+    }, [tanzeemStats, deceasedStats, azafiStats, specialRecords]);
+
     const targetSectionStats = useMemo(() => {
-        // Calculate Total Received: Ansar + Lajna + Khuddam + deceased + additional
-        const ansarPaid = tanzeemStats.find(t => t.name === 'ansar')?.paid || 0;
-        const lajnaPaid = tanzeemStats.find(t => t.name === 'lajna')?.paid || 0;
-        const khuddamPaid = tanzeemStats.find(t => t.name === 'khuddam')?.paid || 0;
-        const totalDeceasedPaid = deceasedStats.totalDeceasedPaid || 0;
-        const totalAzafiPaid = azafiStats.paidAmount || 0;
-        const totalReceived = ansarPaid + lajnaPaid + khuddamPaid + totalDeceasedPaid + totalAzafiPaid;
+        // Calculate Total Received for target tracking (Baligan Paid)
+        const totalReceived = baliganStats.totalPaid;
 
-        // Calculate Total Promised (Excluding Nagar Parkar and Dafar Atfal)
-        const ansarPromiseBase = tanzeemStats.find(t => t.name === 'ansar')?.promiseBase || 0;
-        const lajnaPromiseBase = tanzeemStats.find(t => t.name === 'lajna')?.promiseBase || 0;
-        const khuddamPromiseBase = tanzeemStats.find(t => t.name === 'khuddam')?.promiseBase || 0;
-        const totalDeceasedPromiseBase = deceasedStats.totalDeceasedPromiseBase || 0;
-        const totalAzafiPromiseBase = azafiStats.promiseBase || 0;
-        const totalPromised = ansarPromiseBase + lajnaPromiseBase + khuddamPromiseBase + totalDeceasedPromiseBase + totalAzafiPromiseBase;
-
-        // Calculate Dafar Atfal: Atfal + Saf-e-Awal boys + Saf-e-Awal girls + Nasirat
-        const dafarAtfalTotal = dafarAtfalStats.paid;
+        // Calculate Total Promised for target tracking (Baligan Promised)
+        const totalPromised = baliganStats.totalPromised;
 
         return {
             totalReceived,
             totalPromised,
-            dafarAtfalTotal,
-            remainingFromTarget: targetAmount > 0 ? Math.max(0, targetAmount - totalReceived) : 0,
+            remainingFromTarget: targetAmount > 0 ? Math.max(0, targetAmount - totalPromised) : 0,
             receivedPercent: targetAmount > 0 ? (totalReceived / targetAmount) * 100 : 0
         };
-    }, [tanzeemStats, deceasedStats, azafiStats, dafarAtfalStats, targetAmount]);
+    }, [baliganStats, targetAmount]);
 
     const dashboardMetrics = useMemo(() => {
         const currentTotalPaid = stats.totalPaid;
@@ -1996,8 +2013,9 @@ const WaqfJadeed: React.FC = () => {
             ) : activeTab === 'dashboard' ? (
                 <div className="dashboard-view">
                     {/* Target Tracking Section */}
-                    <Card title={<Title level={4} style={{ margin: 0 }}>Target Tracking</Title>} style={{ marginBottom: 16 }}>
-                        <Row gutter={[16, 16]}>
+                    <div style={{ background: '#f0f2f5', padding: '20px', borderRadius: '8px', marginBottom: '24px' }}>
+                        <Title level={4} style={{ marginBottom: 20 }}>Target Tracking (Daftar Baligan)</Title>
+                        <Row gutter={[16, 16]} align="top">
                             <Col xs={24} sm={12} md={6}>
                                 <div style={{ marginBottom: 16 }}>
                                     <Text type="secondary" style={{ fontSize: 'clamp(12px, 2.5vw, 14px)', display: 'block', marginBottom: 8 }}>Target Amount</Text>
@@ -2027,9 +2045,9 @@ const WaqfJadeed: React.FC = () => {
                             </Col>
                             <Col xs={24} sm={12} md={6}>
                                 <Card bodyStyle={{ padding: 16 }} hoverable>
-                                    <Tooltip title="Total promise base excluding Nagar Parkar and Daftar Atfal. Includes Ansar, Lajna, Khuddam, Deceased, and Additional.">
+                                    <Tooltip title="Total promise from Daftar Baligan (Ansar, Khuddam, Lajna, Special, Deceased, Additional)">
                                         <Statistic
-                                            title={<span style={{ fontSize: '12px' }}>Total Promised</span>}
+                                            title={<span style={{ fontSize: '12px' }}>Total Promised (Baligan)</span>}
                                             value={targetSectionStats.totalPromised}
                                             prefix="Rs."
                                             precision={0}
@@ -2040,33 +2058,12 @@ const WaqfJadeed: React.FC = () => {
                                                 Received: Rs. {targetSectionStats.totalReceived.toLocaleString()}
                                             </Text>
                                         </div>
-                                        <Text type="secondary" style={{ fontSize: '9px', display: 'block', opacity: 0.6, marginTop: 4 }}>
-                                            (Excl. Nagar Parkar & Atfal)
-                                        </Text>
                                     </Tooltip>
                                 </Card>
                             </Col>
                             <Col xs={24} sm={12} md={6}>
                                 <Card bodyStyle={{ padding: 16 }} hoverable>
-                                    <Tooltip title="Total promises and collection specific to Nagar Parkar fund">
-                                        <Statistic
-                                            title={<span style={{ fontSize: '12px' }}>Total Nagar Parkar</span>}
-                                            value={stats.totalNagarParkar}
-                                            prefix="Rs."
-                                            precision={0}
-                                            valueStyle={{ fontSize: 'clamp(18px, 4vw, 24px)' }}
-                                        />
-                                        <div style={{ marginTop: 4 }}>
-                                            <Text type="secondary" style={{ fontSize: '11px', opacity: 0.8 }}>
-                                                Total Promises & Collection
-                                            </Text>
-                                        </div>
-                                    </Tooltip>
-                                </Card>
-                            </Col>
-                            <Col xs={24} sm={12} md={6}>
-                                <Card bodyStyle={{ padding: 16 }} hoverable>
-                                    <Tooltip title="Remaining collection needed reach the custom Target Amount set above">
+                                    <Tooltip title="Remaining collection needed reach the Target Amount from Baligan promises">
                                         <Statistic
                                             title={<span style={{ fontSize: '12px' }}>Remaining Gap</span>}
                                             value={targetSectionStats.remainingFromTarget}
@@ -2078,178 +2075,276 @@ const WaqfJadeed: React.FC = () => {
                                             }}
                                         />
                                         <Text type="secondary" style={{ fontSize: '11px' }}>
-                                            (To Reach Selected Target)
+                                            (Target - Baligan Promise)
                                         </Text>
                                     </Tooltip>
                                 </Card>
                             </Col>
                         </Row>
-                        <Divider style={{ margin: '16px 0' }} />
+                    </div>
+
+                    {/* Daftar Baligan Section */}
+                    <div style={{ marginBottom: '24px' }}>
+                        <Divider orientation="left">Daftar Baligan Breakdown</Divider>
                         <Row gutter={[16, 16]}>
-                            {/* Unified Dashboard Summary Cards */}
                             {[
                                 {
-                                    label: 'Special Members',
-                                    paid: specialRecords.reduce((sum, r) => sum + (r.paidAmount || 0), 0),
-                                    promise: specialRecords.reduce((sum, r) => sum + (r.promiseAmount || 0) + (r.nagarparAmount || 0), 0),
-                                    count: specialRecords.length,
+                                    label: 'Ansar',
+                                    paid: baliganStats.ansar.paid,
+                                    promise: baliganStats.ansar.promiseBase,
+                                    count: baliganStats.ansar.count,
+                                    color: '#0050b3',
+                                    tooltip: 'Majlis Ansarullah collections'
+                                },
+                                {
+                                    label: 'Khuddam',
+                                    paid: baliganStats.khuddam.paid,
+                                    promise: baliganStats.khuddam.promiseBase,
+                                    count: baliganStats.khuddam.count,
                                     color: '#1890ff',
-                                    tooltip: 'Dedicated and special entry pledges'
+                                    tooltip: 'Majlis Khuddamul Ahmadiyya collections'
+                                },
+                                {
+                                    label: 'Lajna',
+                                    paid: baliganStats.lajna.paid,
+                                    promise: baliganStats.lajna.promiseBase,
+                                    count: baliganStats.lajna.count,
+                                    color: '#eb2f96',
+                                    tooltip: 'Lajna Imaillah collections'
+                                },
+                                {
+                                    label: 'Special Members',
+                                    paid: baliganStats.special.paid,
+                                    promise: baliganStats.special.promiseBase,
+                                    count: baliganStats.special.count,
+                                    color: '#722ed1',
+                                    tooltip: 'Special pledges (other than additional/deceased)'
                                 },
                                 {
                                     label: 'Deceased',
-                                    paid: deceasedStats.totalDeceasedPaid,
-                                    promise: deceasedStats.totalDeceasedPromise,
-                                    count: deceasedStats.deceasedMales + deceasedStats.deceasedFemales,
-                                    color: '#722ed1',
-                                    tooltip: 'Collections specifically for deceased members'
+                                    paid: baliganStats.deceased.totalDeceasedPaid,
+                                    promise: baliganStats.deceased.totalDeceasedPromiseBase,
+                                    count: baliganStats.deceased.deceasedMales + baliganStats.deceased.deceasedFemales,
+                                    color: '#595959',
+                                    tooltip: 'Collections for deceased members'
                                 },
                                 {
                                     label: 'Additional (اضافی)',
-                                    paid: azafiStats.paidAmount,
-                                    promise: azafiStats.promiseAmount,
-                                    count: azafiStats.count,
+                                    paid: baliganStats.additional.paidAmount,
+                                    promise: baliganStats.additional.promiseBase,
+                                    count: baliganStats.additional.count,
                                     color: '#faad14',
-                                    tooltip: 'Pledges marked as Additional/Azafi'
-                                },
-                                {
-                                    label: 'Dafar Atfal (دفٹر اطفال)',
-                                    paid: dafarAtfalStats.paid,
-                                    promise: dafarAtfalStats.promise,
-                                    count: dafarAtfalStats.count,
-                                    color: '#52c41a',
-                                    tooltip: 'Combined collection status for Atfal, Nasirat, and Saf-e-Awal'
-                                },
-                                ...tanzeemStats.map(t => ({
-                                    label: getTanzeemDisplayName(t.name as any),
-                                    paid: t.paid,
-                                    promise: t.promise,
-                                    count: t.count,
-                                    color: '#1890ff',
-                                    tooltip: `Collection status for ${getTanzeemDisplayName(t.name as any)}`
-                                }))
+                                    tooltip: 'Additional pledges (Azafi)'
+                                }
                             ].map((card, idx) => (
-                                <Col xs={24} sm={12} md={8} lg={6} key={idx}>
+                                <Col xs={24} sm={12} md={8} lg={4} key={idx}>
                                     <Tooltip title={card.tooltip}>
-                                        <Card hoverable bodyStyle={{ padding: 16 }}>
+                                        <Card hoverable bodyStyle={{ padding: 12 }}>
                                             <Statistic
                                                 title={
-                                                    <span style={{ fontSize: 'clamp(12px, 3vw, 14px)', fontWeight: 600 }}>
+                                                    <span style={{ fontSize: '11px', fontWeight: 600 }}>
                                                         {card.label} ({card.count})
                                                     </span>
                                                 }
                                                 value={card.paid}
                                                 prefix="Rs."
                                                 precision={0}
-                                                valueStyle={{ fontSize: 'clamp(18px, 4.5vw, 24px)', color: card.color }}
+                                                valueStyle={{ fontSize: '16px', color: card.color }}
                                             />
+                                            <div style={{ marginTop: 4, fontSize: '10px', color: '#8c8c8c' }}>
+                                                P: {card.promise.toLocaleString()}
+                                            </div>
                                             <Progress
                                                 percent={card.promise > 0 ? Math.round((card.paid / card.promise) * 100) : 0}
-                                                status={card.paid >= card.promise && card.promise > 0 ? 'success' : 'active'}
-                                                strokeColor={card.color}
                                                 size="small"
+                                                showInfo={false}
+                                                strokeColor={card.color}
                                             />
-                                            <div style={{ marginTop: 8, display: 'flex', justifyContent: 'space-between', width: '100%', fontSize: '11px', color: '#8c8c8c' }}>
-                                                <span>Promise: Rs. {card.promise.toLocaleString()}</span>
-                                                <span style={{ marginLeft: 'auto' }}>
-                                                    {card.promise > 0 ? ((card.paid / card.promise) * 100).toFixed(1) : '0'}%
-                                                </span>
-                                            </div>
                                         </Card>
                                     </Tooltip>
                                 </Col>
                             ))}
                         </Row>
+                    </div>
 
-                        <Divider orientation="left" style={{ margin: '32px 0 16px' }}>Additional Performance Metrics</Divider>
+                    {/* Daftar Atfal Section */}
+                    <div style={{ marginBottom: '24px' }}>
+                        <Divider orientation="left">Daftar Atfal Section</Divider>
                         <Row gutter={[16, 16]}>
-                            <Col xs={24} sm={12} md={6}>
-                                <Tooltip title="Year-on-year growth in collections compared to the previous year's actual receipts">
-                                    <Card hoverable bodyStyle={{ padding: 16 }}>
+                            <Col xs={24} md={8}>
+                                <Tooltip title="Combined total for all children's tanzeems">
+                                    <Card hoverable bodyStyle={{ padding: 16, background: '#f6ffed' }}>
                                         <Statistic
-                                            title={<span style={{ fontWeight: 600 }}>YoY Growth</span>}
-                                            value={dashboardMetrics.yoyGrowth}
-                                            suffix="%"
-                                            precision={1}
-                                            valueStyle={{
-                                                fontSize: 'clamp(18px, 4vw, 24px)',
-                                                color: dashboardMetrics.yoyGrowth >= 0 ? '#3f8600' : '#cf1322'
-                                            }}
-                                        />
-                                        <Text type="secondary" style={{ fontSize: '11px' }}>
-                                            vs Prev Year (Rs. {dashboardMetrics.prevTotalPaid.toLocaleString()})
-                                        </Text>
-                                    </Card>
-                                </Tooltip>
-                            </Col>
-                            <Col xs={24} sm={12} md={6}>
-                                <Tooltip title="Percentage of active members who have registered a promise for the current year">
-                                    <Card hoverable bodyStyle={{ padding: 16 }}>
-                                        <Statistic
-                                            title={<span style={{ fontWeight: 600 }}>Participation Rate</span>}
-                                            value={dashboardMetrics.participationRate}
-                                            suffix="%"
-                                            precision={1}
-                                            valueStyle={{ fontSize: 'clamp(18px, 4vw, 24px)', color: '#1890ff' }}
-                                        />
-                                        <Progress
-                                            percent={dashboardMetrics.participationRate}
-                                            size="small"
-                                            showInfo={false}
-                                            strokeColor="#1890ff"
-                                        />
-                                        <div style={{ marginTop: 8 }}>
-                                            <Text type="secondary" style={{ fontSize: '11px' }}>
-                                                {records.filter(r => (r.promiseAmount || 0) + (r.nagarparAmount || 0) > 0).length} of {members.length} members
-                                            </Text>
-                                        </div>
-                                    </Card>
-                                </Tooltip>
-                            </Col>
-                            <Col xs={24} sm={12} md={6}>
-                                <Tooltip title="Breakdown of member cards by their payment completion status">
-                                    <Card hoverable bodyStyle={{ padding: 16 }}>
-                                        <Text type="secondary" style={{ fontSize: '12px', fontWeight: 600, display: 'block', marginBottom: 8 }}>Member Status</Text>
-                                        <Space direction="vertical" style={{ width: '100%' }} size={4}>
-                                            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                                                <Text style={{ fontSize: '12px' }}>Fully Paid:</Text>
-                                                <Tag color="success">{dashboardMetrics.fullyPaidCount}</Tag>
-                                            </div>
-                                            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                                                <Text style={{ fontSize: '12px' }}>Partial:</Text>
-                                                <Tag color="warning">{dashboardMetrics.partiallyPaidCount}</Tag>
-                                            </div>
-                                            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                                                <Text style={{ fontSize: '12px' }}>No Payment:</Text>
-                                                <Tag color="error">{dashboardMetrics.noPaymentCount}</Tag>
-                                            </div>
-                                        </Space>
-                                    </Card>
-                                </Tooltip>
-                            </Col>
-                            <Col xs={24} sm={12} md={6}>
-                                <Tooltip title="Average promise and payment calculated across all active cards">
-                                    <Card hoverable bodyStyle={{ padding: 16 }}>
-                                        <Statistic
-                                            title={<span style={{ fontWeight: 600 }}>Avg. Contribution</span>}
-                                            value={dashboardMetrics.avgPaid}
+                                            title={<span style={{ fontWeight: 600, color: '#389e0d' }}>Daftar Atfal (Total)</span>}
+                                            value={dafarAtfalStats.paid}
                                             prefix="Rs."
                                             precision={0}
-                                            valueStyle={{ fontSize: 'clamp(18px, 4vw, 24px)', color: '#722ed1' }}
+                                            valueStyle={{ fontSize: '24px', color: '#389e0d' }}
                                         />
-                                        <Text type="secondary" style={{ fontSize: '11px' }}>
-                                            Avg. Promise: Rs. {dashboardMetrics.avgPromise.toLocaleString(undefined, { maximumFractionDigits: 0 })}
-                                        </Text>
-                                        <div style={{ marginTop: 4 }}>
-                                            <Text type="secondary" style={{ fontSize: '10px', opacity: 0.6 }}>
-                                                Per Active Card ({dashboardMetrics.totalCards})
+                                        <div style={{ marginTop: 8 }}>
+                                            <Text type="secondary" style={{ fontSize: '12px' }}>
+                                                Total Promise: Rs. {dafarAtfalStats.promise.toLocaleString()}
                                             </Text>
                                         </div>
+                                        <Progress
+                                            percent={dafarAtfalStats.promise > 0 ? Math.round((dafarAtfalStats.paid / dafarAtfalStats.promise) * 100) : 0}
+                                            strokeColor="#52c41a"
+                                        />
+                                    </Card>
+                                </Tooltip>
+                            </Col>
+                            <Col xs={24} md={16}>
+                                <Row gutter={[8, 8]}>
+                                    {[
+                                        { name: 'atfal', label: 'Atfal' },
+                                        { name: 'nasirat', label: 'Nasirat' },
+                                        { name: 'saf-e-awal', label: 'Saf-e-Awal' },
+                                        { name: 'saf-e-awal-girls', label: 'Saf-e-Awal (G)' }
+                                    ].map(t => {
+                                        const s = members.reduce((acc, m) => {
+                                            if (m.tanzeem === t.name) {
+                                                const r = records.find(rec => rec.memberId === m.id);
+                                                if (r) {
+                                                    acc.paid += r.paidAmount || 0;
+                                                    acc.promise += (r.promiseAmount || 0) + (r.nagarparAmount || 0);
+                                                }
+                                                acc.count++;
+                                            }
+                                            return acc;
+                                        }, { paid: 0, promise: 0, count: 0 });
+
+                                        return (
+                                            <Col span={6} key={t.name}>
+                                                <Card bodyStyle={{ padding: 12 }}>
+                                                    <Statistic
+                                                        title={<span style={{ fontSize: '10px' }}>{t.label} ({s.count})</span>}
+                                                        value={s.paid}
+                                                        precision={0}
+                                                        valueStyle={{ fontSize: '14px' }}
+                                                    />
+                                                    <div style={{ fontSize: '9px', color: '#999' }}>
+                                                        P: {s.promise.toLocaleString()}
+                                                    </div>
+                                                </Card>
+                                            </Col>
+                                        );
+                                    })}
+                                </Row>
+                            </Col>
+                        </Row>
+                    </div>
+
+                    {/* Nagar Parkar Section */}
+                    <div style={{ marginBottom: '24px' }}>
+                        <Divider orientation="left">Nagar Parkar Section</Divider>
+                        <Row gutter={[16, 16]}>
+                            <Col xs={24} sm={12} md={8}>
+                                <Tooltip title="Total promises and collections for Nagar Parkar fund">
+                                    <Card hoverable bodyStyle={{ padding: 16, borderLeft: '4px solid #fa8c16' }}>
+                                        <Statistic
+                                            title={<span style={{ fontWeight: 600 }}>Total Nagar Parkar</span>}
+                                            value={stats.totalNagarParkar}
+                                            prefix="Rs."
+                                            precision={0}
+                                            valueStyle={{ fontSize: '24px', color: '#d46b08' }}
+                                        />
+                                        <Text type="secondary" style={{ fontSize: '12px' }}>
+                                            Pledges & Payments
+                                        </Text>
                                     </Card>
                                 </Tooltip>
                             </Col>
                         </Row>
-                    </Card>
+                    </div>
+
+                    <Divider orientation="left" style={{ margin: '32px 0 16px' }}>Additional Performance Metrics</Divider>
+                    <Row gutter={[16, 16]}>
+                        <Col xs={24} sm={12} md={6}>
+                            <Tooltip title="Year-on-year growth in collections compared to the previous year's actual receipts">
+                                <Card hoverable bodyStyle={{ padding: 16 }}>
+                                    <Statistic
+                                        title={<span style={{ fontWeight: 600 }}>YoY Growth</span>}
+                                        value={dashboardMetrics.yoyGrowth}
+                                        suffix="%"
+                                        precision={1}
+                                        valueStyle={{
+                                            fontSize: 'clamp(18px, 4vw, 24px)',
+                                            color: dashboardMetrics.yoyGrowth >= 0 ? '#3f8600' : '#cf1322'
+                                        }}
+                                    />
+                                    <Text type="secondary" style={{ fontSize: '11px' }}>
+                                        vs Prev Year (Rs. {dashboardMetrics.prevTotalPaid.toLocaleString()})
+                                    </Text>
+                                </Card>
+                            </Tooltip>
+                        </Col>
+                        <Col xs={24} sm={12} md={6}>
+                            <Tooltip title="Percentage of active members who have registered a promise for the current year">
+                                <Card hoverable bodyStyle={{ padding: 16 }}>
+                                    <Statistic
+                                        title={<span style={{ fontWeight: 600 }}>Participation Rate</span>}
+                                        value={dashboardMetrics.participationRate}
+                                        suffix="%"
+                                        precision={1}
+                                        valueStyle={{ fontSize: 'clamp(18px, 4vw, 24px)', color: '#1890ff' }}
+                                    />
+                                    <Progress
+                                        percent={dashboardMetrics.participationRate}
+                                        size="small"
+                                        showInfo={false}
+                                        strokeColor="#1890ff"
+                                    />
+                                    <div style={{ marginTop: 8 }}>
+                                        <Text type="secondary" style={{ fontSize: '11px' }}>
+                                            {records.filter(r => (r.promiseAmount || 0) + (r.nagarparAmount || 0) > 0).length} of {members.length} members
+                                        </Text>
+                                    </div>
+                                </Card>
+                            </Tooltip>
+                        </Col>
+                        <Col xs={24} sm={12} md={6}>
+                            <Tooltip title="Breakdown of member cards by their payment completion status">
+                                <Card hoverable bodyStyle={{ padding: 16 }}>
+                                    <Text type="secondary" style={{ fontSize: '12px', fontWeight: 600, display: 'block', marginBottom: 8 }}>Member Status</Text>
+                                    <Space direction="vertical" style={{ width: '100%' }} size={4}>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                            <Text style={{ fontSize: '12px' }}>Fully Paid:</Text>
+                                            <Tag color="success">{dashboardMetrics.fullyPaidCount}</Tag>
+                                        </div>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                            <Text style={{ fontSize: '12px' }}>Partial:</Text>
+                                            <Tag color="warning">{dashboardMetrics.partiallyPaidCount}</Tag>
+                                        </div>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                            <Text style={{ fontSize: '12px' }}>No Payment:</Text>
+                                            <Tag color="error">{dashboardMetrics.noPaymentCount}</Tag>
+                                        </div>
+                                    </Space>
+                                </Card>
+                            </Tooltip>
+                        </Col>
+                        <Col xs={24} sm={12} md={6}>
+                            <Tooltip title="Average promise and payment calculated across all active cards">
+                                <Card hoverable bodyStyle={{ padding: 16 }}>
+                                    <Statistic
+                                        title={<span style={{ fontWeight: 600 }}>Avg. Contribution</span>}
+                                        value={dashboardMetrics.avgPaid}
+                                        prefix="Rs."
+                                        precision={0}
+                                        valueStyle={{ fontSize: 'clamp(18px, 4vw, 24px)', color: '#722ed1' }}
+                                    />
+                                    <Text type="secondary" style={{ fontSize: '11px' }}>
+                                        Avg. Promise: Rs. {dashboardMetrics.avgPromise.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                                    </Text>
+                                    <div style={{ marginTop: 4 }}>
+                                        <Text type="secondary" style={{ fontSize: '10px', opacity: 0.6 }}>
+                                            Per Active Card ({dashboardMetrics.totalCards})
+                                        </Text>
+                                    </div>
+                                </Card>
+                            </Tooltip>
+                        </Col>
+                    </Row>
                 </div>
             ) : activeTab === 'about' ? (
                 <div className="about-view">

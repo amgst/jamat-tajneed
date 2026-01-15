@@ -90,7 +90,11 @@ const WaqfReports: React.FC<WaqfReportsProps> = ({
         const stats: Record<string, { promised: number; paid: number; count: number }> = {};
 
         records.forEach(r => {
-            const display = getTanzeemDisplayName(r.member.tanzeem);
+            let display = getTanzeemDisplayName(r.member.tanzeem);
+            // Group child tanzeems into Daftar Atfal
+            if (['atfal', 'nasirat', 'saf-e-awal', 'saf-e-awal-girls'].includes(r.member.tanzeem || '')) {
+                display = 'Daftar Atfal';
+            }
             if (!stats[display]) stats[display] = { promised: 0, paid: 0, count: 0 };
             stats[display].promised += r.promise;
             stats[display].paid += r.paid;
