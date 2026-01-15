@@ -228,9 +228,81 @@ const WaqfJadeed: React.FC = () => {
         } finally {
             setLoading(false);
         }
-    };
+        const handleExportDashboard = async () => {
+            const dashboardElement = document.querySelector('.dashboard-view') as HTMLElement;
+            if (!dashboardElement) return;
 
-    const updateLocalRecord = (savedRecord: WaqfJadeedRecord) => {
+            setLoading(true);
+            try {
+                const canvas = await html2canvas(dashboardElement, {
+                    scale: 2,
+                    useCORS: true,
+                    logging: false,
+                    backgroundColor: '#ffffff'
+                });
+
+                const imgData = canvas.toDataURL('image/png');
+                const pdf = new jsPDF({
+                    orientation: 'landscape',
+                    unit: 'mm',
+                    format: 'a4'
+                });
+
+                const imgWidth = 297; // A4 landscape width
+                const imgHeight = (canvas.height * imgWidth) / canvas.width;
+
+                pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, imgHeight);
+                pdf.save(`Waqf_Jadeed_Dashboard_${selectedYear}.pdf`);
+                message.success('Dashboard exported successfully');
+            } catch (error) {
+                console.error('Export failed:', error);
+                message.error('Failed to export dashboard');
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        const pageHeader = (
+            <div style={{ marginBottom: 24, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div>
+                    <Title level={2} style={{ margin: 0 }}>Waqf-e-Jadeed {selectedYear}</Title>
+                    <Text type="secondary">Manage members, payments, and view reports</Text>
+                </div>
+                <Space>
+                    {activeTab === 'dashboard' && (
+                        <Button
+                            icon={<FilePdfOutlined />}
+                            onClick={handleExportDashboard}
+                            loading={loading}
+                        >
+                            Export PDF
+                        </Button>
+                    )}
+                    <Select
+                        value={selectedYear}
+                        onChange={setSelectedYear}
+                        style={{ width: 120 }}
+                        size="large"
+                    >
+                        {[2024, 2025, 2026, 2027].map(year => (
+                            <Option key={year} value={year}>{year}</Option>
+                        ))}
+                    </Select>
+                    <Button
+                        type="primary"
+                        icon={<PlusOutlined />}
+                        onClick={() => {
+                            setEditingMember(null);
+                            form.resetFields();
+                            setDrawerVisible(true);
+                        }}
+                        size="large"
+                    >
+                        Add Member
+                    </Button>
+                </Space>
+            </div>
+        );
         setRecords(prev => {
             const idx = prev.findIndex(r => r.memberId === savedRecord.memberId);
             if (idx >= 0) {
@@ -2151,7 +2223,7 @@ const WaqfJadeed: React.FC = () => {
                                                 precision={0}
                                                 valueStyle={{ fontSize: '16px', color: card.color }}
                                             />
-                                            <div style={{ marginTop: 4, fontSize: '10px', color: '#8c8c8c' }}>
+                                            <div style={{ marginTop: 4, fontSize: '12px', fontWeight: 500, color: '#595959' }}>
                                                 P: {card.promise.toLocaleString()}
                                             </div>
                                             <Progress
@@ -2222,7 +2294,7 @@ const WaqfJadeed: React.FC = () => {
                                                         precision={0}
                                                         valueStyle={{ fontSize: '14px' }}
                                                     />
-                                                    <div style={{ fontSize: '9px', color: '#999' }}>
+                                                    <div style={{ fontSize: '12px', fontWeight: 500, color: '#595959' }}>
                                                         P: {s.promise.toLocaleString()}
                                                     </div>
                                                 </Card>
