@@ -20,10 +20,9 @@ import {
     UserOutlined,
     LineChartOutlined,
     PieChartOutlined,
-    EnvironmentOutlined,
     BookOutlined
 } from '@ant-design/icons';
-import type { Member, WaqfJadeedRecord, WaqfJadeedSpecialRecord, Payment, Family } from '../types';
+import type { Member, WaqfJadeedRecord, WaqfJadeedSpecialRecord, Payment } from '../types';
 import { getTanzeemDisplayName, exportToCSV } from '../utils/helpers';
 import dayjs from 'dayjs';
 
@@ -31,7 +30,6 @@ const { Title, Text } = Typography;
 
 interface WaqfReportsProps {
     members: Member[];
-    families: Family[];
     records: ({ member: Member; promise: number; paid: number; record?: WaqfJadeedRecord })[];
     specialRecords: WaqfJadeedSpecialRecord[];
     allPayments: Payment[];
@@ -42,7 +40,6 @@ interface WaqfReportsProps {
 
 const WaqfReports: React.FC<WaqfReportsProps> = ({
     members,
-    families,
     records,
     specialRecords,
     allPayments,
@@ -214,23 +211,6 @@ const WaqfReports: React.FC<WaqfReportsProps> = ({
         })).sort((a, b) => b.diff - a.diff);
     }, [records, specialRecords, prevRecords, prevSpecialRecords, members]);
 
-    const movedFamiliesData = useMemo(() => {
-        return families
-            .filter(f => f.isMoved)
-            .map(f => {
-                const head = members.find(m => m.id === f.headId);
-                return {
-                    key: f.id,
-                    familyName: f.familyName,
-                    halqa: f.halqa || 'N/A',
-                    headName: head?.name || 'Unknown',
-                    movedTo: f.movedTo || 'Unknown',
-                    memberCount: f.memberIds.length,
-                    date: f.updatedAt ? dayjs(f.updatedAt).format('DD MMM YYYY') : 'N/A'
-                };
-            })
-            .sort((a, b) => b.familyName.localeCompare(a.familyName));
-    }, [families, members]);
 
     const bookDetails = useMemo(() => {
         if (!selectedBook) return [];
@@ -332,14 +312,6 @@ const WaqfReports: React.FC<WaqfReportsProps> = ({
         { title: 'Date', dataIndex: 'date', key: 'date' }
     ];
 
-    const movedFamilyColumns = [
-        { title: 'Family Name', dataIndex: 'familyName', key: 'familyName' },
-        { title: 'Head of Family', dataIndex: 'headName', key: 'headName' },
-        { title: 'Halqa', dataIndex: 'halqa', key: 'halqa' },
-        { title: 'Destination', dataIndex: 'movedTo', key: 'movedTo', render: (val: string) => <Tag color="orange">{val}</Tag> },
-        { title: 'Members', dataIndex: 'memberCount', key: 'memberCount', align: 'center' as const },
-        { title: 'Moved Date', dataIndex: 'date', key: 'date' }
-    ];
 
     const summaryColumns = [
         { title: 'Name', dataIndex: 'name', key: 'name', width: 200 },
@@ -442,24 +414,6 @@ const WaqfReports: React.FC<WaqfReportsProps> = ({
                                     columns={summaryColumns}
                                     pagination={false}
                                     rowKey="name"
-                                    scroll={{ x: 600 }}
-                                />
-                            </div>
-                        )
-                    },
-                    {
-                        key: 'moved',
-                        label: <span><EnvironmentOutlined /> Moved Families</span>,
-                        children: (
-                            <div>
-                                <Row justify="space-between" align="middle" style={{ marginBottom: 16 }}>
-                                    <Title level={5} style={{ margin: 0 }}>Moved Families Report</Title>
-                                    <Button icon={<DownloadOutlined />} onClick={() => exportReport(movedFamiliesData, 'moved_families')}>Export CSV</Button>
-                                </Row>
-                                <Table
-                                    dataSource={movedFamiliesData}
-                                    columns={movedFamilyColumns}
-                                    pagination={{ pageSize: 15 }}
                                     scroll={{ x: 600 }}
                                 />
                             </div>

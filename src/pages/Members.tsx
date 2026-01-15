@@ -24,7 +24,6 @@ import {
   ReloadOutlined,
   PlusOutlined,
   DownloadOutlined,
-  TeamOutlined,
   UserOutlined
 } from '@ant-design/icons';
 import ReligiousActivitiesModal from '../components/ReligiousActivitiesModal';
@@ -241,10 +240,6 @@ const Members: React.FC = () => {
     a.click();
     URL.revokeObjectURL(url);
     message.success('Firebase data exported successfully');
-  };
-
-  const getFamilyMembers = (familyId: string): Member[] => {
-    return members.filter(m => m.familyId === familyId);
   };
 
   const getFilteredAndSortedMembers = (): Member[] => {

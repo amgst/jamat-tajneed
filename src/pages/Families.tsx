@@ -17,7 +17,8 @@ import {
   Descriptions,
   List,
   Row,
-  Col
+  Col,
+  Tabs
 } from 'antd';
 import {
   PlusOutlined,
@@ -57,6 +58,16 @@ const Families: React.FC = () => {
   const [searchText, setSearchText] = useState('');
   const [sortField, setSortField] = useState<string>('familyNumber');
   const [sortOrder, setSortOrder] = useState<'ascend' | 'descend'>('ascend');
+  const [activeTab, setActiveTab] = useState<string>('active');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+
+  // Move Family State
+  const [moveModalVisible, setMoveModalVisible] = useState(false);
+  const [movingFamily, setMovingFamily] = useState<Family | null>(null);
+  const [moveForm] = Form.useForm();
+  const [submitting, setSubmitting] = useState(false);
+
   const [form] = Form.useForm();
 
   useEffect(() => {
@@ -101,6 +112,13 @@ const Families: React.FC = () => {
 
   const getFilteredAndSortedFamilies = (): Family[] => {
     let filtered = families;
+
+    // Filter by Active/Moved Tab
+    if (activeTab === 'active') {
+      filtered = filtered.filter(f => !f.isMoved);
+    } else if (activeTab === 'moved') {
+      filtered = filtered.filter(f => !!f.isMoved);
+    }
 
     // Apply search filter
     if (searchText.trim()) {
@@ -256,8 +274,69 @@ const Families: React.FC = () => {
     }
   };
 
-  const [currentPage, setCurrentPage] = useState<number>(1);
-  const [pageSize, setPageSize] = useState<number>(10);
+  const handleMoveFamily = async (values: { destination: string }) => {
+    if (!movingFamily) return;
+    setSubmitting(true);
+    try {
+      // 1. Update Family record
+      await ApiService.updateFamily(movingFamily.id, {
+        isMoved: true,
+        movedTo: values.destination,
+        updatedAt: new Date().toISOString()
+      });
+
+      // 2. Update all members in this family
+      const familyMembersList = members.filter(m => movingFamily.memberIds.includes(m.id));
+      await Promise.all(familyMembersList.map(m =>
+        ApiService.updateMember(m.id, {
+          isMoved: true,
+          movedTo: values.destination,
+          updatedAt: new Date().toISOString()
+        })
+      ));
+
+      message.success(`Family and ${familyMembersList.length} members moved to ${values.destination}`);
+      setMoveModalVisible(false);
+      moveForm.resetFields();
+      loadData();
+    } catch (error) {
+      console.error('Error moving family:', error);
+      message.error('Failed to move family');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleRestoreFamily = async (family: Family) => {
+    try {
+      setLoading(true);
+      // 1. Restore Family
+      await ApiService.updateFamily(family.id, {
+        isMoved: false,
+        movedTo: '',
+        updatedAt: new Date().toISOString()
+      });
+
+      // 2. Restore all members
+      const familyMembersList = members.filter(m => family.memberIds.includes(m.id));
+      await Promise.all(familyMembersList.map(m =>
+        ApiService.updateMember(m.id, {
+          isMoved: false,
+          movedTo: '',
+          updatedAt: new Date().toISOString()
+        })
+      ));
+
+      message.success('Family and members restored to active list');
+      loadData();
+    } catch (error) {
+      console.error('Error restoring family:', error);
+      message.error('Failed to restore family');
+    } finally {
+      setLoading(false);
+    }
+  };
+
 
   const columns = [
     {
@@ -343,6 +422,30 @@ const Families: React.FC = () => {
             icon={<EditOutlined />}
             onClick={() => handleEditFamily(record)}
           />
+          {!record.isMoved ? (
+            <Button
+              type="default"
+              size="small"
+              icon={<ReloadOutlined style={{ color: '#fa8c16' }} />}
+              onClick={() => {
+                setMovingFamily(record);
+                setMoveModalVisible(true);
+              }}
+            >
+              Move
+            </Button>
+          ) : (
+            <Popconfirm
+              title="Restore this family as active?"
+              onConfirm={() => handleRestoreFamily(record)}
+              okText="Yes"
+              cancelText="No"
+            >
+              <Button type="default" size="small" style={{ color: '#52c41a' }}>
+                Restore
+              </Button>
+            </Popconfirm>
+          )}
           <Popconfirm
             title="Are you sure you want to delete this family?"
             onConfirm={() => handleDeleteFamily(record.id)}
@@ -358,7 +461,7 @@ const Families: React.FC = () => {
           </Popconfirm>
         </Space>
       ),
-      width: 180,
+      width: 250,
     },
   ];
 
@@ -426,13 +529,30 @@ const Families: React.FC = () => {
           </Col>
         </Row>
 
+        <Tabs
+          activeKey={activeTab}
+          onChange={setActiveTab}
+          style={{ marginBottom: 16 }}
+          items={[
+            {
+              key: 'active',
+              label: `Active Families (${families.filter(f => !f.isMoved).length})`,
+            },
+            {
+              key: 'moved',
+              label: `Moved Families (${families.filter(f => f.isMoved).length})`,
+            }
+          ]}
+        />
+
         <Table
           columns={columns}
           dataSource={getFilteredAndSortedFamilies()}
           rowKey="id"
           loading={loading}
           pagination={{
-            defaultPageSize: 10,
+            current: currentPage,
+            pageSize: pageSize,
             pageSizeOptions: [10, 20, 50, 100],
             showSizeChanger: true,
             showQuickJumper: true,
@@ -582,6 +702,41 @@ const Families: React.FC = () => {
             />
           </div>
         )}
+      </Modal>
+      {/* Move Family Modal */}
+      <Modal
+        title={`Move Family: ${movingFamily?.familyName}`}
+        open={moveModalVisible}
+        onCancel={() => {
+          setMoveModalVisible(false);
+          moveForm.resetFields();
+        }}
+        footer={null}
+      >
+        <Form
+          form={moveForm}
+          layout="vertical"
+          onFinish={handleMoveFamily}
+        >
+          <Form.Item
+            name="destination"
+            label="Destination (Moved to...)"
+            rules={[{ required: true, message: 'Please enter destination' }]}
+            help="This will mark the family and all its active members as moved."
+          >
+            <Input placeholder="e.g. Rabwah, UK, Germany" autoFocus />
+          </Form.Item>
+          <Form.Item style={{ marginBottom: 0, textAlign: 'right' }}>
+            <Space>
+              <Button onClick={() => setMoveModalVisible(false)}>
+                Cancel
+              </Button>
+              <Button type="primary" htmlType="submit" loading={submitting}>
+                Move Family
+              </Button>
+            </Space>
+          </Form.Item>
+        </Form>
       </Modal>
     </div>
   );

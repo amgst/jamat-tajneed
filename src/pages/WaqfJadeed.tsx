@@ -22,7 +22,8 @@ import {
     Checkbox,
     App,
     Table,
-    Tag
+    Tag,
+    Divider
 } from 'antd';
 
 const { Text, Title } = Typography;
@@ -42,8 +43,6 @@ import {
     SaveOutlined,
     ShareAltOutlined
 } from '@ant-design/icons';
-import { db } from '../lib/firebase';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
 import WaqfReports from '../components/WaqfReports';
 import dayjs from 'dayjs';
 import { jsPDF } from 'jspdf';
@@ -105,14 +104,6 @@ const WaqfJadeed: React.FC = () => {
     const [tanzeemMembersCurrentPage, setTanzeemMembersCurrentPage] = useState<Record<string, number>>({});
     const [tanzeemMembersPageSize, setTanzeemMembersPageSize] = useState<Record<string, number>>({});
 
-    // Moved Families states
-    const [familyViewTab, setFamilyViewTab] = useState<'active' | 'moved'>('active');
-    const [movedDestinations, setMovedDestinations] = useState<string[]>(['Germany', 'Thailand']);
-    const [movedModalVisible, setMovedModalVisible] = useState(false);
-    const [selectedFamilyForMove, setSelectedFamilyForMove] = useState<Family | null>(null);
-    const [moveForm] = Form.useForm();
-    const [newDestination, setNewDestination] = useState('');
-
     const [books, setBooks] = useState<ReceiptBook[]>([]);
     const [addBookModalVisible, setAddBookModalVisible] = useState(false);
     const [newBookForm] = Form.useForm();
@@ -120,19 +111,8 @@ const WaqfJadeed: React.FC = () => {
     useEffect(() => {
         loadData();
         loadBooks();
-        loadMovedDestinations();
     }, [selectedYear]);
 
-    const loadMovedDestinations = async () => {
-        try {
-            const snap = await getDoc(doc(db, 'settings', 'moved_destinations'));
-            if (snap.exists() && snap.data().list) {
-                setMovedDestinations(snap.data().list);
-            }
-        } catch (error) {
-            console.error('Failed to load moved destinations:', error);
-        }
-    };
 
     const loadBooks = async () => {
         try {
@@ -161,63 +141,6 @@ const WaqfJadeed: React.FC = () => {
         loadTarget();
     }, [selectedYear]);
 
-    const handleMoveFamily = (family: Family) => {
-        setSelectedFamilyForMove(family);
-        moveForm.setFieldsValue({ movedTo: family.movedTo || movedDestinations[0] });
-        setMovedModalVisible(true);
-    };
-
-    const handleRestoreFamily = async (family: Family) => {
-        try {
-            setLoading(true);
-            const updated = await ApiService.updateFamily(family.id, { isMoved: false, movedTo: null });
-            setFamilies(prev => prev.map(f => f.id === updated.id ? updated : f));
-            message.success('Family restored successfully');
-        } catch (error) {
-            console.error('Failed to restore family:', error);
-            message.error('Failed to restore family');
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    const onMoveFamilyFinish = async (values: any) => {
-        if (!selectedFamilyForMove) return;
-
-        try {
-            setLoading(true);
-            let destination = values.movedTo;
-
-            // Handle "Other" or custom destination
-            if (destination === 'other' && newDestination) {
-                destination = newDestination;
-                if (!movedDestinations.includes(newDestination)) {
-                    const newList = [...movedDestinations, newDestination];
-                    await setDoc(doc(db, 'settings', 'moved_destinations'), { list: newList });
-                    setMovedDestinations(newList);
-                }
-            }
-
-            const updated = await ApiService.updateFamily(selectedFamilyForMove.id, {
-                isMoved: true,
-                movedTo: destination,
-                updatedAt: new Date().toISOString()
-            });
-
-            setFamilies(prev => prev.map(f => f.id === updated.id ? updated : f));
-
-            message.success(`Family marked as moved to ${destination}`);
-            setMovedModalVisible(false);
-            setSelectedFamilyForMove(null);
-            setNewDestination('');
-            moveForm.resetFields();
-        } catch (error) {
-            console.error('Failed to move family:', error);
-            message.error('Failed to mark family as moved');
-        } finally {
-            setLoading(false);
-        }
-    };
 
     // Handler to save target amount
     // Handler to save target amount with debounce
@@ -675,8 +598,8 @@ const WaqfJadeed: React.FC = () => {
     }, [members, records, families, searchTerm]);
 
     const filteredFamilyData = useMemo(() => {
-        // Filter based on familyViewTab (active vs moved)
-        let data = families.filter(f => familyViewTab === 'moved' ? f.isMoved : !f.isMoved);
+        // Only include active families (not moved)
+        let data = families.filter(f => !f.isMoved);
 
         if (searchTerm) {
             const lower = searchTerm.toLowerCase();
@@ -691,7 +614,7 @@ const WaqfJadeed: React.FC = () => {
             const numB = b.familyNumber || 999999;
             return numA - numB;
         });
-    }, [families, searchTerm, familyViewTab]);
+    }, [families, searchTerm]);
 
     // Group members by tanzeem for Tanzeem Wise view
     const tanzeemGroupedData = useMemo(() => {
@@ -926,6 +849,47 @@ const WaqfJadeed: React.FC = () => {
             receivedPercent: targetAmount > 0 ? (totalReceived / targetAmount) * 100 : 0
         };
     }, [tanzeemStats, deceasedStats, dafarAtfalStats, targetAmount]);
+
+    const dashboardMetrics = useMemo(() => {
+        const currentTotalPaid = stats.totalPaid;
+        const currentTotalPromise = stats.totalPromise;
+        const prevTotalPaid = prevRecords.reduce((sum, r) => sum + (r.paidAmount || 0), 0) +
+            prevSpecialRecords.reduce((sum, r) => sum + (r.paidAmount || 0), 0);
+        const prevTotalPromise = prevRecords.reduce((sum, r) => sum + (r.promiseAmount || 0) + (r.nagarparAmount || 0), 0) +
+            prevSpecialRecords.reduce((sum, r) => sum + (r.promiseAmount || 0) + (r.nagarparAmount || 0), 0);
+
+        const activeMemberIds = new Set(members.map(m => m.id));
+        const membersWithPromise = records.filter(r => activeMemberIds.has(r.memberId) && ((r.promiseAmount || 0) + (r.nagarparAmount || 0) > 0)).length;
+        const totalActiveMembers = members.length;
+        const participationRate = totalActiveMembers > 0 ? (membersWithPromise / totalActiveMembers) * 100 : 0;
+
+        const allActiveRecords = [
+            ...records.map(r => ({ paid: r.paidAmount || 0, promise: (r.promiseAmount || 0) + (r.nagarparAmount || 0) })),
+            ...specialRecords.map(r => ({ paid: r.paidAmount || 0, promise: (r.promiseAmount || 0) + (r.nagarparAmount || 0) }))
+        ].filter(r => r.promise > 0);
+
+        const fullyPaidCount = allActiveRecords.filter(r => r.paid >= r.promise).length;
+        const partiallyPaidCount = allActiveRecords.filter(r => r.paid > 0 && r.paid < r.promise).length;
+        const noPaymentCount = allActiveRecords.filter(r => r.paid === 0).length;
+
+        const avgPromise = allActiveRecords.length > 0 ? currentTotalPromise / allActiveRecords.length : 0;
+        const avgPaid = allActiveRecords.length > 0 ? currentTotalPaid / allActiveRecords.length : 0;
+
+        const yoyGrowth = prevTotalPaid > 0 ? ((currentTotalPaid - prevTotalPaid) / prevTotalPaid) * 100 : 0;
+
+        return {
+            prevTotalPaid,
+            prevTotalPromise,
+            participationRate,
+            fullyPaidCount,
+            partiallyPaidCount,
+            noPaymentCount,
+            avgPromise,
+            avgPaid,
+            totalCards: allActiveRecords.length,
+            yoyGrowth
+        };
+    }, [stats, records, specialRecords, prevRecords, prevSpecialRecords, members]);
 
     // Helper function to convert English names to Urdu for display
     const getUrduName = (name: string): string => {
@@ -1579,16 +1543,9 @@ const WaqfJadeed: React.FC = () => {
                 </Card>
             ) : activeTab === 'families' ? (
                 <div className="family-list">
-                    <Tabs
-                        activeKey={familyViewTab}
-                        onChange={(key) => setFamilyViewTab(key as 'active' | 'moved')}
-                        type="line"
-                        style={{ marginBottom: 16 }}
-                        items={[
-                            { label: `Active Families (${families.filter(f => !f.isMoved).length})`, key: 'active' },
-                            { label: `Moved Families (${families.filter(f => f.isMoved).length})`, key: 'moved' },
-                        ]}
-                    />
+                    <div style={{ marginBottom: 16 }}>
+                        <Text strong>Active Families ({families.filter(f => !f.isMoved).length})</Text>
+                    </div>
                     {loading ? <p>Loading...</p> : (
                         <Collapse defaultActiveKey={[]} ghost>
                             {filteredFamilyData.map(family => {
@@ -1637,29 +1594,13 @@ const WaqfJadeed: React.FC = () => {
                                                 </Col>
                                                 <Col xs={6} sm={2} md={4} style={{ textAlign: 'right' }}>
                                                     <Space>
-                                                        {family.isMoved ? (
-                                                            <Button
-                                                                type="text"
-                                                                icon={<PlusOutlined style={{ color: '#52c41a' }} />}
-                                                                size="small"
-                                                                onClick={(e) => {
-                                                                    e.stopPropagation();
-                                                                    handleRestoreFamily(family);
-                                                                }}
-                                                                title="Restore Family"
-                                                            />
-                                                        ) : (
-                                                            <Button
-                                                                type="text"
-                                                                icon={<DeleteOutlined style={{ color: '#faad14' }} />}
-                                                                size="small"
-                                                                onClick={(e) => {
-                                                                    e.stopPropagation();
-                                                                    handleMoveFamily(family);
-                                                                }}
-                                                                title="Mark as Moved"
-                                                            />
-                                                        )}
+                                                        <Button
+                                                            type="text"
+                                                            icon={<DeleteOutlined style={{ color: '#faad14' }} />}
+                                                            size="small"
+                                                            disabled={true}
+                                                            title="Move Family feature is now in Families page"
+                                                        />
                                                         <Button
                                                             type="text"
                                                             icon={<ShareAltOutlined />}
@@ -2033,7 +1974,6 @@ const WaqfJadeed: React.FC = () => {
             ) : activeTab === 'reports' ? (
                 <WaqfReports
                     members={members}
-                    families={families}
                     records={filteredMemberData}
                     specialRecords={specialRecords}
                     allPayments={allPayments}
@@ -2042,12 +1982,11 @@ const WaqfJadeed: React.FC = () => {
                     selectedYear={selectedYear}
                 />
             ) : activeTab === 'dashboard' ? (
-                // Dashboard Tab (Tanzeem Wise)
                 <div className="dashboard-view">
-                    {/* Target Section */}
-                    <Card title={<Title level={4} style={{ margin: 0 }}>Target</Title>} style={{ marginBottom: 16 }}>
+                    {/* Target Tracking Section */}
+                    <Card title={<Title level={4} style={{ margin: 0 }}>Target Tracking</Title>} style={{ marginBottom: 16 }}>
                         <Row gutter={[16, 16]}>
-                            <Col xs={24} sm={12} md={6} lg={4}>
+                            <Col xs={24} sm={12} md={6}>
                                 <div style={{ marginBottom: 16 }}>
                                     <Text type="secondary" style={{ fontSize: 'clamp(12px, 2.5vw, 14px)', display: 'block', marginBottom: 8 }}>Target Amount</Text>
                                     <InputNumber
@@ -2063,7 +2002,7 @@ const WaqfJadeed: React.FC = () => {
                                     />
                                 </div>
                                 <div style={{ marginTop: 8 }}>
-                                    <Text type="secondary" style={{ fontSize: 'clamp(11px, 2.5vw, 12px)', display: 'block', marginBottom: 4 }}>
+                                    <Text type="secondary" style={{ fontSize: '11px', display: 'block', marginBottom: 4 }}>
                                         Progress: {targetSectionStats.receivedPercent.toFixed(1)}%
                                     </Text>
                                     <Progress
@@ -2074,8 +2013,8 @@ const WaqfJadeed: React.FC = () => {
                                     />
                                 </div>
                             </Col>
-                            <Col xs={24} sm={12} md={6} lg={5}>
-                                <Card bodyStyle={{ padding: 16 }}>
+                            <Col xs={24} sm={12} md={6}>
+                                <Card bodyStyle={{ padding: 16 }} hoverable>
                                     <Statistic
                                         title={<span style={{ fontSize: '12px' }}>Total Promised</span>}
                                         value={targetSectionStats.totalPromised}
@@ -2093,8 +2032,8 @@ const WaqfJadeed: React.FC = () => {
                                     </Text>
                                 </Card>
                             </Col>
-                            <Col xs={24} sm={12} md={6} lg={5}>
-                                <Card bodyStyle={{ padding: 16 }}>
+                            <Col xs={24} sm={12} md={6}>
+                                <Card bodyStyle={{ padding: 16 }} hoverable>
                                     <Statistic
                                         title={<span style={{ fontSize: '12px' }}>Total Nagar Parkar</span>}
                                         value={stats.totalNagarParkar}
@@ -2109,10 +2048,10 @@ const WaqfJadeed: React.FC = () => {
                                     </div>
                                 </Card>
                             </Col>
-                            <Col xs={24} sm={12} md={6} lg={5}>
-                                <Card bodyStyle={{ padding: 16 }}>
+                            <Col xs={24} sm={12} md={6}>
+                                <Card bodyStyle={{ padding: 16 }} hoverable>
                                     <Statistic
-                                        title={<span style={{ fontSize: '12px' }}>Remaining</span>}
+                                        title={<span style={{ fontSize: '12px' }}>Remaining Gap</span>}
                                         value={targetSectionStats.remainingFromTarget}
                                         prefix="Rs."
                                         precision={0}
@@ -2122,145 +2061,161 @@ const WaqfJadeed: React.FC = () => {
                                         }}
                                     />
                                     <Text type="secondary" style={{ fontSize: '11px' }}>
-                                        (Target - Received)
-                                    </Text>
-                                </Card>
-                            </Col>
-                            <Col xs={24} sm={12} md={6} lg={5}>
-                                <Card bodyStyle={{ padding: 16 }}>
-                                    <div style={{ marginBottom: 4 }}>
-                                        <Text strong style={{ fontSize: '12px' }}>دفتر اطفال</Text>
-                                    </div>
-                                    <Statistic
-                                        title={<span style={{ fontSize: '11px' }}>Total Received</span>}
-                                        value={targetSectionStats.dafarAtfalTotal}
-                                        prefix="Rs."
-                                        precision={0}
-                                        valueStyle={{ fontSize: 'clamp(18px, 4vw, 24px)' }}
-                                    />
-                                    <Text type="secondary" style={{ fontSize: '10px' }}>
-                                        (Atfal + Saf-e-Awal + Nasirat)
+                                        (To Reach Selected Target)
                                     </Text>
                                 </Card>
                             </Col>
                         </Row>
-                    </Card>
+                        <Divider style={{ margin: '16px 0' }} />
+                        <Row gutter={[16, 16]}>
+                            {/* Unified Dashboard Summary Cards */}
+                            {[
+                                {
+                                    label: 'Special Members',
+                                    paid: specialRecords.reduce((sum, r) => sum + (r.paidAmount || 0), 0),
+                                    promise: specialRecords.reduce((sum, r) => sum + (r.promiseAmount || 0) + (r.nagarparAmount || 0), 0),
+                                    count: specialRecords.length,
+                                    color: '#1890ff'
+                                },
+                                {
+                                    label: 'Deceased',
+                                    paid: deceasedStats.totalDeceasedPaid,
+                                    promise: deceasedStats.totalDeceasedPromise,
+                                    count: deceasedStats.deceasedMales + deceasedStats.deceasedFemales,
+                                    color: '#722ed1'
+                                },
+                                {
+                                    label: 'Additional (اضافی)',
+                                    paid: azafiStats.paidAmount,
+                                    promise: azafiStats.promiseAmount,
+                                    count: azafiStats.count,
+                                    color: '#faad14'
+                                },
+                                {
+                                    label: 'Dafar Atfal (دفٹر اطفال)',
+                                    paid: dafarAtfalStats.paid,
+                                    promise: dafarAtfalStats.promise,
+                                    count: dafarAtfalStats.count,
+                                    color: '#52c41a'
+                                },
+                                ...tanzeemStats.map(t => ({
+                                    label: getTanzeemDisplayName(t.name as any),
+                                    paid: t.paid,
+                                    promise: t.promise,
+                                    count: t.count,
+                                    color: '#1890ff'
+                                }))
+                            ].map((card, idx) => (
+                                <Col xs={24} sm={12} md={8} lg={6} key={idx}>
+                                    <Card hoverable bodyStyle={{ padding: 16 }}>
+                                        <Statistic
+                                            title={
+                                                <span style={{ fontSize: 'clamp(12px, 3vw, 14px)', fontWeight: 600 }}>
+                                                    {card.label} ({card.count})
+                                                </span>
+                                            }
+                                            value={card.paid}
+                                            prefix="Rs."
+                                            precision={0}
+                                            valueStyle={{ fontSize: 'clamp(18px, 4.5vw, 24px)', color: card.color }}
+                                        />
+                                        <Progress
+                                            percent={card.promise > 0 ? Math.round((card.paid / card.promise) * 100) : 0}
+                                            status={card.paid >= card.promise && card.promise > 0 ? 'success' : 'active'}
+                                            strokeColor={card.color}
+                                            size="small"
+                                        />
+                                        <div style={{ marginTop: 8, display: 'flex', justifyContent: 'space-between', width: '100%', fontSize: '11px', color: '#8c8c8c' }}>
+                                            <span>Promise: Rs. {card.promise.toLocaleString()}</span>
+                                            <span style={{ marginLeft: 'auto' }}>
+                                                {card.promise > 0 ? ((card.paid / card.promise) * 100).toFixed(1) : '0'}%
+                                            </span>
+                                        </div>
+                                    </Card>
+                                </Col>
+                            ))}
+                        </Row>
 
-                    {/* Consolidated Special/Deceased Stats Card */}
-                    <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
-                        <Col xs={24}>
-                            <Card hoverable>
-                                <Statistic
-                                    title={<span style={{ fontSize: 'clamp(14px, 3vw, 16px)', fontWeight: 600 }}>Total Special/Deceased Collection</span>}
-                                    value={deceasedStats.totalDeceasedPaid || 0}
-                                    prefix="Rs."
-                                    precision={0}
-                                    valueStyle={{ fontSize: 'clamp(24px, 5vw, 36px)', color: '#1890ff' }}
-                                />
-                                <div style={{ marginTop: 8 }}>
-                                    <Text type="secondary" style={{ fontSize: 'clamp(12px, 2.5vw, 14px)' }}>
-                                        Total Members: <strong>{(deceasedStats.deceasedMales + deceasedStats.deceasedFemales).toLocaleString()}</strong>
+                        <Divider orientation="left" style={{ margin: '32px 0 16px' }}>Additional Performance Metrics</Divider>
+                        <Row gutter={[16, 16]}>
+                            <Col xs={24} sm={12} md={6}>
+                                <Card hoverable bodyStyle={{ padding: 16 }}>
+                                    <Statistic
+                                        title={<span style={{ fontWeight: 600 }}>YoY Growth</span>}
+                                        value={dashboardMetrics.yoyGrowth}
+                                        suffix="%"
+                                        precision={1}
+                                        valueStyle={{
+                                            fontSize: 'clamp(18px, 4vw, 24px)',
+                                            color: dashboardMetrics.yoyGrowth >= 0 ? '#3f8600' : '#cf1322'
+                                        }}
+                                    />
+                                    <Text type="secondary" style={{ fontSize: '11px' }}>
+                                        vs Prev Year (Rs. {dashboardMetrics.prevTotalPaid.toLocaleString()})
                                     </Text>
-                                    <br />
-                                    <Text type="secondary" style={{ fontSize: 'clamp(11px, 2.5vw, 13px)' }}>
-                                        Total Promised: Rs. {(deceasedStats.totalDeceasedPromise || 0).toLocaleString()} • {deceasedStats.totalDeceasedPromise > 0 ? (deceasedStats.totalDeceasedPaid / deceasedStats.totalDeceasedPromise * 100).toFixed(1) : '0'}% Collected
+                                </Card>
+                            </Col>
+                            <Col xs={24} sm={12} md={6}>
+                                <Card hoverable bodyStyle={{ padding: 16 }}>
+                                    <Statistic
+                                        title={<span style={{ fontWeight: 600 }}>Participation Rate</span>}
+                                        value={dashboardMetrics.participationRate}
+                                        suffix="%"
+                                        precision={1}
+                                        valueStyle={{ fontSize: 'clamp(18px, 4vw, 24px)', color: '#1890ff' }}
+                                    />
+                                    <Progress
+                                        percent={dashboardMetrics.participationRate}
+                                        size="small"
+                                        showInfo={false}
+                                        strokeColor="#1890ff"
+                                    />
+                                    <div style={{ marginTop: 8 }}>
+                                        <Text type="secondary" style={{ fontSize: '11px' }}>
+                                            {records.filter(r => (r.promiseAmount || 0) + (r.nagarparAmount || 0) > 0).length} of {members.length} members
+                                        </Text>
+                                    </div>
+                                </Card>
+                            </Col>
+                            <Col xs={24} sm={12} md={6}>
+                                <Card hoverable bodyStyle={{ padding: 16 }}>
+                                    <Text type="secondary" style={{ fontSize: '12px', fontWeight: 600, display: 'block', marginBottom: 8 }}>Member Status</Text>
+                                    <Space direction="vertical" style={{ width: '100%' }} size={4}>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                            <Text style={{ fontSize: '12px' }}>Fully Paid:</Text>
+                                            <Tag color="success">{dashboardMetrics.fullyPaidCount}</Tag>
+                                        </div>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                            <Text style={{ fontSize: '12px' }}>Partial:</Text>
+                                            <Tag color="warning">{dashboardMetrics.partiallyPaidCount}</Tag>
+                                        </div>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                            <Text style={{ fontSize: '12px' }}>No Payment:</Text>
+                                            <Tag color="error">{dashboardMetrics.noPaymentCount}</Tag>
+                                        </div>
+                                    </Space>
+                                </Card>
+                            </Col>
+                            <Col xs={24} sm={12} md={6}>
+                                <Card hoverable bodyStyle={{ padding: 16 }}>
+                                    <Statistic
+                                        title={<span style={{ fontWeight: 600 }}>Avg. Contribution</span>}
+                                        value={dashboardMetrics.avgPaid}
+                                        prefix="Rs."
+                                        precision={0}
+                                        valueStyle={{ fontSize: 'clamp(18px, 4vw, 24px)', color: '#722ed1' }}
+                                    />
+                                    <Text type="secondary" style={{ fontSize: '11px' }}>
+                                        Avg. Promise: Rs. {dashboardMetrics.avgPromise.toLocaleString(undefined, { maximumFractionDigits: 0 })}
                                     </Text>
-                                </div>
-                                <Progress
-                                    percent={deceasedStats.totalDeceasedPromise > 0 ? Math.round(deceasedStats.totalDeceasedPaid / deceasedStats.totalDeceasedPromise * 100) : 0}
-                                    status={deceasedStats.totalDeceasedPaid >= deceasedStats.totalDeceasedPromise && deceasedStats.totalDeceasedPromise > 0 ? 'success' : 'active'}
-                                    strokeColor="#1890ff"
-                                    style={{ marginTop: 12 }}
-                                />
-                            </Card>
-                        </Col>
-                    </Row>
-
-                    {/* اضافی (Additional) Stats Card */}
-                    <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
-                        <Col xs={24} sm={24} md={24}>
-                            <Card hoverable>
-                                <Statistic
-                                    title={`اضافی (${azafiStats.count})`}
-                                    value={azafiStats.paidAmount || 0}
-                                    prefix="Rs."
-                                    precision={0}
-                                    valueStyle={{ fontSize: 'clamp(18px, 4.5vw, 28px)' }}
-                                />
-                                <Progress
-                                    percent={Math.round(azafiStats.percent)}
-                                    status={azafiStats.paidAmount >= azafiStats.promiseAmount && azafiStats.promiseAmount > 0 ? 'success' : 'active'}
-                                    strokeColor={azafiStats.paidAmount >= azafiStats.promiseAmount && azafiStats.promiseAmount > 0 ? '#52c41a' : '#1890ff'}
-                                />
-                                <div style={{ marginTop: 12, display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: 4 }}>
-                                    <Text type="secondary" style={{ fontSize: 'clamp(11px, 2.5vw, 12px)' }}>Promise: Rs. {(azafiStats.promiseAmount || 0).toLocaleString()}</Text>
-                                    <Text type="secondary" style={{ fontSize: 'clamp(11px, 2.5vw, 12px)' }}>{azafiStats.promiseAmount ? Math.round(azafiStats.percent).toFixed(1) + '%' : '0%'}</Text>
-                                </div>
-                            </Card>
-                        </Col>
-                    </Row>
-
-                    {/* Target - Tanzeem Wise Totals */}
-                    <Card
-                        title="Target (Tanzeem Wise Totals)"
-                        style={{ marginBottom: 16 }}
-                        bodyStyle={{ padding: 16 }}
-                    >
-                        <List
-                            grid={{ gutter: [16, 16], xs: 1, sm: 2, md: 2, lg: 3, xl: 4 }}
-                            dataSource={tanzeemStats}
-                            renderItem={(item) => {
-                                const displayName =
-                                    item.name === 'Unknown'
-                                        ? 'Unknown'
-                                        : getTanzeemDisplayName(item.name as any);
-
-                                return (
-                                    <List.Item>
-                                        <Card hoverable>
-                                            <Statistic
-                                                title={
-                                                    <span style={{ fontSize: 'clamp(12px, 3vw, 14px)' }}>
-                                                        {`${displayName} (${item.count})`}
-                                                    </span>
-                                                }
-                                                value={item.paid}
-                                                prefix="Rs."
-                                                precision={0}
-                                                valueStyle={{ fontSize: 'clamp(18px, 4.5vw, 28px)' }}
-                                            />
-                                            <Progress
-                                                percent={Math.round(item.percent)}
-                                                status={item.percent >= 100 ? 'success' : 'active'}
-                                                strokeColor={item.percent >= 100 ? '#52c41a' : '#1890ff'}
-                                            />
-                                            <div
-                                                style={{
-                                                    marginTop: 12,
-                                                    display: 'flex',
-                                                    justifyContent: 'space-between',
-                                                    flexWrap: 'wrap',
-                                                    gap: 4
-                                                }}
-                                            >
-                                                <Text
-                                                    type="secondary"
-                                                    style={{ fontSize: 'clamp(11px, 2.5vw, 12px)' }}
-                                                >
-                                                    Promise: Rs. {item.promise.toLocaleString()}
-                                                </Text>
-                                                <Text
-                                                    type="secondary"
-                                                    style={{ fontSize: 'clamp(11px, 2.5vw, 12px)' }}
-                                                >
-                                                    {item.percent.toFixed(1)}%
-                                                </Text>
-                                            </div>
-                                        </Card>
-                                    </List.Item>
-                                );
-                            }}
-                        />
+                                    <div style={{ marginTop: 4 }}>
+                                        <Text type="secondary" style={{ fontSize: '10px', opacity: 0.6 }}>
+                                            Per Active Card ({dashboardMetrics.totalCards})
+                                        </Text>
+                                    </div>
+                                </Card>
+                            </Col>
+                        </Row>
                     </Card>
                 </div>
             ) : activeTab === 'about' ? (
@@ -2891,62 +2846,6 @@ const WaqfJadeed: React.FC = () => {
                 </Form>
             </Modal>
 
-            {/* Mark as Moved Modal */}
-            <Modal
-                title={`Mark Family as Moved: ${selectedFamilyForMove?.familyName}`}
-                open={movedModalVisible}
-                onCancel={() => {
-                    setMovedModalVisible(false);
-                    setSelectedFamilyForMove(null);
-                    setNewDestination('');
-                    moveForm.resetFields();
-                }}
-                onOk={() => moveForm.submit()}
-                confirmLoading={loading}
-                okText="Mark as Moved"
-                okButtonProps={{ danger: true }}
-            >
-                <Form form={moveForm} layout="vertical" onFinish={onMoveFamilyFinish}>
-                    <Form.Item
-                        name="movedTo"
-                        label="Destination"
-                        rules={[{ required: true, message: 'Please select a destination' }]}
-                    >
-                        <Select
-                            placeholder="Select destination"
-                            onChange={(value) => {
-                                if (value !== 'other') setNewDestination('');
-                            }}
-                        >
-                            {movedDestinations.map(d => (
-                                <Option key={d} value={d}>{d}</Option>
-                            ))}
-                            <Option value="other">+ Add Custom Destination</Option>
-                        </Select>
-                    </Form.Item>
-
-                    <Form.Item
-                        noStyle
-                        shouldUpdate={(prevValues, currentValues) => prevValues.movedTo !== currentValues.movedTo}
-                    >
-                        {({ getFieldValue }) =>
-                            getFieldValue('movedTo') === 'other' ? (
-                                <Form.Item
-                                    label="Custom Destination Name"
-                                    rules={[{ required: true, message: 'Please enter destination name' }]}
-                                    style={{ marginTop: 16 }}
-                                >
-                                    <Input
-                                        placeholder="e.g. USA, UK, Karachi"
-                                        value={newDestination}
-                                        onChange={(e) => setNewDestination(e.target.value)}
-                                    />
-                                </Form.Item>
-                            ) : null
-                        }
-                    </Form.Item>
-                </Form>
-            </Modal>
         </div >
     );
 };
