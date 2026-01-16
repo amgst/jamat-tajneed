@@ -238,12 +238,182 @@ const WaqfJadeed: React.FC = () => {
     };
 
     const handleExportDashboard = async () => {
-        const dashboardElement = document.querySelector('.dashboard-view') as HTMLElement;
-        if (!dashboardElement) return;
-
         setLoading(true);
         try {
-            const canvas = await html2canvas(dashboardElement, {
+            message.loading({ content: 'Generating Dashboard Report...', key: 'dashboard-export', duration: 0 });
+
+            // Create a temporary HTML element for the report
+            const printDiv = document.createElement('div');
+            printDiv.style.position = 'absolute';
+            printDiv.style.left = '-9999px';
+            printDiv.style.width = '210mm'; // A4 width
+            printDiv.style.minHeight = '297mm'; // A4 height
+            printDiv.style.padding = '20px';
+            printDiv.style.fontFamily = 'Arial, "Noto Sans Arabic", sans-serif';
+            printDiv.style.backgroundColor = 'white';
+            printDiv.style.color = 'black';
+
+            // Helper for currency formatting
+            const formatCurrency = (val: number) => `Rs. ${val.toLocaleString()}`;
+            const formatPercent = (val: number) => `${val.toFixed(1)}%`;
+
+            // Build HTML content
+            let htmlContent = `
+                <div style="text-align: center; margin-bottom: 30px;">
+                    <h1 style="font-size: 24px; margin: 0; font-weight: bold;">Jamat Tajneed - Waqf-e-Jadeed Dashboard ${selectedYear}</h1>
+                    <p style="margin: 5px 0 0 0; color: #666;">Generated on ${new Date().toLocaleDateString()} at ${new Date().toLocaleTimeString()}</p>
+                </div>
+
+                <!-- Target Section -->
+                <div style="margin-bottom: 30px; border: 1px solid #ddd; border-radius: 8px; overflow: hidden;">
+                    <div style="background-color: #f0f2f5; padding: 10px 15px; border-bottom: 1px solid #ddd;">
+                        <h3 style="margin: 0; font-size: 16px;">Target Tracking (Daftar Baligan)</h3>
+                    </div>
+                    <div style="display: flex; padding: 15px;">
+                        <div style="flex: 1; text-align: center; border-right: 1px solid #eee;">
+                            <div style="font-size: 12px; color: #666;">Target Amount</div>
+                            <div style="font-size: 18px; font-weight: bold;">${formatCurrency(targetAmount)}</div>
+                        </div>
+                        <div style="flex: 1; text-align: center; border-right: 1px solid #eee;">
+                            <div style="font-size: 12px; color: #666;">Total Promised</div>
+                            <div style="font-size: 18px; font-weight: bold;">${formatCurrency(targetSectionStats.totalPromised)}</div>
+                        </div>
+                        <div style="flex: 1; text-align: center; border-right: 1px solid #eee;">
+                            <div style="font-size: 12px; color: #666;">Total Received</div>
+                            <div style="font-size: 18px; font-weight: bold; color: #3f8600;">${formatCurrency(targetSectionStats.totalReceived)}</div>
+                        </div>
+                        <div style="flex: 1; text-align: center;">
+                            <div style="font-size: 12px; color: #666;">Gap</div>
+                            <div style="font-size: 18px; font-weight: bold; color: ${targetSectionStats.remainingFromTarget > 0 ? '#cf1322' : '#3f8600'};">
+                                ${formatCurrency(targetSectionStats.remainingFromTarget)}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                 <!-- Baligan Breakdown Table -->
+                <div style="margin-bottom: 30px;">
+                    <h3 style="margin: 0 0 10px 0; font-size: 16px; border-bottom: 2px solid #1890ff; padding-bottom: 5px; display: inline-block;">Daftar Baligan Breakdown</h3>
+                    <table style="width: 100%; border-collapse: collapse; font-size: 12px;">
+                        <thead>
+                            <tr style="background-color: #fafafa; border-bottom: 2px solid #ddd;">
+                                <th style="padding: 8px; text-align: left;">Category</th>
+                                <th style="padding: 8px; text-align: center;">Count</th>
+                                <th style="padding: 8px; text-align: right;">Promised</th>
+                                <th style="padding: 8px; text-align: right;">Paid</th>
+                                <th style="padding: 8px; text-align: center;">Progress</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${[
+                    { label: 'Ansar', ...baliganStats.ansar, promise: baliganStats.ansar.promiseBase },
+                    { label: 'Khuddam', ...baliganStats.khuddam, promise: baliganStats.khuddam.promiseBase },
+                    { label: 'Lajna', ...baliganStats.lajna, promise: baliganStats.lajna.promiseBase },
+                    { label: 'Special Members', ...baliganStats.special, promise: baliganStats.special.promiseBase },
+                    { label: 'Deceased (Male)', count: baliganStats.deceased.deceasedMales, promise: baliganStats.deceased.malePromiseBase, paid: baliganStats.deceased.malePaidAmount },
+                    { label: 'Deceased (Female)', count: baliganStats.deceased.deceasedFemales, promise: baliganStats.deceased.femalePromiseBase, paid: baliganStats.deceased.femalePaidAmount },
+                    { label: 'Additional', ...baliganStats.additional, paid: baliganStats.additional.paidAmount, promise: baliganStats.additional.promiseBase }
+                ].map((row, idx) => {
+                    const pct = row.promise > 0 ? (row.paid / row.promise) * 100 : 0;
+                    return `
+                                    <tr style="border-bottom: 1px solid #eee; background-color: ${idx % 2 === 0 ? 'white' : '#f9f9f9'};">
+                                        <td style="padding: 8px;">${row.label}</td>
+                                        <td style="padding: 8px; text-align: center;">${row.count}</td>
+                                        <td style="padding: 8px; text-align: right;">${formatCurrency(row.promise)}</td>
+                                        <td style="padding: 8px; text-align: right;">${formatCurrency(row.paid)}</td>
+                                        <td style="padding: 8px; text-align: center;">${formatPercent(pct)}</td>
+                                    </tr>
+                                `;
+                }).join('')}
+                             <tr style="background-color: #e6f7ff; font-weight: bold; border-top: 2px solid #1890ff;">
+                                <td style="padding: 8px;">Total Baligan</td>
+                                <td style="padding: 8px; text-align: center;">-</td>
+                                <td style="padding: 8px; text-align: right;">${formatCurrency(targetSectionStats.totalPromised)}</td>
+                                <td style="padding: 8px; text-align: right;">${formatCurrency(targetSectionStats.totalReceived)}</td>
+                                <td style="padding: 8px; text-align: center;">${formatPercent(targetSectionStats.receivedPercent)}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Atfal Section -->
+                <div style="margin-bottom: 30px;">
+                     <h3 style="margin: 0 0 10px 0; font-size: 16px; border-bottom: 2px solid #52c41a; padding-bottom: 5px; display: inline-block;">Daftar Atfal Breakdown</h3>
+                     <table style="width: 100%; border-collapse: collapse; font-size: 12px;">
+                        <thead>
+                            <tr style="background-color: #fafafa; border-bottom: 2px solid #ddd;">
+                                <th style="padding: 8px; text-align: left;">Category</th>
+                                <th style="padding: 8px; text-align: center;">Count</th>
+                                <th style="padding: 8px; text-align: right;">Promised</th>
+                                <th style="padding: 8px; text-align: right;">Paid</th>
+                                <th style="padding: 8px; text-align: center;">Progress</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${[
+                    { name: 'atfal', label: 'Atfal' },
+                    { name: 'nasirat', label: 'Nasirat' },
+                    { name: 'saf-e-awal', label: 'Saf-e-Awal' },
+                    { name: 'saf-e-awal-girls', label: 'Saf-e-Awal (Girls)' }
+                ].map((t, idx) => {
+                    const s = members.reduce((acc, m) => {
+                        if (m.tanzeem === t.name) {
+                            const r = records.find(rec => rec.memberId === m.id);
+                            if (r) {
+                                acc.paid += r.paidAmount || 0;
+                                acc.promise += (r.promiseAmount || 0) + (r.nagarparAmount || 0);
+                            }
+                            acc.count++;
+                        }
+                        return acc;
+                    }, { paid: 0, promise: 0, count: 0 });
+                    const pct = s.promise > 0 ? (s.paid / s.promise) * 100 : 0;
+                    return `
+                                    <tr style="border-bottom: 1px solid #eee; background-color: ${idx % 2 === 0 ? 'white' : '#f9f9f9'};">
+                                        <td style="padding: 8px;">${t.label}</td>
+                                        <td style="padding: 8px; text-align: center;">${s.count}</td>
+                                        <td style="padding: 8px; text-align: right;">${formatCurrency(s.promise)}</td>
+                                        <td style="padding: 8px; text-align: right;">${formatCurrency(s.paid)}</td>
+                                        <td style="padding: 8px; text-align: center;">${formatPercent(pct)}</td>
+                                    </tr>
+                                `;
+                }).join('')}
+                            <tr style="background-color: #f6ffed; font-weight: bold; border-top: 2px solid #52c41a;">
+                                <td style="padding: 8px;">Total Atfal</td>
+                                <td style="padding: 8px; text-align: center;">${dafarAtfalStats.count}</td>
+                                <td style="padding: 8px; text-align: right;">${formatCurrency(dafarAtfalStats.promise)}</td>
+                                <td style="padding: 8px; text-align: right;">${formatCurrency(dafarAtfalStats.paid)}</td>
+                                <td style="padding: 8px; text-align: center;">${formatPercent(dafarAtfalStats.promise > 0 ? (dafarAtfalStats.paid / dafarAtfalStats.promise) * 100 : 0)}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Summary Grid -->
+                 <div style="display: flex; gap: 20px;">
+                    <div style="flex: 1; border: 1px solid #fa8c16; border-radius: 8px; padding: 15px;">
+                        <h4 style="margin: 0 0 10px 0; color: #d46b08;">Nagar Parkar</h4>
+                        <div style="font-size: 20px; font-weight: bold;">${formatCurrency(stats.totalNagarParkar)}</div>
+                        <div style="font-size: 12px; color: #666;">Total Collected</div>
+                    </div>
+                     <div style="flex: 1; border: 1px solid #1890ff; border-radius: 8px; padding: 15px;">
+                        <h4 style="margin: 0 0 10px 0; color: #096dd9;">Participation</h4>
+                        <div style="font-size: 20px; font-weight: bold;">${formatPercent(dashboardMetrics.participationRate)}</div>
+                        <div style="font-size: 12px; color: #666;">Member Participation</div>
+                    </div>
+                     <div style="flex: 1; border: 1px solid #722ed1; border-radius: 8px; padding: 15px;">
+                        <h4 style="margin: 0 0 10px 0; color: #531dab;">Grand Total</h4>
+                        <div style="font-size: 20px; font-weight: bold;">${formatCurrency(stats.totalPaid)}</div>
+                        <div style="font-size: 12px; color: #666;">Total of All Funds</div>
+                    </div>
+                 </div>
+            `;
+
+            printDiv.innerHTML = htmlContent;
+            document.body.appendChild(printDiv);
+
+            // Convert to PDF
+            const canvas = await html2canvas(printDiv, {
                 scale: 2,
                 useCORS: true,
                 logging: false,
@@ -252,20 +422,23 @@ const WaqfJadeed: React.FC = () => {
 
             const imgData = canvas.toDataURL('image/png');
             const pdf = new jsPDF({
-                orientation: 'landscape',
+                orientation: 'portrait',
                 unit: 'mm',
                 format: 'a4'
             });
 
-            const imgWidth = 297; // A4 landscape width
+            const imgWidth = 210;
             const imgHeight = (canvas.height * imgWidth) / canvas.width;
 
             pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, imgHeight);
-            pdf.save(`Waqf_Jadeed_Dashboard_${selectedYear}.pdf`);
-            message.success('Dashboard exported successfully');
+            pdf.save(`Waqf_Jadeed_Dashboard_Report_${selectedYear}.pdf`);
+
+            document.body.removeChild(printDiv);
+            message.success({ content: 'Dashboard Report exported successfully', key: 'dashboard-export' });
+
         } catch (error) {
             console.error('Export failed:', error);
-            message.error('Failed to export dashboard');
+            message.error({ content: 'Failed to export dashboard', key: 'dashboard-export' });
         } finally {
             setLoading(false);
         }
