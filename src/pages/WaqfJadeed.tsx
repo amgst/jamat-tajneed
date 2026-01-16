@@ -77,6 +77,8 @@ const WaqfJadeed: React.FC = () => {
     // Target amount state (stored per year in localStorage)
     const [targetAmount, setTargetAmount] = useState<number>(0);
 
+    const [familySort, setFamilySort] = useState<'default' | 'zero_promise_first'>('default');
+
     // Drawer & Edit State
     const [drawerVisible, setDrawerVisible] = useState(false);
     const [editingMember, setEditingMember] = useState<Member | null>(null);
@@ -662,6 +664,8 @@ const WaqfJadeed: React.FC = () => {
         return data;
     }, [members, records, families, searchTerm]);
 
+
+
     const filteredFamilyData = useMemo(() => {
         // Only include active families (not moved)
         let data = families.filter(f => !f.isMoved);
@@ -673,13 +677,38 @@ const WaqfJadeed: React.FC = () => {
                 (f.halqa || '').toLowerCase().includes(lower)
             );
         }
-        // numeric sort by familyNumber
-        return data.sort((a, b) => {
+
+        // Calculate promises for sorting if needed
+        const dataWithPromise = data.map(family => {
+            const familyMembers = members.filter(m => m.familyId === family.id && !m.isDeceased && !m.isMoved);
+            const famSpecialRecords = specialRecords.filter(r => r.familyId === family.id);
+
+            const membersPromise = familyMembers.reduce((sum, m) => {
+                const record = records.find(r => r.memberId === m.id);
+                return sum + ((record?.promiseAmount || 0) + (record?.nagarparAmount || 0));
+            }, 0);
+
+            const specialPromise = famSpecialRecords.reduce((sum, r) => sum + ((r.promiseAmount || 0) + (r.nagarparAmount || 0)), 0);
+
+            return {
+                ...family,
+                totalPromise: membersPromise + specialPromise
+            };
+        });
+
+        return dataWithPromise.sort((a, b) => {
+            if (familySort === 'zero_promise_first') {
+                // If one has 0 promise and other doesn't, put 0 promise first
+                if (a.totalPromise === 0 && b.totalPromise > 0) return -1;
+                if (a.totalPromise > 0 && b.totalPromise === 0) return 1;
+            }
+
+            // Default numeric sort by familyNumber
             const numA = a.familyNumber || 999999;
             const numB = b.familyNumber || 999999;
             return numA - numB;
         });
-    }, [families, searchTerm]);
+    }, [families, searchTerm, familySort, members, records, specialRecords]);
 
     // Group members by tanzeem for Tanzeem Wise view
     const tanzeemGroupedData = useMemo(() => {
@@ -1667,8 +1696,17 @@ const WaqfJadeed: React.FC = () => {
                 </Card>
             ) : activeTab === 'families' ? (
                 <div className="family-list">
-                    <div style={{ marginBottom: 16 }}>
+                    <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                         <Text strong>Active Families ({families.filter(f => !f.isMoved).length})</Text>
+                        <Select
+                            value={familySort}
+                            onChange={setFamilySort}
+                            style={{ width: 200 }}
+                            options={[
+                                { value: 'default', label: 'Default (By Family #)' },
+                                { value: 'zero_promise_first', label: 'Zero Promises First' },
+                            ]}
+                        />
                     </div>
                     {loading ? <p>Loading...</p> : (
                         <Collapse defaultActiveKey={[]} ghost>
