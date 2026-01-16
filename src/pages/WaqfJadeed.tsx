@@ -228,81 +228,46 @@ const WaqfJadeed: React.FC = () => {
         } finally {
             setLoading(false);
         }
-        const handleExportDashboard = async () => {
-            const dashboardElement = document.querySelector('.dashboard-view') as HTMLElement;
-            if (!dashboardElement) return;
+    };
 
-            setLoading(true);
-            try {
-                const canvas = await html2canvas(dashboardElement, {
-                    scale: 2,
-                    useCORS: true,
-                    logging: false,
-                    backgroundColor: '#ffffff'
-                });
+    const handleExportDashboard = async () => {
+        const dashboardElement = document.querySelector('.dashboard-view') as HTMLElement;
+        if (!dashboardElement) return;
 
-                const imgData = canvas.toDataURL('image/png');
-                const pdf = new jsPDF({
-                    orientation: 'landscape',
-                    unit: 'mm',
-                    format: 'a4'
-                });
+        setLoading(true);
+        try {
+            const canvas = await html2canvas(dashboardElement, {
+                scale: 2,
+                useCORS: true,
+                logging: false,
+                backgroundColor: '#ffffff'
+            });
 
-                const imgWidth = 297; // A4 landscape width
-                const imgHeight = (canvas.height * imgWidth) / canvas.width;
+            const imgData = canvas.toDataURL('image/png');
+            const pdf = new jsPDF({
+                orientation: 'landscape',
+                unit: 'mm',
+                format: 'a4'
+            });
 
-                pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, imgHeight);
-                pdf.save(`Waqf_Jadeed_Dashboard_${selectedYear}.pdf`);
-                message.success('Dashboard exported successfully');
-            } catch (error) {
-                console.error('Export failed:', error);
-                message.error('Failed to export dashboard');
-            } finally {
-                setLoading(false);
-            }
-        };
+            const imgWidth = 297; // A4 landscape width
+            const imgHeight = (canvas.height * imgWidth) / canvas.width;
 
-        const pageHeader = (
-            <div style={{ marginBottom: 24, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div>
-                    <Title level={2} style={{ margin: 0 }}>Waqf-e-Jadeed {selectedYear}</Title>
-                    <Text type="secondary">Manage members, payments, and view reports</Text>
-                </div>
-                <Space>
-                    {activeTab === 'dashboard' && (
-                        <Button
-                            icon={<FilePdfOutlined />}
-                            onClick={handleExportDashboard}
-                            loading={loading}
-                        >
-                            Export PDF
-                        </Button>
-                    )}
-                    <Select
-                        value={selectedYear}
-                        onChange={setSelectedYear}
-                        style={{ width: 120 }}
-                        size="large"
-                    >
-                        {[2024, 2025, 2026, 2027].map(year => (
-                            <Option key={year} value={year}>{year}</Option>
-                        ))}
-                    </Select>
-                    <Button
-                        type="primary"
-                        icon={<PlusOutlined />}
-                        onClick={() => {
-                            setEditingMember(null);
-                            form.resetFields();
-                            setDrawerVisible(true);
-                        }}
-                        size="large"
-                    >
-                        Add Member
-                    </Button>
-                </Space>
-            </div>
-        );
+            pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, imgHeight);
+            pdf.save(`Waqf_Jadeed_Dashboard_${selectedYear}.pdf`);
+            message.success('Dashboard exported successfully');
+        } catch (error) {
+            console.error('Export failed:', error);
+            message.error('Failed to export dashboard');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    // End of loadData
+
+
+    const updateLocalRecord = (savedRecord: WaqfJadeedRecord) => {
         setRecords(prev => {
             const idx = prev.findIndex(r => r.memberId === savedRecord.memberId);
             if (idx >= 0) {
@@ -1425,6 +1390,30 @@ const WaqfJadeed: React.FC = () => {
                             allowClear
                         />
                     </Col>
+                    <Col xs={24} sm={24} md={8} style={{ textAlign: 'right' }}>
+                        <Space>
+                            {activeTab === 'dashboard' && (
+                                <Button
+                                    icon={<FilePdfOutlined />}
+                                    onClick={handleExportDashboard}
+                                    loading={loading}
+                                >
+                                    Export PDF
+                                </Button>
+                            )}
+                            <Button
+                                type="primary"
+                                icon={<PlusOutlined />}
+                                onClick={() => {
+                                    setEditingMember(null);
+                                    form.resetFields();
+                                    setDrawerVisible(true);
+                                }}
+                            >
+                                Add Member
+                            </Button>
+                        </Space>
+                    </Col>
                 </Row>
                 <Tabs activeKey={activeTab} onChange={setActiveTab} style={{ marginTop: 12 }} type="card">
                     <Tabs.TabPane tab="Members" key="members" />
@@ -1458,6 +1447,7 @@ const WaqfJadeed: React.FC = () => {
                                 title="Total Paid"
                                 value={stats.totalPaid}
                                 prefix={<CheckCircleOutlined />}
+                                suffix={<span style={{ fontSize: '16px', color: '#888', marginLeft: 8 }}>({Math.round(stats.percent)}%)</span>}
                                 valueStyle={{ color: '#3f8600', fontSize: 'clamp(20px, 5vw, 32px)' }}
                                 precision={0}
                             />
@@ -2193,12 +2183,21 @@ const WaqfJadeed: React.FC = () => {
                                     tooltip: 'Special pledges (other than additional/deceased)'
                                 },
                                 {
-                                    label: 'Deceased',
-                                    paid: baliganStats.deceased.totalDeceasedPaid,
-                                    promise: baliganStats.deceased.totalDeceasedPromiseBase,
-                                    count: baliganStats.deceased.deceasedMales + baliganStats.deceased.deceasedFemales,
+                                    label: 'Deceased (M)',
+                                    paid: baliganStats.deceased.malePaidAmount,
+                                    promise: baliganStats.deceased.malePromiseBase,
+                                    count: baliganStats.deceased.deceasedMales,
                                     color: '#595959',
-                                    tooltip: 'Collections for deceased members'
+                                    tooltip: 'Collections for deceased male members'
+                                },
+                                {
+                                    label: 'Deceased (F)',
+                                    paid: baliganStats.deceased.femalePaidAmount,
+                                    promise: baliganStats.deceased.femalePromiseBase,
+                                    count: baliganStats.deceased.deceasedFemales,
+                                    color: '#8c8c8c',
+                                    tooltip: 'Collections for deceased female members'
+
                                 },
                                 {
                                     label: 'Additional (اضافی)',
