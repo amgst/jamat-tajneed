@@ -776,4 +776,15 @@ export class ApiService {
     const snapshot = await getDocs(q);
     return snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id }));
   }
+
+  static async updateReceiptBook(id: string, data: any): Promise<void> {
+    await updateDoc(doc(db, 'receiptBooks', id), {
+      ...data,
+      updatedAt: new Date().toISOString()
+    });
+  }
+
+  static async deleteReceiptBook(id: string): Promise<void> {
+    await deleteDoc(doc(db, 'receiptBooks', id));
+  }
 }

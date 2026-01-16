@@ -24,7 +24,8 @@ import {
     Table,
     Tag,
     Divider,
-    Tooltip
+    Tooltip,
+    Popconfirm
 } from 'antd';
 
 const { Text, Title } = Typography;
@@ -42,7 +43,8 @@ import {
     PrinterOutlined,
     FilePdfOutlined,
     SaveOutlined,
-    ShareAltOutlined
+    ShareAltOutlined,
+    BookOutlined
 } from '@ant-design/icons';
 import WaqfReports from '../components/WaqfReports';
 import dayjs from 'dayjs';
@@ -107,6 +109,9 @@ const WaqfJadeed: React.FC = () => {
 
     const [books, setBooks] = useState<ReceiptBook[]>([]);
     const [addBookModalVisible, setAddBookModalVisible] = useState(false);
+    const [manageBooksModalVisible, setManageBooksModalVisible] = useState(false);
+    const [editingBookId, setEditingBookId] = useState<string | null>(null);
+    const [editingBookName, setEditingBookName] = useState('');
     const [newBookForm] = Form.useForm();
 
     useEffect(() => {
@@ -375,6 +380,28 @@ const WaqfJadeed: React.FC = () => {
             message.error(error.message || 'Failed to create book');
         } finally {
             setSubmitting(false);
+        }
+    };
+
+    const handleDeleteBook = async (id: string) => {
+        try {
+            await ApiService.deleteReceiptBook(id);
+            message.success('Book deleted');
+            loadBooks();
+        } catch (error) {
+            message.error('Failed to delete book');
+        }
+    };
+
+    const handleUpdateBook = async (id: string) => {
+        try {
+            await ApiService.updateReceiptBook(id, { bookNo: editingBookName });
+            message.success('Book updated');
+            setEditingBookId(null);
+            setEditingBookName('');
+            loadBooks();
+        } catch (error) {
+            message.error('Failed to update book');
         }
     };
 
@@ -1411,6 +1438,12 @@ const WaqfJadeed: React.FC = () => {
                                 }}
                             >
                                 Add Member
+                            </Button>
+                            <Button
+                                icon={<BookOutlined />}
+                                onClick={() => setManageBooksModalVisible(true)}
+                            >
+                                Manage Books
                             </Button>
                         </Space>
                     </Col>
@@ -3043,6 +3076,46 @@ const WaqfJadeed: React.FC = () => {
                         </Button>
                     </Form.Item>
                 </Form>
+            </Modal>
+
+            <Modal
+                title="Manage Receipt Books"
+                open={manageBooksModalVisible}
+                onCancel={() => setManageBooksModalVisible(false)}
+                footer={null}
+            >
+                <List
+                    dataSource={books}
+                    renderItem={item => (
+                        <List.Item
+                            actions={[
+                                editingBookId === item.id ? (
+                                    <Button type="link" onClick={() => handleUpdateBook(item.id)}>Save</Button>
+                                ) : (
+                                    <Button type="link" icon={<EditOutlined />} onClick={() => {
+                                        setEditingBookId(item.id);
+                                        setEditingBookName(item.bookNo);
+                                    }} />
+                                ),
+                                <Popconfirm title="Delete book?" onConfirm={() => handleDeleteBook(item.id)} okText="Yes" cancelText="No">
+                                    <Button type="link" danger icon={<DeleteOutlined />} />
+                                </Popconfirm>
+                            ]}
+                        >
+                            {editingBookId === item.id ? (
+                                <Input value={editingBookName} onChange={e => setEditingBookName(e.target.value)} />
+                            ) : (
+                                item.bookNo
+                            )}
+                        </List.Item>
+                    )}
+                />
+                <Button block type="dashed" onClick={() => {
+                    setManageBooksModalVisible(false);
+                    setAddBookModalVisible(true);
+                }} icon={<PlusOutlined />}>
+                    Add New Book
+                </Button>
             </Modal>
 
         </div >
