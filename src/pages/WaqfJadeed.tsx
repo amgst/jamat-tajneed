@@ -861,11 +861,18 @@ const WaqfJadeed: React.FC = () => {
                 return sum + ((record?.promiseAmount || 0) + (record?.nagarparAmount || 0));
             }, 0);
 
+            const membersPaid = familyMembers.reduce((sum, m) => {
+                const record = records.find(r => r.memberId === m.id);
+                return sum + (record?.paidAmount || 0);
+            }, 0);
+
             const specialPromise = famSpecialRecords.reduce((sum, r) => sum + ((r.promiseAmount || 0) + (r.nagarparAmount || 0)), 0);
+            const specialPaid = famSpecialRecords.reduce((sum, r) => sum + (r.paidAmount || 0), 0);
 
             return {
                 ...family,
-                totalPromise: membersPromise + specialPromise
+                totalPromise: membersPromise + specialPromise,
+                totalPaid: membersPaid + specialPaid
             };
         });
 
@@ -1869,6 +1876,43 @@ const WaqfJadeed: React.FC = () => {
                 </Card>
             ) : activeTab === 'families' ? (
                 <div className="family-list">
+                    <Card style={{ marginBottom: 16, background: '#fafafa', border: '1px solid #d9d9d9' }} bodyStyle={{ padding: '12px 24px' }}>
+                        <Row gutter={[48, 16]} align="middle">
+                            <Col>
+                                <Statistic
+                                    title={<Text type="secondary">Total Promised (Filtered)</Text>}
+                                    value={filteredFamilyData.reduce((acc, curr) => acc + curr.totalPromise, 0)}
+                                    prefix="Rs."
+                                    precision={0}
+                                    valueStyle={{ color: '#1890ff', fontWeight: 'bold', fontSize: '20px' }}
+                                />
+                            </Col>
+                            <Col>
+                                <Divider type="vertical" style={{ height: '40px', backgroundColor: '#d9d9d9' }} />
+                            </Col>
+                            <Col>
+                                <Statistic
+                                    title={<Text type="secondary">Total Paid (Filtered)</Text>}
+                                    value={filteredFamilyData.reduce((acc, curr) => acc + (curr.totalPaid || 0), 0)}
+                                    prefix="Rs."
+                                    precision={0}
+                                    valueStyle={{ color: '#52c41a', fontWeight: 'bold', fontSize: '20px' }}
+                                />
+                            </Col>
+                            <Col>
+                                <Divider type="vertical" style={{ height: '40px', backgroundColor: '#d9d9d9' }} />
+                            </Col>
+                            <Col>
+                                <Statistic
+                                    title={<Text type="secondary">Family Count</Text>}
+                                    value={filteredFamilyData.length}
+                                    prefix={<UserOutlined />}
+                                    valueStyle={{ color: '#595959', fontWeight: 'bold', fontSize: '20px' }}
+                                />
+                            </Col>
+                        </Row>
+                    </Card>
+
                     <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                         <Text strong>Active Families ({families.filter(f => !f.isMoved).length})</Text>
                         <Select
