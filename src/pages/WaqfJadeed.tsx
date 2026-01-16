@@ -1219,19 +1219,38 @@ const WaqfJadeed: React.FC = () => {
 
             // Build HTML content
             let htmlContent = `
-                <div style="text-align: center; margin-bottom: 20px;">
+<div style="text-align: center; margin-bottom: 20px;">
                     <h1 style="font-size: 24px; margin: 0; font-weight: bold;">${family.familyName} - Waqf-e-Jadeed ${selectedYear}</h1>
-                </div><div style="margin-bottom: 15px; font-size: 12px; direction: rtl; text-align: right;">
-    <p style="margin: 5px 0;">
-        <strong>خاندان نمبر:</strong> ${family.familyNumber || 'N/A'} |
-        <strong>سربراہ:</strong> ${familyHead?.member.name || 'نامعلوم'} |
-        <strong>رابطہ نمبرِ سربراہ:</strong> ${headPhone}
-    </p>
-    <p style="margin: 5px 0;">
-        <strong>کل وعدہ شدہ رقم:</strong> روپے ${familyTotalPromise.toLocaleString()} |
-        <strong>کل ادا شدہ رقم:</strong> روپے ${familyTotalPaid.toLocaleString()}
-    </p>
-</div>
+                </div>
+
+                <div style="margin-bottom: 20px; font-size: 12px; direction: rtl; text-align: right; background-color: #f8f9fa; border: 1px solid #dee2e6; border-radius: 8px; padding: 15px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #dee2e6; padding-bottom: 10px; margin-bottom: 10px;">
+                        <span style="font-weight: bold; font-size: 14px;">خاندان کی تفصیلات</span>
+                    </div>
+                    <div style="display: flex; gap: 20px; justify-content: flex-end; flex-wrap: wrap;">
+                         <div><strong>خاندان نمبر:</strong> ${family.familyNumber || 'N/A'}</div>
+                         <div><strong>سربراہ:</strong> ${familyHead?.member.name || 'نامعلوم'}</div>
+                         <div><strong>رابطہ نمبرِ سربراہ:</strong> ${headPhone}</div>
+                    </div>
+                </div>
+
+                <!-- Totals Summary Box -->
+                <div style="margin-bottom: 25px; direction: rtl;">
+                    <div style="display: flex; border: 1px solid #1890ff; border-radius: 8px; overflow: hidden;">
+                        <div style="flex: 1; text-align: center; padding: 15px; border-left: 1px solid #e8e8e8; background-color: #e6f7ff;">
+                            <div style="font-size: 12px; color: #595959; margin-bottom: 5px;">کل وعدہ شدہ رقم</div>
+                            <div style="font-size: 18px; font-weight: bold; color: #1890ff;">روپے ${familyTotalPromise.toLocaleString()}</div>
+                        </div>
+                        <div style="flex: 1; text-align: center; padding: 15px; background-color: #f6ffed;">
+                            <div style="font-size: 12px; color: #595959; margin-bottom: 5px;">کل ادا شدہ رقم</div>
+                            <div style="font-size: 18px; font-weight: bold; color: #52c41a;">روپے ${familyTotalPaid.toLocaleString()}</div>
+                        </div>
+                        <div style="flex: 1; text-align: center; padding: 15px; border-right: 1px solid #e8e8e8; background-color: #fff7e6;">
+                            <div style="font-size: 12px; color: #595959; margin-bottom: 5px;">بقیہ رقم</div>
+                            <div style="font-size: 18px; font-weight: bold; color: #fa8c16;">روپے ${(familyTotalPromise - familyTotalPaid).toLocaleString()}</div>
+                        </div>
+                    </div>
+                </div>
 
                 <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 10px;" dir="rtl">
                     <thead>
