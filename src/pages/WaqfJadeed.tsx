@@ -264,6 +264,30 @@ const WaqfJadeed: React.FC = () => {
                     <p style="margin: 5px 0 0 0; color: #666;">Generated on ${new Date().toLocaleDateString()} at ${new Date().toLocaleTimeString()}</p>
                 </div>
 
+                <!-- Overall Performance Section -->
+                <div style="margin-bottom: 25px;">
+                    <h3 style="margin: 0 0 10px 0; font-size: 16px; border-bottom: 2px solid #722ed1; padding-bottom: 5px; display: inline-block;">Overall Performance</h3>
+                    <div style="display: flex; gap: 15px;">
+                        <div style="flex: 1; border: 1px solid #d9d9d9; border-radius: 8px; padding: 15px; background: #fafafa;">
+                            <div style="font-size: 12px; color: #666; margin-bottom: 5px;">Total Promise</div>
+                            <div style="font-size: 20px; font-weight: bold; color: #000;">${formatCurrency(stats.totalPromise)}</div>
+                            <div style="font-size: 10px; color: #888; margin-top: 5px;">Including all categories</div>
+                        </div>
+                        <div style="flex: 1; border: 1px solid #d9d9d9; border-radius: 8px; padding: 15px; background: #f6ffed;">
+                            <div style="font-size: 12px; color: #666; margin-bottom: 5px;">Total Paid</div>
+                            <div style="font-size: 20px; font-weight: bold; color: #3f8600;">${formatCurrency(stats.totalPaid)}</div>
+                            <div style="font-size: 10px; color: #888; margin-top: 5px;">${formatPercent(stats.percent)} Collected</div>
+                        </div>
+                        <div style="flex: 1; border: 1px solid #d9d9d9; border-radius: 8px; padding: 15px; background: #fff;">
+                            <div style="font-size: 12px; color: #666; margin-bottom: 5px;">Collection Progress</div>
+                            <div style="margin-bottom: 5px; font-weight: bold; font-size: 16px;">${formatPercent(stats.percent)}</div>
+                             <div style="width: 100%; height: 8px; background-color: #f5f5f5; border-radius: 4px; overflow: hidden;">
+                                <div style="width: ${stats.percent}%; height: 100%; background-color: #52c41a;"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Target Section -->
                 <div style="margin-bottom: 30px; border: 1px solid #ddd; border-radius: 8px; overflow: hidden;">
                     <div style="background-color: #f0f2f5; padding: 10px 15px; border-bottom: 1px solid #ddd;">
