@@ -14,7 +14,7 @@ import {
     Divider,
     AutoComplete,
     Card
-} from 'antd';
+} from 'antd ';
 import {
     UploadOutlined,
     DownOutlined,
