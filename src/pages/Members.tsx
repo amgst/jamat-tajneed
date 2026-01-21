@@ -594,6 +594,7 @@ const Members: React.FC = () => {
           familyHalqa={editingMember ? families.find(f => f.memberIds.includes(editingMember.id))?.halqa : undefined}
           showCancel
           onCancel={() => setModalVisible(false)}
+          existingMembers={members}
         />
       </Modal>
 

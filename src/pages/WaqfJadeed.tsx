@@ -3241,6 +3241,7 @@ const WaqfJadeed: React.FC = () => {
                                     isSaving={submitting}
                                     familyHalqa={families.find(f => f.memberIds.includes(editingMember.id))?.halqa}
                                     submitText="Update Personal Details"
+                                    existingMembers={members}
                                 />
                             </div>
                         ) : (
