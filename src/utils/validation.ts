@@ -209,9 +209,9 @@ export const validateMemberData = (data: any): { valid: boolean; errors: string[
     errors.push('Phone number is invalid');
   }
 
-  // Validate address
-  if (!data.address || !validateAddress(data.address)) {
-    errors.push('Address is required and must be valid');
+  // Validate address (Optional)
+  if (data.address && data.address.trim() && !validateAddress(data.address)) {
+    errors.push('Address must be valid');
   }
 
   // Validate date of birth
