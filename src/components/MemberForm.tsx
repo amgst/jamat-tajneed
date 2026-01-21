@@ -4,7 +4,6 @@ import {
     Input,
     Select,
     DatePicker,
-    Upload,
     Row,
     Col,
     Checkbox,
@@ -16,7 +15,6 @@ import {
     Card
 } from 'antd';
 import {
-    UploadOutlined,
     DownOutlined,
     UpOutlined,
     ClockCircleOutlined
@@ -24,7 +22,7 @@ import {
 import dayjs from 'dayjs';
 import type { Member } from '../types';
 import { validateCNIC, formatDate } from '../utils/helpers';
-import { processImageFile } from '../utils/imageUtils';
+
 
 const { Option } = Select;
 const { Text } = Typography;
@@ -53,8 +51,6 @@ const MemberForm: React.FC<MemberFormProps> = ({
     familyHeadName
 }) => {
     const [form] = Form.useForm();
-    const [uploadedImage, setUploadedImage] = useState<string>(initialValues?.profilePhoto || '');
-    const [imageUploading, setImageUploading] = useState<boolean>(false);
     const [showAdvanced, setShowAdvanced] = useState(false);
 
     // Update form and image when initialValues change
@@ -68,29 +64,19 @@ const MemberForm: React.FC<MemberFormProps> = ({
                 isBaitByBirth: initialValues.isBaitByBirth !== undefined ? initialValues.isBaitByBirth : true,
             };
             form.setFieldsValue(formattedValues);
-            setUploadedImage(initialValues.profilePhoto || '');
+
         } else {
             form.resetFields();
-            setUploadedImage('');
+
         }
     }, [initialValues, form]);
 
-    const handleImageUpload = async (file: File) => {
-        setImageUploading(true);
-        const result = await processImageFile(file);
-        if (result.success && result.data) {
-            setUploadedImage(result.data);
-            form.setFieldValue('profilePhoto', result.data);
-        }
-        setImageUploading(false);
-        return false; // Prevent default upload behavior
-    };
+
 
     const handleSubmit = async () => {
         try {
             const values = await form.validateFields();
-            // Ensure profilePhoto is included from state if not in form values
-            await onFinish({ ...values, profilePhoto: uploadedImage });
+            await onFinish({ ...values });
         } catch (error) {
             console.error('Validation failed:', error);
         }
@@ -433,39 +419,7 @@ const MemberForm: React.FC<MemberFormProps> = ({
                                 />
                             </Form.Item>
                         </Col>
-                        <Col xs={24} md={12}>
-                            <Form.Item
-                                name="profilePhoto"
-                                label="Profile Photo (Optional)"
-                            >
-                                <Upload
-                                    listType="picture-card"
-                                    maxCount={1}
-                                    beforeUpload={(file) => handleImageUpload(file as File)}
-                                    fileList={uploadedImage ? [{
-                                        uid: '-1',
-                                        name: 'profile.jpg',
-                                        status: 'done',
-                                        url: uploadedImage,
-                                    }] : []}
-                                    onRemove={() => {
-                                        setUploadedImage('');
-                                        form.setFieldValue('profilePhoto', '');
-                                        return true;
-                                    }}
-                                    disabled={imageUploading}
-                                >
-                                    {!uploadedImage && (
-                                        <div>
-                                            <UploadOutlined />
-                                            <div style={{ marginTop: 8 }}>
-                                                {imageUploading ? 'Uploading...' : 'Upload'}
-                                            </div>
-                                        </div>
-                                    )}
-                                </Upload>
-                            </Form.Item>
-                        </Col>
+
                     </Row>
 
                     <Row gutter={16}>

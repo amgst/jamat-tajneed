@@ -265,7 +265,7 @@ const Members: React.FC = () => {
           m.name.toLowerCase().includes(searchLower) ||
           (m.fatherName || '').toLowerCase().includes(searchLower) ||
           (m.phone || '').toLowerCase().includes(searchLower) ||
-          m.address.toLowerCase().includes(searchLower) ||
+          (m.address || '').toLowerCase().includes(searchLower) ||
           (family?.halqa || '').toLowerCase().includes(searchLower)
         );
       });
