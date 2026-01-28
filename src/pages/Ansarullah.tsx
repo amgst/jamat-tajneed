@@ -422,12 +422,9 @@ const Ansarullah: React.FC = () => {
                         {/* Member Details */}
                         <Divider>Member Personal Details</Divider>
                         <MemberForm
-                            initialValues={{
-                                ...editingMember,
-                                dateOfBirth: dayjs(editingMember.dateOfBirth),
-                            }}
-                            onSave={handlePersonalDetailsSave}
-                            loading={submitting}
+                            initialValues={editingMember}
+                            onFinish={handlePersonalDetailsSave}
+                            isSaving={submitting}
                         />
                     </div>
                 )}

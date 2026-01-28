@@ -787,4 +787,110 @@ export class ApiService {
   static async deleteReceiptBook(id: string): Promise<void> {
     await deleteDoc(doc(db, 'receiptBooks', id));
   }
+
+  // --- Ansarullah ---
+
+  static async getAnsarullahRecords(year?: number, memberId?: string): Promise<AnsarullahRecord[]> {
+    let q = query(collection(db, 'ansarullah'));
+    if (year) q = query(q, where('year', '==', year));
+    if (memberId) q = query(q, where('memberId', '==', memberId));
+
+    const snapshot = await getDocs(q);
+    const records = await Promise.all(snapshot.docs.map(async (d) => {
+      const data = d.data();
+      // Use waqfJadeedPayments for all chanda payments as per existing pattern
+      const pQuery = query(collection(db, 'waqfJadeedPayments'), where('waqfJadeedId', '==', d.id));
+      const pSnap = await getDocs(pQuery);
+      const payments = pSnap.docs.map(pd => ({ ...pd.data(), id: pd.id } as Payment));
+      return { ...data, id: d.id, payments } as AnsarullahRecord;
+    }));
+    return records;
+  }
+
+  static async saveAnsarullahRecord(data: any): Promise<AnsarullahRecord | null> {
+    let records: any[] = [];
+    const q = query(
+      collection(db, 'ansarullah'),
+      where('memberId', '==', data.memberId),
+      where('year', '==', data.year)
+    );
+    const snap = await getDocs(q);
+    records = snap.docs.map(d => ({ ...d.data(), id: d.id }));
+
+    let id = data.id || (records.length > 0 ? records[0].id : crypto.randomUUID());
+
+    const payload = { ...data, id, updatedAt: new Date().toISOString() };
+    await setDoc(doc(db, 'ansarullah', id), payload, { merge: true });
+
+    return this.getAnsarullahRecordById(id);
+  }
+
+  static async getAnsarullahRecordById(id: string): Promise<AnsarullahRecord | null> {
+    const snap = await getDoc(doc(db, 'ansarullah', id));
+    if (!snap.exists()) return null;
+
+    const pQuery = query(collection(db, 'waqfJadeedPayments'), where('waqfJadeedId', '==', id));
+    const pSnap = await getDocs(pQuery);
+    const payments = pSnap.docs.map(pd => ({ ...pd.data(), id: pd.id } as Payment));
+
+    return { ...snap.data(), id: snap.id, payments } as AnsarullahRecord;
+  }
+
+  static async addAnsarullahPayment(data: { memberId: string; year: number; amount: number; date: string; notes?: string; bookId?: string; bookNo?: string; receiptNo?: number }): Promise<AnsarullahRecord | null> {
+    const record = await this.saveAnsarullahRecord({ memberId: data.memberId, year: data.year });
+
+    if (!record) throw new Error('Failed to create/fetch record');
+
+    const paymentId = crypto.randomUUID();
+    await setDoc(doc(db, 'waqfJadeedPayments', paymentId), {
+      id: paymentId,
+      waqfJadeedId: record.id,
+      amount: data.amount,
+      date: data.date,
+      notes: data.notes || '',
+      bookId: data.bookId || null,
+      bookNo: data.bookNo || null,
+      receiptNo: data.receiptNo || null
+    });
+
+    await this.recalculateAnsarullahPaidAmount(record.id);
+    return this.getAnsarullahRecordById(record.id);
+  }
+
+  static async updateAnsarullahPayment(data: { id: string; waqfJadeedId: string; amount: number; date: string; notes?: string; bookId?: string; bookNo?: string; receiptNo?: number }): Promise<AnsarullahRecord | null> {
+    await updateDoc(doc(db, 'waqfJadeedPayments', data.id), {
+      amount: data.amount,
+      date: data.date,
+      notes: data.notes || '',
+      bookId: data.bookId || null,
+      bookNo: data.bookNo || null,
+      receiptNo: data.receiptNo || null
+    });
+    await this.recalculateAnsarullahPaidAmount(data.waqfJadeedId);
+    return this.getAnsarullahRecordById(data.waqfJadeedId);
+  }
+
+  static async deleteAnsarullahPayment(id: string) {
+    const snap = await getDoc(doc(db, 'waqfJadeedPayments', id));
+    if (!snap.exists()) return { error: 'Not found' };
+
+    const waqfJadeedId = snap.data().waqfJadeedId;
+    await deleteDoc(doc(db, 'waqfJadeedPayments', id));
+
+    const newTotal = await this.recalculateAnsarullahPaidAmount(waqfJadeedId);
+
+    return { success: true, waqfJadeedId, newTotal };
+  }
+
+  static async recalculateAnsarullahPaidAmount(ansarullahId: string) {
+    const q = query(collection(db, 'waqfJadeedPayments'), where('waqfJadeedId', '==', ansarullahId));
+    const snap = await getDocs(q);
+    const total = snap.docs.reduce((sum, d) => sum + (d.data().amount || 0), 0);
+
+    await updateDoc(doc(db, 'ansarullah', ansarullahId), {
+      paidAmount: total,
+      updatedAt: new Date().toISOString()
+    });
+    return total;
+  }
 }
