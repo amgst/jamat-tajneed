@@ -79,6 +79,11 @@ const AppLayout: React.FC = () => {
       label: 'Waqf-e-Jadeed',
     },
     {
+      key: '/ansar-uallah',
+      icon: <BankOutlined />,
+      label: 'Ansar uallah',
+    },
+    {
       key: '/tahreq-jadeed',
       icon: <BankOutlined />,
       label: 'Tahreq Jadeed',

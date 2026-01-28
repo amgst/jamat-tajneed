@@ -10,7 +10,7 @@ import {
   where,
   setDoc
 } from 'firebase/firestore';
-import type { Member, Family, WaqfJadeedRecord, WaqfJadeedSpecialRecord, TahreqJadeedRecord, TahreqJadeedSpecialRecord, Payment } from '../types';
+import type { Member, Family, WaqfJadeedRecord, WaqfJadeedSpecialRecord, TahreqJadeedRecord, TahreqJadeedSpecialRecord, AnsarullahRecord, Payment } from '../types';
 
 // Helper to determine Tanzeem
 const calculateAge = (dob: string) => {

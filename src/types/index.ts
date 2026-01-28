@@ -296,3 +296,14 @@ export interface TahreqJadeedSpecialRecord {
   updatedAt: string;
   payments?: Payment[];
 }
+
+export interface AnsarullahRecord {
+  id: string;
+  memberId: string;
+  year: number;
+  promiseAmount: number;
+  paidAmount: number;
+  notes?: string;
+  updatedAt: string;
+  payments?: Payment[];
+}
