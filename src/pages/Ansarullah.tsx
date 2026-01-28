@@ -15,7 +15,8 @@ import {
     Tag,
     App,
     Divider,
-    Popconfirm
+    Popconfirm,
+    Tabs
 } from 'antd';
 import {
     UserOutlined,
@@ -32,6 +33,7 @@ import MemberForm from '../components/MemberForm';
 import { formatCNIC } from '../utils/helpers';
 import { validateMemberData, sanitizeMemberData } from '../utils/validation';
 import dayjs from 'dayjs';
+import AnsarullahDashboard from '../components/AnsarullahDashboard';
 
 const { Text, Title } = Typography;
 
@@ -305,15 +307,37 @@ const Ansarullah: React.FC = () => {
                 </Space>
             </div>
 
-            <Card>
-                <Table
-                    columns={columns}
-                    dataSource={filteredMembers}
-                    rowKey="id"
-                    loading={loading}
-                    pagination={{ pageSize: 10 }}
-                />
-            </Card>
+            <Tabs
+                defaultActiveKey="list"
+                items={[
+                    {
+                        key: 'list',
+                        label: 'Member List',
+                        children: (
+                            <Card>
+                                <Table
+                                    columns={columns}
+                                    dataSource={filteredMembers}
+                                    rowKey="id"
+                                    loading={loading}
+                                    pagination={{ pageSize: 10 }}
+                                />
+                            </Card>
+                        )
+                    },
+                    {
+                        key: 'dashboard',
+                        label: 'Dashboard',
+                        children: (
+                            <AnsarullahDashboard
+                                members={ansarMembers}
+                                records={records}
+                                selectedYear={selectedYear}
+                            />
+                        )
+                    }
+                ]}
+            />
 
             <Drawer
                 title={editingMember ? `Financials: ${editingMember.name}` : 'Details'}
