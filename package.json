@@ -10,7 +10,8 @@
     "preview": "vite preview",
     "dataconnect": "firebase dataconnect:sql:diff --local",
     "dataconnect:deploy": "firebase dataconnect:sql:migrate --local",
-    "postgres:start": "firebase dataconnect:sql:shell --local"
+    "postgres:start": "firebase dataconnect:sql:shell --local",
+    "seed": "node scripts/seed-firebase.cjs"
   },
   "dependencies": {
     "@ant-design/charts": "^2.6.1",
