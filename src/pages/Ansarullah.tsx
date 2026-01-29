@@ -16,7 +16,11 @@ import {
     App,
     Divider,
     Popconfirm,
-    Tabs
+    Tabs,
+    Row,
+    Col,
+    Statistic,
+    Progress
 } from 'antd';
 import {
     UserOutlined,
@@ -307,7 +311,213 @@ const Ansarullah: React.FC = () => {
                                 selectedYear={selectedYear}
                             />
                         )
+                    },
+                    {
+                        key: 'audit',
+                        label: 'Audit Report',
+                        children: (
+                            <Card>
+                                <div style={{ padding: '24px', fontFamily: 'Jameel Noori Nastaleeq, Noto Nastalikh Urdu, Arial' }}>
+                                    {/* Header */}
+                                    <div style={{ textAlign: 'center', marginBottom: '32px', borderBottom: '2px solid #1890ff', paddingBottom: '16px' }}>
+                                        <Title level={2} style={{ margin: 0, direction: 'rtl' }}>آڈٹ رپورٹ</Title>
+                                        <Title level={3} style={{ margin: '8px 0', direction: 'rtl' }}>انصار اللہ چندہ تفصیلات</Title>
+                                        <Text type="secondary" style={{ fontSize: '16px', direction: 'rtl' }}>سال: {selectedYear}</Text>
+                                    </div>
+
+                                    {/* Summary Statistics */}
+                                    <div style={{ marginBottom: '32px' }}>
+                                        <Title level={4} style={{ direction: 'rtl', textAlign: 'right', color: '#1890ff' }}>خلاصہ</Title>
+                                        <Row gutter={[16, 16]}>
+                                            <Col span={6}>
+                                                <Card size="small" style={{ background: '#e6f7ff', textAlign: 'center' }}>
+                                                    <Statistic
+                                                        title={<span style={{ direction: 'rtl' }}>کل انصار</span>}
+                                                        value={ansarMembers.length}
+                                                        prefix={<UserOutlined />}
+                                                    />
+                                                </Card>
+                                            </Col>
+                                            <Col span={6}>
+                                                <Card size="small" style={{ background: '#f6ffed', textAlign: 'center' }}>
+                                                    <Statistic
+                                                        title={<span style={{ direction: 'rtl' }}>کل وعدہ</span>}
+                                                        value={records.reduce((sum, r) => sum + (r.promiseAmount || 0), 0)}
+                                                        prefix="Rs."
+                                                        valueStyle={{ color: '#1890ff' }}
+                                                    />
+                                                </Card>
+                                            </Col>
+                                            <Col span={6}>
+                                                <Card size="small" style={{ background: '#f6ffed', textAlign: 'center' }}>
+                                                    <Statistic
+                                                        title={<span style={{ direction: 'rtl' }}>کل ادائیگی</span>}
+                                                        value={records.reduce((sum, r) => sum + (r.paidAmount || 0), 0)}
+                                                        prefix="Rs."
+                                                        valueStyle={{ color: '#52c41a' }}
+                                                    />
+                                                </Card>
+                                            </Col>
+                                            <Col span={6}>
+                                                <Card size="small" style={{ background: '#fff1f0', textAlign: 'center' }}>
+                                                    <Statistic
+                                                        title={<span style={{ direction: 'rtl' }}>باقی رقم</span>}
+                                                        value={records.reduce((sum, r) => sum + ((r.promiseAmount || 0) - (r.paidAmount || 0)), 0)}
+                                                        prefix="Rs."
+                                                        valueStyle={{ color: '#f5222d' }}
+                                                    />
+                                                </Card>
+                                            </Col>
+                                        </Row>
+                                    </div>
+
+                                    {/* Chanda Type Breakdown */}
+                                    <div style={{ marginBottom: '32px' }}>
+                                        <Title level={4} style={{ direction: 'rtl', textAlign: 'right', color: '#1890ff' }}>چندہ کی اقسام کی تفصیل</Title>
+                                        <Table
+                                            size="small"
+                                            pagination={false}
+                                            dataSource={[
+                                                {
+                                                    key: '1',
+                                                    type: 'چندہ مجلس',
+                                                    amount: records.reduce((sum, r) => sum + (r.chandaMajlis || 0), 0)
+                                                },
+                                                {
+                                                    key: '2',
+                                                    type: 'سالانہ اجتماع',
+                                                    amount: records.reduce((sum, r) => sum + (r.chandaSalanaIjtema || 0), 0)
+                                                },
+                                                {
+                                                    key: '3',
+                                                    type: 'عاشیات',
+                                                    amount: records.reduce((sum, r) => sum + (r.chandaAsyat || 0), 0)
+                                                },
+                                                {
+                                                    key: '4',
+                                                    type: 'توسیع عمارت',
+                                                    amount: records.reduce((sum, r) => sum + (r.chandaTawseaImarat || 0), 0)
+                                                },
+                                                {
+                                                    key: 'total',
+                                                    type: 'کل',
+                                                    amount: records.reduce((sum, r) => sum + (r.promiseAmount || 0), 0),
+                                                    isTotal: true
+                                                }
+                                            ]}
+                                            columns={[
+                                                {
+                                                    title: <span style={{ direction: 'rtl' }}>چندہ کی قسم</span>,
+                                                    dataIndex: 'type',
+                                                    key: 'type',
+                                                    render: (text, record) => (
+                                                        <Text strong={record.isTotal} style={{ direction: 'rtl', fontSize: record.isTotal ? '16px' : '14px' }}>
+                                                            {text}
+                                                        </Text>
+                                                    )
+                                                },
+                                                {
+                                                    title: <span style={{ direction: 'rtl' }}>رقم</span>,
+                                                    dataIndex: 'amount',
+                                                    key: 'amount',
+                                                    align: 'right',
+                                                    render: (val, record) => (
+                                                        <Text strong={record.isTotal} style={{
+                                                            color: record.isTotal ? '#1890ff' : 'inherit',
+                                                            fontSize: record.isTotal ? '16px' : '14px'
+                                                        }}>
+                                                            Rs. {val.toLocaleString()}
+                                                        </Text>
+                                                    )
+                                                }
+                                            ]}
+                                        />
+                                    </div>
+
+                                    {/* Halqa-wise Report */}
+                                    <div style={{ marginBottom: '32px' }}>
+                                        <Title level={4} style={{ direction: 'rtl', textAlign: 'right', color: '#1890ff' }}>حلقہ وار تفصیل</Title>
+                                        <Table
+                                            size="small"
+                                            pagination={false}
+                                            dataSource={(() => {
+                                                const halqaMap: Record<string, { count: number; promised: number; paid: number }> = {};
+                                                ansarMembers.forEach(m => {
+                                                    const h = m.halqa || 'نامعلوم';
+                                                    if (!halqaMap[h]) halqaMap[h] = { count: 0, promised: 0, paid: 0 };
+                                                    halqaMap[h].count++;
+                                                });
+                                                records.forEach(r => {
+                                                    const member = ansarMembers.find(m => m.id === r.memberId);
+                                                    const h = member?.halqa || 'نامعلوم';
+                                                    if (!halqaMap[h]) halqaMap[h] = { count: 0, promised: 0, paid: 0 };
+                                                    halqaMap[h].promised += (r.promiseAmount || 0);
+                                                    halqaMap[h].paid += (r.paidAmount || 0);
+                                                });
+                                                return Object.entries(halqaMap).map(([name, data]) => ({
+                                                    key: name,
+                                                    halqa: name,
+                                                    ...data,
+                                                    balance: data.promised - data.paid,
+                                                    percentage: data.promised > 0 ? Math.round((data.paid / data.promised) * 100) : 0
+                                                }));
+                                            })()}
+                                            columns={[
+                                                {
+                                                    title: <span style={{ direction: 'rtl' }}>حلقہ</span>,
+                                                    dataIndex: 'halqa',
+                                                    key: 'halqa',
+                                                    render: (text) => <Text style={{ direction: 'rtl' }}>{text}</Text>
+                                                },
+                                                {
+                                                    title: <span style={{ direction: 'rtl' }}>انصار</span>,
+                                                    dataIndex: 'count',
+                                                    key: 'count',
+                                                    align: 'center'
+                                                },
+                                                {
+                                                    title: <span style={{ direction: 'rtl' }}>وعدہ</span>,
+                                                    dataIndex: 'promised',
+                                                    key: 'promised',
+                                                    align: 'right',
+                                                    render: (val) => `Rs. ${val.toLocaleString()}`
+                                                },
+                                                {
+                                                    title: <span style={{ direction: 'rtl' }}>ادائیگی</span>,
+                                                    dataIndex: 'paid',
+                                                    key: 'paid',
+                                                    align: 'right',
+                                                    render: (val) => <Text style={{ color: '#52c41a' }}>Rs. {val.toLocaleString()}</Text>
+                                                },
+                                                {
+                                                    title: <span style={{ direction: 'rtl' }}>باقی</span>,
+                                                    dataIndex: 'balance',
+                                                    key: 'balance',
+                                                    align: 'right',
+                                                    render: (val) => <Text style={{ color: val > 0 ? '#f5222d' : '#52c41a' }}>Rs. {val.toLocaleString()}</Text>
+                                                },
+                                                {
+                                                    title: <span style={{ direction: 'rtl' }}>فیصد</span>,
+                                                    dataIndex: 'percentage',
+                                                    key: 'percentage',
+                                                    align: 'center',
+                                                    render: (val) => <Progress percent={val} size="small" />
+                                                }
+                                            ]}
+                                        />
+                                    </div>
+
+                                    {/* Footer */}
+                                    <div style={{ marginTop: '48px', paddingTop: '16px', borderTop: '1px solid #f0f0f0', textAlign: 'center' }}>
+                                        <Text type="secondary" style={{ direction: 'rtl' }}>
+                                            تیار کردہ: {new Date().toLocaleDateString('ur-PK')}
+                                        </Text>
+                                    </div>
+                                </div>
+                            </Card>
+                        )
                     }
+
                 ]}
             />
 
