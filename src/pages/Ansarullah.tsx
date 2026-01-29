@@ -29,9 +29,6 @@ import {
 } from '@ant-design/icons';
 import { ApiService } from '../services/apiService';
 import type { Member, AnsarullahRecord, Payment, ReceiptBook } from '../types';
-import MemberForm from '../components/MemberForm';
-import { formatCNIC } from '../utils/helpers';
-import { validateMemberData, sanitizeMemberData } from '../utils/validation';
 import dayjs from 'dayjs';
 import AnsarullahDashboard from '../components/AnsarullahDashboard';
 
@@ -189,38 +186,7 @@ const Ansarullah: React.FC = () => {
         }
     };
 
-    const handlePersonalDetailsSave = async (values: any) => {
-        if (!editingMember) return;
-        try {
-            setSubmitting(true);
-            const formData = values;
-            const memberDataRaw: any = {
-                ...editingMember,
-                ...formData,
-                cnic: formData.cnic ? formatCNIC(formData.cnic) : '',
-                dateOfBirth: formData.dateOfBirth.format('YYYY-MM-DD'),
-                updatedAt: new Date().toISOString(),
-            };
 
-            const validation = validateMemberData(memberDataRaw);
-            if (!validation.valid) {
-                message.error(`Validation failed: ${validation.errors.join(', ')}`);
-                return;
-            }
-
-            const memberData = sanitizeMemberData(memberDataRaw);
-            await ApiService.updateMember(editingMember.id, memberData);
-
-            const refreshedMembers = await ApiService.getAllMembers();
-            setAnsarMembers(refreshedMembers.filter(m => m.tanzeem === 'ansar' && !m.isMoved && !m.isDeceased));
-            setEditingMember({ ...editingMember, ...memberData });
-            message.success('Member details updated');
-        } catch (error) {
-            message.error('Failed to update member');
-        } finally {
-            setSubmitting(false);
-        }
-    };
 
     const filteredMembers = useMemo(() => {
         return ansarMembers.filter(m =>
@@ -499,14 +465,6 @@ const Ansarullah: React.FC = () => {
                                 )}
                             />
                         </Card>
-
-                        {/* Member Details */}
-                        <Divider>Member Personal Details</Divider>
-                        <MemberForm
-                            initialValues={editingMember}
-                            onFinish={handlePersonalDetailsSave}
-                            isSaving={submitting}
-                        />
                     </div>
                 )}
             </Drawer>
