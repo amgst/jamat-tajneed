@@ -105,7 +105,9 @@ const Ansarullah: React.FC = () => {
         setEditingMember(member);
         const record = records.find(r => r.memberId === member.id);
         form.setFieldsValue({
-            promiseAmount: record?.promiseAmount || 0,
+            chandaMajlis: record?.chandaMajlis || 0,
+            chandaSalanaIjtema: record?.chandaSalanaIjtema || 0,
+            chandaAsyat: record?.chandaAsyat || 0,
         });
         setDrawerVisible(true);
     };
@@ -118,7 +120,9 @@ const Ansarullah: React.FC = () => {
             const payload = {
                 memberId: editingMember.id,
                 year: selectedYear,
-                promiseAmount: values.promiseAmount,
+                chandaMajlis: values.chandaMajlis || 0,
+                chandaSalanaIjtema: values.chandaSalanaIjtema || 0,
+                chandaAsyat: values.chandaAsyat || 0,
             };
 
             const savedRecord = await ApiService.saveAnsarullahRecord(payload);
@@ -349,36 +353,89 @@ const Ansarullah: React.FC = () => {
                 {editingMember && (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
                         {/* Summary Stats */}
-                        <div style={{ display: 'flex', gap: '16px', background: '#f5f5f5', padding: '16px', borderRadius: '8px' }}>
-                            <div style={{ flex: 1 }}>
-                                <Text type="secondary">Promised</Text>
-                                <Title level={4} style={{ margin: 0 }}>Rs. {currentRecord?.promiseAmount?.toLocaleString() || 0}</Title>
+                        <div style={{ background: '#f5f5f5', padding: '16px', borderRadius: '8px' }}>
+                            <div style={{ display: 'flex', gap: '16px', marginBottom: '12px' }}>
+                                <div style={{ flex: 1 }}>
+                                    <Text type="secondary">Chanda Majlis</Text>
+                                    <Title level={5} style={{ margin: 0 }}>Rs. {currentRecord?.chandaMajlis?.toLocaleString() || 0}</Title>
+                                </div>
+                                <div style={{ flex: 1 }}>
+                                    <Text type="secondary">Salana Ijtema</Text>
+                                    <Title level={5} style={{ margin: 0 }}>Rs. {currentRecord?.chandaSalanaIjtema?.toLocaleString() || 0}</Title>
+                                </div>
+                                <div style={{ flex: 1 }}>
+                                    <Text type="secondary">Asyat</Text>
+                                    <Title level={5} style={{ margin: 0 }}>Rs. {currentRecord?.chandaAsyat?.toLocaleString() || 0}</Title>
+                                </div>
                             </div>
-                            <div style={{ flex: 1 }}>
-                                <Text type="secondary">Paid</Text>
-                                <Title level={4} style={{ margin: 0, color: '#52c41a' }}>Rs. {currentRecord?.paidAmount?.toLocaleString() || 0}</Title>
-                            </div>
-                            <div style={{ flex: 1 }}>
-                                <Text type="secondary">Remaining</Text>
-                                <Title level={4} style={{ margin: 0, color: '#f5222d' }}>Rs. {((currentRecord?.promiseAmount || 0) - (currentRecord?.paidAmount || 0)).toLocaleString()}</Title>
+                            <Divider style={{ margin: '12px 0' }} />
+                            <div style={{ display: 'flex', gap: '16px' }}>
+                                <div style={{ flex: 1 }}>
+                                    <Text type="secondary">Total Promised</Text>
+                                    <Title level={4} style={{ margin: 0 }}>Rs. {currentRecord?.promiseAmount?.toLocaleString() || 0}</Title>
+                                </div>
+                                <div style={{ flex: 1 }}>
+                                    <Text type="secondary">Paid</Text>
+                                    <Title level={4} style={{ margin: 0, color: '#52c41a' }}>Rs. {currentRecord?.paidAmount?.toLocaleString() || 0}</Title>
+                                </div>
+                                <div style={{ flex: 1 }}>
+                                    <Text type="secondary">Remaining</Text>
+                                    <Title level={4} style={{ margin: 0, color: '#f5222d' }}>Rs. {((currentRecord?.promiseAmount || 0) - (currentRecord?.paidAmount || 0)).toLocaleString()}</Title>
+                                </div>
                             </div>
                         </div>
 
                         {/* Promise Form */}
                         <Card size="small" title="Manage Promise (Budget)">
-                            <Form form={form} layout="inline" onFinish={handleSavePromise}>
-                                <Form.Item name="promiseAmount" label="Promised Amount" rules={[{ required: true }]}>
-                                    <InputNumber
-                                        formatter={value => `Rs. ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
-                                        parser={value => value!.replace(/Rs\.\s?|(,*)/g, '')}
-                                        style={{ width: 200 }}
-                                    />
-                                </Form.Item>
-                                <Form.Item>
-                                    <Button type="primary" htmlType="submit" loading={submitting} icon={<SaveOutlined />}>
-                                        Save Promise
-                                    </Button>
-                                </Form.Item>
+                            <Form
+                                form={form}
+                                layout="vertical"
+                                onFinish={handleSavePromise}
+                                onValuesChange={(_, allValues) => {
+                                    // Auto-calculate total when any chanda value changes
+                                    const total = (allValues.chandaMajlis || 0) +
+                                        (allValues.chandaSalanaIjtema || 0) +
+                                        (allValues.chandaAsyat || 0);
+                                    form.setFieldsValue({ total });
+                                }}
+                            >
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '16px' }}>
+                                    <Form.Item name="chandaMajlis" label="Chanda Majlis" rules={[{ required: true, message: 'Required' }]}>
+                                        <InputNumber
+                                            formatter={value => `Rs. ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
+                                            parser={value => value!.replace(/Rs\.\s?|(,*)/g, '') as any}
+                                            style={{ width: '100%' }}
+                                            min={0}
+                                        />
+                                    </Form.Item>
+                                    <Form.Item name="chandaSalanaIjtema" label="Salana Ijtema" rules={[{ required: true, message: 'Required' }]}>
+                                        <InputNumber
+                                            formatter={value => `Rs. ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
+                                            parser={value => value!.replace(/Rs\.\s?|(,*)/g, '') as any}
+                                            style={{ width: '100%' }}
+                                            min={0}
+                                        />
+                                    </Form.Item>
+                                    <Form.Item name="chandaAsyat" label="Asyat" rules={[{ required: true, message: 'Required' }]}>
+                                        <InputNumber
+                                            formatter={value => `Rs. ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
+                                            parser={value => value!.replace(/Rs\.\s?|(,*)/g, '') as any}
+                                            style={{ width: '100%' }}
+                                            min={0}
+                                        />
+                                    </Form.Item>
+                                    <Form.Item name="total" label="Total">
+                                        <InputNumber
+                                            formatter={value => `Rs. ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
+                                            style={{ width: '100%' }}
+                                            disabled
+                                            readOnly
+                                        />
+                                    </Form.Item>
+                                </div>
+                                <Button type="primary" htmlType="submit" loading={submitting} icon={<SaveOutlined />} block>
+                                    Save Promise
+                                </Button>
                             </Form>
                         </Card>
 

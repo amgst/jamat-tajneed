@@ -819,7 +819,21 @@ export class ApiService {
 
     let id = data.id || (records.length > 0 ? records[0].id : crypto.randomUUID());
 
-    const payload = { ...data, id, updatedAt: new Date().toISOString() };
+    // Calculate total promiseAmount from the three chanda types
+    const chandaMajlis = data.chandaMajlis || 0;
+    const chandaSalanaIjtema = data.chandaSalanaIjtema || 0;
+    const chandaAsyat = data.chandaAsyat || 0;
+    const promiseAmount = chandaMajlis + chandaSalanaIjtema + chandaAsyat;
+
+    const payload = {
+      ...data,
+      id,
+      chandaMajlis,
+      chandaSalanaIjtema,
+      chandaAsyat,
+      promiseAmount,
+      updatedAt: new Date().toISOString()
+    };
     await setDoc(doc(db, 'ansarullah', id), payload, { merge: true });
 
     return this.getAnsarullahRecordById(id);

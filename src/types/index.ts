@@ -301,6 +301,11 @@ export interface AnsarullahRecord {
   id: string;
   memberId: string;
   year: number;
+  // Individual Chanda Types
+  chandaMajlis?: number;
+  chandaSalanaIjtema?: number;
+  chandaAsyat?: number;
+  // Total (calculated from the three chanda types)
   promiseAmount: number;
   paidAmount: number;
   notes?: string;
