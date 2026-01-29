@@ -819,11 +819,12 @@ export class ApiService {
 
     let id = data.id || (records.length > 0 ? records[0].id : crypto.randomUUID());
 
-    // Calculate total promiseAmount from the three chanda types
+    // Calculate total promiseAmount from the four chanda types
     const chandaMajlis = data.chandaMajlis || 0;
     const chandaSalanaIjtema = data.chandaSalanaIjtema || 0;
     const chandaAsyat = data.chandaAsyat || 0;
-    const promiseAmount = chandaMajlis + chandaSalanaIjtema + chandaAsyat;
+    const chandaTawseaImarat = data.chandaTawseaImarat || 0;
+    const promiseAmount = chandaMajlis + chandaSalanaIjtema + chandaAsyat + chandaTawseaImarat;
 
     const payload = {
       ...data,
@@ -831,6 +832,7 @@ export class ApiService {
       chandaMajlis,
       chandaSalanaIjtema,
       chandaAsyat,
+      chandaTawseaImarat,
       promiseAmount,
       updatedAt: new Date().toISOString()
     };

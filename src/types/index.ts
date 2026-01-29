@@ -305,7 +305,8 @@ export interface AnsarullahRecord {
   chandaMajlis?: number;
   chandaSalanaIjtema?: number;
   chandaAsyat?: number;
-  // Total (calculated from the three chanda types)
+  chandaTawseaImarat?: number; // توسیع عمارت (Building Expansion)
+  // Total (calculated from the four chanda types)
   promiseAmount: number;
   paidAmount: number;
   notes?: string;

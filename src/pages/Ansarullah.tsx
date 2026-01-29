@@ -105,6 +105,7 @@ const Ansarullah: React.FC = () => {
             chandaMajlis: record?.chandaMajlis || 0,
             chandaSalanaIjtema: record?.chandaSalanaIjtema || 0,
             chandaAsyat: record?.chandaAsyat || 0,
+            chandaTawseaImarat: record?.chandaTawseaImarat || 0,
         });
         setDrawerVisible(true);
     };
@@ -120,6 +121,7 @@ const Ansarullah: React.FC = () => {
                 chandaMajlis: values.chandaMajlis || 0,
                 chandaSalanaIjtema: values.chandaSalanaIjtema || 0,
                 chandaAsyat: values.chandaAsyat || 0,
+                chandaTawseaImarat: values.chandaTawseaImarat || 0,
             };
 
             const savedRecord = await ApiService.saveAnsarullahRecord(payload);
@@ -320,18 +322,22 @@ const Ansarullah: React.FC = () => {
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
                         {/* Summary Stats */}
                         <div style={{ background: '#f5f5f5', padding: '16px', borderRadius: '8px' }}>
-                            <div style={{ display: 'flex', gap: '16px', marginBottom: '12px' }}>
-                                <div style={{ flex: 1 }}>
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '16px', marginBottom: '12px' }}>
+                                <div>
                                     <Text type="secondary">Chanda Majlis</Text>
                                     <Title level={5} style={{ margin: 0 }}>Rs. {currentRecord?.chandaMajlis?.toLocaleString() || 0}</Title>
                                 </div>
-                                <div style={{ flex: 1 }}>
+                                <div>
                                     <Text type="secondary">Salana Ijtema</Text>
                                     <Title level={5} style={{ margin: 0 }}>Rs. {currentRecord?.chandaSalanaIjtema?.toLocaleString() || 0}</Title>
                                 </div>
-                                <div style={{ flex: 1 }}>
+                                <div>
                                     <Text type="secondary">Asyat</Text>
                                     <Title level={5} style={{ margin: 0 }}>Rs. {currentRecord?.chandaAsyat?.toLocaleString() || 0}</Title>
+                                </div>
+                                <div>
+                                    <Text type="secondary">توسیع عمارت</Text>
+                                    <Title level={5} style={{ margin: 0 }}>Rs. {currentRecord?.chandaTawseaImarat?.toLocaleString() || 0}</Title>
                                 </div>
                             </div>
                             <Divider style={{ margin: '12px 0' }} />
@@ -361,11 +367,12 @@ const Ansarullah: React.FC = () => {
                                     // Auto-calculate total when any chanda value changes
                                     const total = (allValues.chandaMajlis || 0) +
                                         (allValues.chandaSalanaIjtema || 0) +
-                                        (allValues.chandaAsyat || 0);
+                                        (allValues.chandaAsyat || 0) +
+                                        (allValues.chandaTawseaImarat || 0);
                                     form.setFieldsValue({ total });
                                 }}
                             >
-                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '16px' }}>
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr 1fr', gap: '16px' }}>
                                     <Form.Item name="chandaMajlis" label="Chanda Majlis" rules={[{ required: true, message: 'Required' }]}>
                                         <InputNumber
                                             formatter={value => `Rs. ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
@@ -383,6 +390,14 @@ const Ansarullah: React.FC = () => {
                                         />
                                     </Form.Item>
                                     <Form.Item name="chandaAsyat" label="Asyat" rules={[{ required: true, message: 'Required' }]}>
+                                        <InputNumber
+                                            formatter={value => `Rs. ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
+                                            parser={value => value!.replace(/Rs\.\s?|(,*)/g, '') as any}
+                                            style={{ width: '100%' }}
+                                            min={0}
+                                        />
+                                    </Form.Item>
+                                    <Form.Item name="chandaTawseaImarat" label="توسیع عمارت" rules={[{ required: true, message: 'Required' }]}>
                                         <InputNumber
                                             formatter={value => `Rs. ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
                                             parser={value => value!.replace(/Rs\.\s?|(,*)/g, '') as any}
