@@ -313,3 +313,14 @@ export interface AnsarullahRecord {
   updatedAt: string;
   payments?: Payment[];
 }
+
+// Markaz Payment
+export interface MarkazPayment {
+  id: string;
+  amount: number;
+  couponNo: string;
+  paymentDate: string; // ISO date
+  year: number;
+  notes?: string;
+  createdAt: string;
+}

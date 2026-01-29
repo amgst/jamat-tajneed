@@ -20,7 +20,9 @@ import {
     Row,
     Col,
     Statistic,
-    Progress
+    Progress,
+    Modal,
+    DatePicker
 } from 'antd';
 import {
     UserOutlined,
@@ -29,12 +31,15 @@ import {
     PlusOutlined,
     EditOutlined,
     DeleteOutlined,
-    SaveOutlined
+    SaveOutlined,
+    DownloadOutlined
 } from '@ant-design/icons';
 import { ApiService } from '../services/apiService';
-import type { Member, AnsarullahRecord, Payment, ReceiptBook } from '../types';
+import type { Member, AnsarullahRecord, Payment, ReceiptBook, MarkazPayment } from '../types';
 import dayjs from 'dayjs';
 import AnsarullahDashboard from '../components/AnsarullahDashboard';
+import html2canvas from 'html2canvas';
+import jsPDF from 'jspdf';
 
 const { Text, Title } = Typography;
 
@@ -43,6 +48,7 @@ const Ansarullah: React.FC = () => {
     const [loading, setLoading] = useState(false);
     const [ansarMembers, setAnsarMembers] = useState<Member[]>([]);
     const [records, setRecords] = useState<AnsarullahRecord[]>([]);
+    const [markazPayments, setMarkazPayments] = useState<MarkazPayment[]>([]);
     const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
     const [searchTerm, setSearchTerm] = useState('');
     const [books, setBooks] = useState<ReceiptBook[]>([]);
@@ -55,6 +61,9 @@ const Ansarullah: React.FC = () => {
     const [paymentForm] = Form.useForm();
     const [submitting, setSubmitting] = useState(false);
     const [paymentEditingId, setPaymentEditingId] = useState<string | null>(null);
+
+    const [markazForm] = Form.useForm();
+    const [markazModalVisible, setMarkazModalVisible] = useState(false);
 
     useEffect(() => {
         loadData();
@@ -73,14 +82,16 @@ const Ansarullah: React.FC = () => {
     const loadData = async () => {
         setLoading(true);
         try {
-            const [membersData, recordsData] = await Promise.all([
+            const [membersData, recordsData, markazData] = await Promise.all([
                 ApiService.getAllMembers(),
-                ApiService.getAnsarullahRecords(selectedYear)
+                ApiService.getAnsarullahRecords(selectedYear),
+                ApiService.getMarkazPayments(selectedYear)
             ]);
 
             // Filter only Ansar members
             setAnsarMembers(membersData.filter(m => m.tanzeem === 'ansar' && !m.isDeceased && !m.isMoved));
             setRecords(recordsData);
+            setMarkazPayments(markazData);
         } catch (error) {
             console.error('Error loading data:', error);
             message.error('Failed to load data');
@@ -177,22 +188,100 @@ const Ansarullah: React.FC = () => {
         }
     };
 
-    const handleDeletePayment = async (paymentId: string) => {
+    const handleDeletePayment = async (id: string) => {
         try {
-            const res = await ApiService.deleteAnsarullahPayment(paymentId);
-            if (res.success) {
-                const refreshed = await ApiService.getAnsarullahRecords(selectedYear, editingMember?.id);
+            const result = await ApiService.deleteAnsarullahPayment(id);
+            if (result.error) {
+                message.error(result.error);
+                return;
+            }
+
+            // Update local state
+            // This part of the original instruction seems to be for Waqf-e-Jadeed, not Ansarullah.
+            // For Ansarullah, we need to reload the record for the current member.
+            if (editingMember) {
+                const refreshed = await ApiService.getAnsarullahRecords(selectedYear, editingMember.id);
                 if (refreshed && refreshed.length > 0) {
                     updateLocalRecord(refreshed[0]);
                 }
-                message.success('Payment deleted');
             }
+            message.success('Payment deleted');
         } catch (error) {
             message.error('Failed to delete payment');
         }
     };
 
+    const handleSaveMarkazPayment = async (values: any) => {
+        try {
+            setSubmitting(true);
+            const payload = {
+                amount: values.amount,
+                couponNo: values.couponNo,
+                paymentDate: values.paymentDate.format('YYYY-MM-DD'),
+                notes: values.notes,
+                year: selectedYear
+            };
 
+            await ApiService.saveMarkazPayment(payload);
+            message.success('Markaz payment recorded');
+            setMarkazModalVisible(false);
+            markazForm.resetFields();
+            loadData(); // Reload to refresh list
+        } catch (error) {
+            message.error('Failed to save Markaz payment');
+        } finally {
+            setSubmitting(false);
+        }
+    };
+
+    const handleDeleteMarkazPayment = async (id: string) => {
+        try {
+            await ApiService.deleteMarkazPayment(id);
+            message.success('Payment deleted');
+            loadData();
+        } catch (error) {
+            message.error('Failed to delete payment');
+        }
+    };
+
+    const handleExportPDF = async () => {
+        const input = document.getElementById('audit-report-content');
+        if (!input) return;
+
+        try {
+            const canvas = await html2canvas(input, {
+                scale: 2, // Higher scale for better quality
+                useCORS: true,
+                backgroundColor: '#ffffff'
+            });
+
+            const imgData = canvas.toDataURL('image/png');
+            const pdf = new jsPDF('p', 'mm', 'a4');
+            const pdfWidth = pdf.internal.pageSize.getWidth();
+            const pdfHeight = pdf.internal.pageSize.getHeight();
+            const imgWidth = canvas.width;
+            const imgHeight = canvas.height;
+            const ratio = Math.min(pdfWidth / imgWidth, pdfHeight / imgHeight);
+            const imgX = (pdfWidth - imgWidth * ratio) / 2;
+            const imgY = 10;
+
+            // Log details for debugging if needed
+            // console.log({ pdfWidth, pdfHeight, imgWidth, imgHeight, ratio });
+
+            // Calculate height based on width to maintain aspect ratio
+            const finalImgHeight = (imgHeight * pdfWidth) / imgWidth;
+
+            // If image is too long, we might need multiple pages, but for now let's fit to width
+            // For a single page report usually fitting to width is fine unless it's very long
+
+            pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, finalImgHeight);
+            pdf.save(`Ansarullah_Audit_Report_${selectedYear}.pdf`);
+            message.success('PDF downloaded');
+        } catch (error) {
+            console.error('PDF Export Error:', error);
+            message.error('Failed to export PDF');
+        }
+    };
 
     const filteredMembers = useMemo(() => {
         return ansarMembers.filter(m =>
@@ -317,9 +406,14 @@ const Ansarullah: React.FC = () => {
                         label: 'Audit Report',
                         children: (
                             <Card>
-                                <div style={{ padding: '24px', fontFamily: 'Jameel Noori Nastaleeq, Noto Nastalikh Urdu, Arial' }}>
+                                <div id="audit-report-content" style={{ padding: '24px', fontFamily: 'Jameel Noori Nastaleeq, Noto Nastalikh Urdu, Arial', background: '#fff' }}>
                                     {/* Header */}
-                                    <div style={{ textAlign: 'center', marginBottom: '32px', borderBottom: '2px solid #1890ff', paddingBottom: '16px' }}>
+                                    <div style={{ textAlign: 'center', marginBottom: '32px', borderBottom: '2px solid #1890ff', paddingBottom: '16px', position: 'relative' }}>
+                                        <div style={{ position: 'absolute', left: 0, top: 0 }}>
+                                            <Button icon={<DownloadOutlined />} onClick={handleExportPDF}>
+                                                Export PDF
+                                            </Button>
+                                        </div>
                                         <Title level={2} style={{ margin: 0, direction: 'rtl' }}>آڈٹ رپورٹ</Title>
                                         <Title level={3} style={{ margin: '8px 0', direction: 'rtl' }}>انصار اللہ چندہ تفصیلات</Title>
                                         <Text type="secondary" style={{ fontSize: '16px', direction: 'rtl' }}>سال: {selectedYear}</Text>
@@ -507,6 +601,105 @@ const Ansarullah: React.FC = () => {
                                         />
                                     </div>
 
+                                    {/* Markaz Payments Section */}
+                                    <div style={{ marginBottom: '32px' }}>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                                            <Button
+                                                type="primary"
+                                                icon={<PlusOutlined />}
+                                                onClick={() => setMarkazModalVisible(true)}
+                                            >
+                                                Record Markaz Payment
+                                            </Button>
+                                            <Title level={4} style={{ direction: 'rtl', margin: 0, color: '#1890ff' }}>مرکز کو ادائیگی</Title>
+                                        </div>
+                                        <Table
+                                            size="small"
+                                            pagination={false}
+                                            dataSource={markazPayments}
+                                            rowKey="id"
+                                            columns={[
+                                                {
+                                                    title: <span style={{ direction: 'rtl' }}>تاریخ</span>,
+                                                    dataIndex: 'paymentDate',
+                                                    key: 'paymentDate',
+                                                    render: (val) => dayjs(val).format('DD MMM YYYY')
+                                                },
+                                                {
+                                                    title: <span style={{ direction: 'rtl' }}>کوپن نمبر</span>,
+                                                    dataIndex: 'couponNo',
+                                                    key: 'couponNo',
+                                                    align: 'center'
+                                                },
+                                                {
+                                                    title: <span style={{ direction: 'rtl' }}>نوٹ</span>,
+                                                    dataIndex: 'notes',
+                                                    key: 'notes',
+                                                    align: 'right',
+                                                    render: (val) => <Text style={{ direction: 'rtl' }}>{val || '-'}</Text>
+                                                },
+                                                {
+                                                    title: <span style={{ direction: 'rtl' }}>رقم</span>,
+                                                    dataIndex: 'amount',
+                                                    key: 'amount',
+                                                    align: 'right',
+                                                    render: (val) => <Text type="danger">Rs. {val.toLocaleString()}</Text>
+                                                },
+                                                {
+                                                    title: '',
+                                                    key: 'actions',
+                                                    align: 'center',
+                                                    render: (_, r) => (
+                                                        <Popconfirm title="Delete this payment?" onConfirm={() => handleDeleteMarkazPayment(r.id)}>
+                                                            <Button size="small" type="text" danger icon={<DeleteOutlined />} />
+                                                        </Popconfirm>
+                                                    )
+                                                }
+                                            ]}
+                                            footer={() => (
+                                                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0 16px', fontWeight: 'bold' }}>
+                                                    <span>Total Paid to Markaz</span>
+                                                    <span style={{ color: '#f5222d' }}>
+                                                        Rs. {markazPayments.reduce((sum, p) => sum + p.amount, 0).toLocaleString()}
+                                                    </span>
+                                                </div>
+                                            )}
+                                        />
+                                    </div>
+
+                                    {/* Net Balance Section */}
+                                    <div style={{ background: '#f0f2f5', padding: '24px', borderRadius: '8px', marginBottom: '32px' }}>
+                                        <Row gutter={24} align="middle">
+                                            <Col span={8} style={{ textAlign: 'center' }}>
+                                                <Statistic
+                                                    title="Total Collected (Local)"
+                                                    value={records.reduce((sum, r) => sum + (r.paidAmount || 0), 0)}
+                                                    prefix="Rs."
+                                                    valueStyle={{ color: '#52c41a' }}
+                                                />
+                                            </Col>
+                                            <Col span={8} style={{ textAlign: 'center' }}>
+                                                <Statistic
+                                                    title="Paid to Markaz"
+                                                    value={markazPayments.reduce((sum, p) => sum + p.amount, 0)}
+                                                    prefix="- Rs."
+                                                    valueStyle={{ color: '#f5222d' }}
+                                                />
+                                            </Col>
+                                            <Col span={8} style={{ textAlign: 'center', borderLeft: '1px solid #d9d9d9' }}>
+                                                <Statistic
+                                                    title="Net Balance in Hand"
+                                                    value={
+                                                        records.reduce((sum, r) => sum + (r.paidAmount || 0), 0) -
+                                                        markazPayments.reduce((sum, p) => sum + p.amount, 0)
+                                                    }
+                                                    prefix="Rs."
+                                                    valueStyle={{ color: '#1890ff', fontWeight: 'bold' }}
+                                                />
+                                            </Col>
+                                        </Row>
+                                    </div>
+
                                     {/* Footer */}
                                     <div style={{ marginTop: '48px', paddingTop: '16px', borderTop: '1px solid #f0f0f0', textAlign: 'center' }}>
                                         <Text type="secondary" style={{ direction: 'rtl' }}>
@@ -520,6 +713,41 @@ const Ansarullah: React.FC = () => {
 
                 ]}
             />
+
+            {/* Markaz Payment Modal */}
+            <Modal
+                title="Record Payment to Markaz"
+                open={markazModalVisible}
+                onCancel={() => setMarkazModalVisible(false)}
+                footer={null}
+            >
+                <Form
+                    form={markazForm}
+                    layout="vertical"
+                    onFinish={handleSaveMarkazPayment}
+                    initialValues={{ paymentDate: dayjs() }}
+                >
+                    <Form.Item name="amount" label="Amount Sent" rules={[{ required: true, message: 'Please enter amount' }]}>
+                        <InputNumber
+                            style={{ width: '100%' }}
+                            formatter={value => `Rs. ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
+                            parser={value => value!.replace(/Rs\.\s?|(,*)/g, '') as any}
+                        />
+                    </Form.Item>
+                    <Form.Item name="couponNo" label="Coupon Number" rules={[{ required: true, message: 'Please enter coupon number' }]}>
+                        <Input placeholder="Enter coupon number" />
+                    </Form.Item>
+                    <Form.Item name="paymentDate" label="Date Sent" rules={[{ required: true, message: 'Please select date' }]}>
+                        <DatePicker style={{ width: '100%' }} />
+                    </Form.Item>
+                    <Form.Item name="notes" label="Notes (Optional)">
+                        <Input.TextArea />
+                    </Form.Item>
+                    <Button type="primary" htmlType="submit" loading={submitting} block>
+                        Save Record
+                    </Button>
+                </Form>
+            </Modal>
 
             <Drawer
                 title={editingMember ? `Financials: ${editingMember.name}` : 'Details'}

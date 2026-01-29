@@ -10,7 +10,7 @@ import {
   where,
   setDoc
 } from 'firebase/firestore';
-import type { Member, Family, WaqfJadeedRecord, WaqfJadeedSpecialRecord, TahreqJadeedRecord, TahreqJadeedSpecialRecord, AnsarullahRecord, Payment } from '../types';
+import type { Member, Family, WaqfJadeedRecord, WaqfJadeedSpecialRecord, TahreqJadeedRecord, TahreqJadeedSpecialRecord, AnsarullahRecord, Payment, MarkazPayment } from '../types';
 
 // Helper to determine Tanzeem
 const calculateAge = (dob: string) => {
@@ -908,5 +908,31 @@ export class ApiService {
       updatedAt: new Date().toISOString()
     });
     return total;
+  }
+
+  // --- Markaz Payments ---
+
+  static async saveMarkazPayment(data: any): Promise<MarkazPayment> {
+    const id = data.id || crypto.randomUUID();
+    const payload = {
+      ...data,
+      id,
+      createdAt: data.createdAt || new Date().toISOString()
+    };
+    await setDoc(doc(db, 'markazPayments', id), payload, { merge: true });
+    return payload as MarkazPayment;
+  }
+
+  static async getMarkazPayments(year: number): Promise<MarkazPayment[]> {
+    const q = query(
+      collection(db, 'markazPayments'),
+      where('year', '==', year)
+    );
+    const snap = await getDocs(q);
+    return snap.docs.map(d => d.data() as MarkazPayment).sort((a, b) => new Date(b.paymentDate).getTime() - new Date(a.paymentDate).getTime());
+  }
+
+  static async deleteMarkazPayment(id: string): Promise<void> {
+    await deleteDoc(doc(db, 'markazPayments', id));
   }
 }
