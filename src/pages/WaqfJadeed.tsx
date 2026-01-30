@@ -874,6 +874,7 @@ const WaqfJadeed: React.FC = () => {
                 amountWJ: values.amountWJ || 0,
                 amountAtfal: values.amountAtfal || 0,
                 amountNagarParkar: values.amountNagarParkar || 0,
+                notes: values.notes || '', // Ensure notes is not undefined
                 year: selectedYear,
                 paymentDate: values.paymentDate ? values.paymentDate.toISOString() : new Date().toISOString()
             };
@@ -1867,6 +1868,45 @@ const WaqfJadeed: React.FC = () => {
                                     }
                                 ]}
                             />
+
+                            {/* Stats Cards */}
+                            <Row gutter={[16, 16]} style={{ marginTop: 24, marginBottom: 16 }}>
+                                <Col xs={24} sm={12} md={8}>
+                                    <Tooltip title="Total promising amount including all members, special records, and Nagar Parkar">
+                                        <Card bodyStyle={{ padding: 16 }}>
+                                            <Statistic
+                                                title="Total Promise"
+                                                value={stats.totalPromise}
+                                                prefix={<DollarOutlined />}
+                                                precision={0}
+                                                valueStyle={{ fontSize: 'clamp(20px, 5vw, 32px)' }}
+                                            />
+                                        </Card>
+                                    </Tooltip>
+                                </Col>
+                                <Col xs={24} sm={12} md={8}>
+                                    <Tooltip title="Total collection received so far from all categories">
+                                        <Card bodyStyle={{ padding: 16 }}>
+                                            <Statistic
+                                                title="Total Paid"
+                                                value={stats.totalPaid}
+                                                prefix={<CheckCircleOutlined />}
+                                                suffix={<span style={{ fontSize: '16px', color: '#888', marginLeft: 8 }}>({Math.round(stats.percent)}%)</span>}
+                                                valueStyle={{ color: '#3f8600', fontSize: 'clamp(20px, 5vw, 32px)' }}
+                                                precision={0}
+                                            />
+                                        </Card>
+                                    </Tooltip>
+                                </Col>
+                                <Col xs={24} sm={24} md={8}>
+                                    <Tooltip title="Overall collection status against total promise">
+                                        <Card bodyStyle={{ padding: 16 }}>
+                                            <Text type="secondary" style={{ fontSize: 'clamp(12px, 3vw, 14px)' }}>Collection Progress</Text>
+                                            <Progress percent={Math.round(stats.percent)} status="active" />
+                                        </Card>
+                                    </Tooltip>
+                                </Col>
+                            </Row>
                         </div>
                     </Tabs.TabPane>
                     <Tabs.TabPane tab="About" key="about" />
@@ -1909,44 +1949,7 @@ const WaqfJadeed: React.FC = () => {
                 </Modal>
             </Card>
 
-            {/* Stats Cards */}
-            <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
-                <Col xs={24} sm={12} md={8}>
-                    <Tooltip title="Total promising amount including all members, special records, and Nagar Parkar">
-                        <Card bodyStyle={{ padding: 16 }}>
-                            <Statistic
-                                title="Total Promise"
-                                value={stats.totalPromise}
-                                prefix={<DollarOutlined />}
-                                precision={0}
-                                valueStyle={{ fontSize: 'clamp(20px, 5vw, 32px)' }}
-                            />
-                        </Card>
-                    </Tooltip>
-                </Col>
-                <Col xs={24} sm={12} md={8}>
-                    <Tooltip title="Total collection received so far from all categories">
-                        <Card bodyStyle={{ padding: 16 }}>
-                            <Statistic
-                                title="Total Paid"
-                                value={stats.totalPaid}
-                                prefix={<CheckCircleOutlined />}
-                                suffix={<span style={{ fontSize: '16px', color: '#888', marginLeft: 8 }}>({Math.round(stats.percent)}%)</span>}
-                                valueStyle={{ color: '#3f8600', fontSize: 'clamp(20px, 5vw, 32px)' }}
-                                precision={0}
-                            />
-                        </Card>
-                    </Tooltip>
-                </Col>
-                <Col xs={24} sm={24} md={8}>
-                    <Tooltip title="Overall collection status against total promise">
-                        <Card bodyStyle={{ padding: 16 }}>
-                            <Text type="secondary" style={{ fontSize: 'clamp(12px, 3vw, 14px)' }}>Collection Progress</Text>
-                            <Progress percent={Math.round(stats.percent)} status="active" />
-                        </Card>
-                    </Tooltip>
-                </Col>
-            </Row>
+
 
             {/* Content */}
             {activeTab === 'members' ? (
