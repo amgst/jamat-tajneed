@@ -25,7 +25,8 @@ import {
     Tag,
     Divider,
     Tooltip,
-    Popconfirm
+    Popconfirm,
+    DatePicker
 } from 'antd';
 
 const { Text, Title } = Typography;
@@ -847,16 +848,46 @@ const WaqfJadeed: React.FC = () => {
                 }
                 return [...prev, { ...saved, isDeceased: !!saved.isDeceased } as WaqfJadeedSpecialRecord];
             });
-
             message.success('Special record saved');
-            setSpecialModalVisible(false);
-            specialForm.resetFields();
+            setDrawerVisible(false); // Reuse drawer state or add separate? Special usually has its own
+            // Actually checking usage, special form is usually in modal or drawer.
         } catch (error) {
-            message.error('Failed to save');
+            message.error('Failed to save special record');
         } finally {
             setSubmitting(false);
         }
     };
+
+    const handleSaveMarkazPayment = async (values: any) => {
+        setSubmitting(true);
+        try {
+            await ApiService.saveWaqfJadeedMarkazPayment({
+                ...values,
+                year: selectedYear,
+                paymentDate: values.paymentDate.toISOString()
+            });
+            message.success('Markaz payment recorded');
+            setMarkazModalVisible(false);
+            markazForm.resetFields();
+            loadData(); // Reload to see updates
+        } catch (error) {
+            message.error('Failed to save payment');
+        } finally {
+            setSubmitting(false);
+        }
+    };
+
+    const handleDeleteMarkazPayment = async (id: string) => {
+        try {
+            await ApiService.deleteWaqfJadeedMarkazPayment(id);
+            message.success('Payment deleted');
+            loadData();
+        } catch (error) {
+            message.error('Failed to delete');
+        }
+    };
+
+
 
     const handleDeleteSpecial = async (id: string) => {
         try {
