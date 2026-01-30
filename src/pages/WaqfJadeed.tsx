@@ -869,17 +869,23 @@ const WaqfJadeed: React.FC = () => {
     const handleSaveMarkazPayment = async (values: any) => {
         setSubmitting(true);
         try {
-            await ApiService.saveWaqfJadeedMarkazPayment({
+            const payload = {
                 ...values,
+                amountWJ: values.amountWJ || 0,
+                amountAtfal: values.amountAtfal || 0,
+                amountNagarParkar: values.amountNagarParkar || 0,
                 year: selectedYear,
-                paymentDate: values.paymentDate.toISOString()
-            });
+                paymentDate: values.paymentDate ? values.paymentDate.toISOString() : new Date().toISOString()
+            };
+
+            await ApiService.saveWaqfJadeedMarkazPayment(payload);
             message.success('Markaz payment recorded');
             setMarkazModalVisible(false);
             markazForm.resetFields();
             loadData(); // Reload to see updates
-        } catch (error) {
-            message.error('Failed to save payment');
+        } catch (error: any) {
+            console.error('Save Markaz Payment Error:', error);
+            message.error(`Failed to save payment: ${error.message || 'Unknown error'}`);
         } finally {
             setSubmitting(false);
         }
