@@ -1809,104 +1809,7 @@ const WaqfJadeed: React.FC = () => {
                     <Tabs.TabPane tab="Reports" key="reports" />
                     <Tabs.TabPane tab="Dashboard" key="dashboard">
                         <div style={{ padding: 16 }}>
-                            <Row gutter={[16, 16]}>
-                                <Col span={24} style={{ textAlign: 'right', marginBottom: 16 }}>
-                                    <Button type="primary" onClick={() => setMarkazModalVisible(true)} icon={<PlusOutlined />}>
-                                        Record Markaz Payment
-                                    </Button>
-                                </Col>
-                            </Row>
-
-                            {/* Net Balance Section */}
-                            <Card style={{ marginBottom: 16, background: '#f0f5ff', borderColor: '#adc6ff' }}>
-                                <Row gutter={16}>
-                                    <Col span={8}>
-                                        <Statistic title="Total Collected" value={stats.totalPaid} prefix="Rs." />
-                                    </Col>
-                                    <Col span={8}>
-                                        <Statistic
-                                            title="Paid to Markaz"
-                                            value={markazPayments.reduce((sum, p) => sum + (p.amountWJ || 0) + (p.amountAtfal || 0) + (p.amountNagarParkar || 0), 0)}
-                                            prefix="Rs."
-                                            valueStyle={{ color: '#cf1322' }}
-                                        />
-                                    </Col>
-                                    <Col span={8}>
-                                        <Statistic
-                                            title="Net Balance in Hand"
-                                            value={stats.totalPaid - markazPayments.reduce((sum, p) => sum + (p.amountWJ || 0) + (p.amountAtfal || 0) + (p.amountNagarParkar || 0), 0)}
-                                            prefix="Rs."
-                                            valueStyle={{ color: '#3f8600', fontWeight: 'bold' }}
-                                        />
-                                    </Col>
-                                </Row>
-                            </Card>
-
-                            {/* Markaz Payments Table */}
-                            <Title level={4}>Recent Markaz Payments</Title>
-                            <Table
-                                dataSource={markazPayments}
-                                rowKey="id"
-                                size="small"
-                                pagination={{ pageSize: 5 }}
-                                columns={[
-                                    { title: 'Date', dataIndex: 'paymentDate', render: (d: string) => new Date(d).toLocaleDateString() },
-                                    { title: 'Coupon No', dataIndex: 'couponNo' },
-                                    { title: 'WJ (Alif)', dataIndex: 'amountWJ', render: (v: number) => `Rs. ${(v || 0).toLocaleString()}` },
-                                    { title: 'WJ (Atfal)', dataIndex: 'amountAtfal', render: (v: number) => `Rs. ${(v || 0).toLocaleString()}` },
-                                    { title: 'N. Parkar', dataIndex: 'amountNagarParkar', render: (v: number) => `Rs. ${(v || 0).toLocaleString()}` },
-                                    { title: 'Total', key: 'total', render: (_, r) => `Rs. ${((r.amountWJ || 0) + (r.amountAtfal || 0) + (r.amountNagarParkar || 0)).toLocaleString()}` },
-                                    { title: 'Notes', dataIndex: 'notes' },
-                                    {
-                                        title: 'Action',
-                                        key: 'action',
-                                        render: (_, r) => (
-                                            <Popconfirm title="Delete?" onConfirm={() => handleDeleteMarkazPayment(r.id)}>
-                                                <Button type="text" danger icon={<DeleteOutlined />} />
-                                            </Popconfirm>
-                                        )
-                                    }
-                                ]}
-                            />
-
-                            {/* Stats Cards */}
-                            <Row gutter={[16, 16]} style={{ marginTop: 24, marginBottom: 16 }}>
-                                <Col xs={24} sm={12} md={8}>
-                                    <Tooltip title="Total promising amount including all members, special records, and Nagar Parkar">
-                                        <Card bodyStyle={{ padding: 16 }}>
-                                            <Statistic
-                                                title="Total Promise"
-                                                value={stats.totalPromise}
-                                                prefix={<DollarOutlined />}
-                                                precision={0}
-                                                valueStyle={{ fontSize: 'clamp(20px, 5vw, 32px)' }}
-                                            />
-                                        </Card>
-                                    </Tooltip>
-                                </Col>
-                                <Col xs={24} sm={12} md={8}>
-                                    <Tooltip title="Total collection received so far from all categories">
-                                        <Card bodyStyle={{ padding: 16 }}>
-                                            <Statistic
-                                                title="Total Paid"
-                                                value={stats.totalPaid}
-                                                prefix={<CheckCircleOutlined />}
-                                                suffix={<span style={{ fontSize: '16px', color: '#888', marginLeft: 8 }}>({Math.round(stats.percent)}%)</span>}
-                                                valueStyle={{ color: '#3f8600', fontSize: 'clamp(20px, 5vw, 32px)' }}
-                                                precision={0}
-                                            />
-                                        </Card>
-                                    </Tooltip>
-                                </Col>
-                                <Col xs={24} sm={24} md={8}>
-                                    <Tooltip title="Overall collection status against total promise">
-                                        <Card bodyStyle={{ padding: 16 }}>
-                                            <Text type="secondary" style={{ fontSize: 'clamp(12px, 3vw, 14px)' }}>Collection Progress</Text>
-                                            <Progress percent={Math.round(stats.percent)} status="active" />
-                                        </Card>
-                                    </Tooltip>
-                                </Col>
-                            </Row>
+                            <Text type="secondary">Dashboard insights are available in the main section below.</Text>
                         </div>
                     </Tabs.TabPane>
                     <Tabs.TabPane tab="About" key="about" />
@@ -2607,6 +2510,44 @@ const WaqfJadeed: React.FC = () => {
                 />
             ) : activeTab === 'dashboard' ? (
                 <div className="dashboard-view">
+                    {/* High-Level Stats Cards */}
+                    <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+                        <Col xs={24} sm={12} md={8}>
+                            <Tooltip title="Total promising amount including all members, special records, and Nagar Parkar">
+                                <Card bodyStyle={{ padding: 16 }}>
+                                    <Statistic
+                                        title="Overall Promise"
+                                        value={stats.totalPromise}
+                                        prefix={<DollarOutlined />}
+                                        precision={0}
+                                        valueStyle={{ fontSize: 'clamp(20px, 4vw, 24px)' }}
+                                    />
+                                </Card>
+                            </Tooltip>
+                        </Col>
+                        <Col xs={24} sm={12} md={8}>
+                            <Tooltip title="Total collection received so far from all categories">
+                                <Card bodyStyle={{ padding: 16 }}>
+                                    <Statistic
+                                        title="Overall Paid"
+                                        value={stats.totalPaid}
+                                        prefix={<CheckCircleOutlined />}
+                                        suffix={<span style={{ fontSize: '14px', color: '#888', marginLeft: 8 }}>({Math.round(stats.percent)}%)</span>}
+                                        valueStyle={{ color: '#3f8600', fontSize: 'clamp(20px, 4vw, 24px)' }}
+                                        precision={0}
+                                    />
+                                </Card>
+                            </Tooltip>
+                        </Col>
+                        <Col xs={24} sm={24} md={8}>
+                            <Tooltip title="Overall collection status against total promise">
+                                <Card bodyStyle={{ padding: 16 }}>
+                                    <Text type="secondary" style={{ fontSize: '12px' }}>Collection Progress</Text>
+                                    <Progress percent={Math.round(stats.percent)} status="active" />
+                                </Card>
+                            </Tooltip>
+                        </Col>
+                    </Row>
                     {/* Target Tracking Section */}
                     <div style={{ background: '#f0f2f5', padding: '20px', borderRadius: '8px', marginBottom: '24px' }}>
                         <Title level={4} style={{ marginBottom: 20 }}>Target Tracking (Daftar Baligan)</Title>
@@ -2949,6 +2890,69 @@ const WaqfJadeed: React.FC = () => {
                             </Tooltip>
                         </Col>
                     </Row>
+
+                    {/* Markaz Payments Section */}
+                    <Divider orientation="left" style={{ margin: '32px 0 16px' }}>Markaz Payments & Net Balance</Divider>
+                    <div style={{ background: '#f0f5ff', padding: '24px', borderRadius: '8px', marginBottom: '24px', border: '1px solid #adc6ff' }}>
+                        <Row gutter={[16, 16]} align="middle" style={{ marginBottom: 24 }}>
+                            <Col xs={24} sm={12}>
+                                <Title level={4} style={{ margin: 0 }}>Markaz Payment Records</Title>
+                            </Col>
+                            <Col xs={24} sm={12} style={{ textAlign: 'right' }}>
+                                <Button type="primary" onClick={() => setMarkazModalVisible(true)} icon={<PlusOutlined />}>
+                                    Record Markaz Payment
+                                </Button>
+                            </Col>
+                        </Row>
+
+                        <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+                            <Col xs={24} sm={8}>
+                                <Statistic title="Total Collected" value={stats.totalPaid} prefix="Rs." />
+                            </Col>
+                            <Col xs={24} sm={8}>
+                                <Statistic
+                                    title="Paid to Markaz"
+                                    value={markazPayments.reduce((sum, p) => sum + (p.amountWJ || 0) + (p.amountAtfal || 0) + (p.amountNagarParkar || 0), 0)}
+                                    prefix="Rs."
+                                    valueStyle={{ color: '#cf1322' }}
+                                />
+                            </Col>
+                            <Col xs={24} sm={8}>
+                                <Statistic
+                                    title="Net Balance in Hand"
+                                    value={stats.totalPaid - markazPayments.reduce((sum, p) => sum + (p.amountWJ || 0) + (p.amountAtfal || 0) + (p.amountNagarParkar || 0), 0)}
+                                    prefix="Rs."
+                                    valueStyle={{ color: '#3f8600', fontWeight: 'bold' }}
+                                />
+                            </Col>
+                        </Row>
+
+                        <Table
+                            dataSource={markazPayments}
+                            rowKey="id"
+                            size="small"
+                            pagination={{ pageSize: 5 }}
+                            style={{ background: '#fff' }}
+                            columns={[
+                                { title: 'Date', dataIndex: 'paymentDate', render: (d: string) => new Date(d).toLocaleDateString() },
+                                { title: 'Coupon No', dataIndex: 'couponNo' },
+                                { title: 'WJ (Alif)', dataIndex: 'amountWJ', render: (v: number) => `Rs. ${(v || 0).toLocaleString()}` },
+                                { title: 'WJ (Atfal)', dataIndex: 'amountAtfal', render: (v: number) => `Rs. ${(v || 0).toLocaleString()}` },
+                                { title: 'N. Parkar', dataIndex: 'amountNagarParkar', render: (v: number) => `Rs. ${(v || 0).toLocaleString()}` },
+                                { title: 'Total', key: 'total', render: (_, r) => `Rs. ${((r.amountWJ || 0) + (r.amountAtfal || 0) + (r.amountNagarParkar || 0)).toLocaleString()}` },
+                                { title: 'Notes', dataIndex: 'notes' },
+                                {
+                                    title: 'Action',
+                                    key: 'action',
+                                    render: (_, r) => (
+                                        <Popconfirm title="Delete?" onConfirm={() => handleDeleteMarkazPayment(r.id)}>
+                                            <Button type="text" danger icon={<DeleteOutlined />} />
+                                        </Popconfirm>
+                                    )
+                                }
+                            ]}
+                        />
+                    </div>
                 </div>
             ) : activeTab === 'about' ? (
                 <div className="about-view">
