@@ -332,7 +332,7 @@ export interface WaqfJadeedMarkazPayment {
   amountAtfal: number;   // Atfal
   amountNagarParkar: number; // Nagar Parkar
   couponNo: string;
-  paymentDate: string; // ISO date
+  paymentDate: string; // ISfO date
   year: number;
   notes?: string;
   createdAt: string;
