@@ -470,7 +470,7 @@ const WaqfJadeed: React.FC = () => {
                          </div>
                      </div>
 
-                     <table style="width: 100%; border-collapse: collapse; font-size: 11px;">
+                      <table style="width: 100%; border-collapse: collapse; font-size: 11px;">
                          <thead>
                              <tr style="background: #e8e8e8;">
                                  <th style="padding: 10px 8px; text-align: left; border: 1px solid #ddd;">Date</th>
@@ -478,6 +478,7 @@ const WaqfJadeed: React.FC = () => {
                                  <th style="padding: 10px 8px; text-align: right; border: 1px solid #ddd;">WJ (Alif)</th>
                                  <th style="padding: 10px 8px; text-align: right; border: 1px solid #ddd;">WJ (Atfal)</th>
                                  <th style="padding: 10px 8px; text-align: right; border: 1px solid #ddd;">Nagar Parkar</th>
+                                 <th style="padding: 10px 8px; text-align: left; border: 1px solid #ddd;">Notes</th>
                                  <th style="padding: 10px 8px; text-align: right; border: 1px solid #ddd;">Total</th>
                              </tr>
                          </thead>
@@ -491,6 +492,7 @@ const WaqfJadeed: React.FC = () => {
                                      <td style="padding: 8px; text-align: right; border: 1px solid #ddd;">${formatCurrency(p.amountWJ || 0)}</td>
                                      <td style="padding: 8px; text-align: right; border: 1px solid #ddd;">${formatCurrency(p.amountAtfal || 0)}</td>
                                      <td style="padding: 8px; text-align: right; border: 1px solid #ddd;">${formatCurrency(p.amountNagarParkar || 0)}</td>
+                                     <td style="padding: 8px; border: 1px solid #ddd; font-size: 9px;">${p.notes || ''}</td>
                                      <td style="padding: 8px; text-align: right; border: 1px solid #ddd;">${formatCurrency(total)}</td>
                                  </tr>
                              `;
@@ -500,6 +502,7 @@ const WaqfJadeed: React.FC = () => {
                                  <td style="padding: 10px 8px; text-align: right; border: 1px solid #ddd;">${formatCurrency(markazPayments.reduce((sum, p) => sum + (p.amountWJ || 0), 0))}</td>
                                  <td style="padding: 10px 8px; text-align: right; border: 1px solid #ddd;">${formatCurrency(markazPayments.reduce((sum, p) => sum + (p.amountAtfal || 0), 0))}</td>
                                  <td style="padding: 10px 8px; text-align: right; border: 1px solid #ddd;">${formatCurrency(markazPayments.reduce((sum, p) => sum + (p.amountNagarParkar || 0), 0))}</td>
+                                 <td style="padding: 10px 8px; border: 1px solid #ddd;"></td>
                                  <td style="padding: 10px 8px; text-align: right; border: 1px solid #ddd;">${formatCurrency(markazPayments.reduce((sum, p) => sum + (p.amountWJ || 0) + (p.amountAtfal || 0) + (p.amountNagarParkar || 0), 0))}</td>
                              </tr>
                          </tbody>
@@ -526,9 +529,20 @@ const WaqfJadeed: React.FC = () => {
             });
 
             const imgWidth = 210;
+            const pageHeight = 297;
             const imgHeight = (canvas.height * imgWidth) / canvas.width;
+            let heightLeft = imgHeight;
+            let position = 0;
 
-            pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, imgHeight);
+            pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+            heightLeft -= pageHeight;
+
+            while (heightLeft > 0) {
+                position = heightLeft - imgHeight;
+                pdf.addPage();
+                pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+                heightLeft -= pageHeight;
+            }
             pdf.save(`Waqf_Jadeed_Dashboard_Report_${selectedYear}.pdf`);
 
             document.body.removeChild(printDiv);
@@ -1542,6 +1556,27 @@ const WaqfJadeed: React.FC = () => {
 </div>
 
                 </div>
+
+                <!-- Markaz Payment Summary in Family PDF -->
+                <div style="margin-top: 30px; border: 1px solid #000; padding: 15px; border-radius: 8px; background-color: #fafafa; direction: rtl;">
+                    <h3 style="margin: 0 0 10px 0; border-bottom: 2px solid #000; padding-bottom: 5px; font-size: 14px; text-align: right;">مرکز کو ادائیگی کی صورتحال (Jamat Overall Progress)</h3>
+                    <div style="display: flex; gap: 10px; font-size: 11px;">
+                        <div style="flex: 1; border: 1px solid #ddd; padding: 8px; background: #fff; text-align: center;">
+                            <div>کل وصولی (Jamat)</div>
+                            <div style="font-weight: bold;">روپے ${stats.totalPaid.toLocaleString()}</div>
+                        </div>
+                        <div style="flex: 1; border: 1px solid #ddd; padding: 8px; background: #fff; text-align: center;">
+                            <div>مرکز کو ادا شدہ</div>
+                            <div style="font-weight: bold; color: #cf1322;">روپے ${markazPayments.reduce((sum, p) => sum + (p.amountWJ || 0) + (p.amountAtfal || 0) + (p.amountNagarParkar || 0), 0).toLocaleString()}</div>
+                        </div>
+                        <div style="flex: 1; border: 1px solid #ddd; padding: 8px; background: #fff; text-align: center;">
+                            <div>بقیہ رقم (In Hand)</div>
+                            <div style="font-weight: bold; color: #3f8600;">روپے ${(stats.totalPaid - markazPayments.reduce((sum, p) => sum + (p.amountWJ || 0) + (p.amountAtfal || 0) + (p.amountNagarParkar || 0), 0)).toLocaleString()}</div>
+                        </div>
+                    </div>
+                    <p style="font-size: 10px; color: #666; margin-top: 5px; text-align: center;">یہ رپورٹ صرف جماعت کی مجموعی کارکردگی کو ظاہر کرتی ہے۔</p>
+                </div>
+
                 <div style="margin-top: 15px; font-size: 10px; text-align: center; color: #666; direction: rtl;">
                     <p>تیار کیا گیا: ${new Date().toLocaleDateString()}</p>
                 </div>
