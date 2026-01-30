@@ -328,7 +328,9 @@ export interface MarkazPayment {
 // Waqf-e-Jadeed Markaz Payment
 export interface WaqfJadeedMarkazPayment {
   id: string;
-  amount: number;
+  amountWJ: number;      // Alif
+  amountAtfal: number;   // Atfal
+  amountNagarParkar: number; // Nagar Parkar
   couponNo: string;
   paymentDate: string; // ISO date
   year: number;

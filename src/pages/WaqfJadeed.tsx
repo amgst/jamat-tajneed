@@ -181,7 +181,7 @@ const WaqfJadeed: React.FC = () => {
     const loadData = async () => {
         setLoading(true);
         try {
-            const [membersData, familiesData, recordsData, specialData, prevRecordsData, prevSpecialData] = await Promise.all([
+            const [membersData, familiesData, recordsData, specialData, prevRecordsData, prevSpecialData, markazData] = await Promise.all([
                 ApiService.getAllMembers(),
                 ApiService.getAllFamilies(),
                 ApiService.getWaqfJadeedRecords(selectedYear),
@@ -221,19 +221,15 @@ const WaqfJadeed: React.FC = () => {
             setPrevSpecialRecords(Array.isArray(prevSpecialData) ? prevSpecialData : []);
 
             setPrevSpecialRecords(Array.isArray(prevSpecialData) ? prevSpecialData : []);
-            setMarkazPayments(Array.isArray(membersData[4]) ? membersData[4] : []); // Using index from Promise.all result is risky if types mismatch, better destruct correctly or separate call.
-            // Wait, Promise.all returns an array. Let's destructure properly.
-            // Destructuring was: [membersData, familiesData, recordsData, specialData, prevRecordsData, prevSpecialData]
-            // We added one more. The 7th element (index 6) is our new data.
-            // Let's correct the destructuring above first.
 
-            // Actually, I can't easily change the destructuring line in this chunk because it's further up.
-            // Ah, I see "ApiService.getWaqfJadeedMarkazPayments(selectedYear)" is added to the Promise.all array.
-            // So I need to capture it. The previous chunk only showed the call inside Promise.all. 
-            // I need to update the destructuring line or fetch independently.
-            // Let's just fetch it separately to be safe and cleaner.
-            const markazData = await ApiService.getWaqfJadeedMarkazPayments(selectedYear);
-            setMarkazPayments(markazData);
+            // Migration logic for legacy 'amount' field
+            const migratedMarkaz = (Array.isArray(markazData) ? markazData : []).map((p: any) => ({
+                ...p,
+                amountWJ: p.amountWJ ?? p.amount ?? 0,
+                amountAtfal: p.amountAtfal ?? 0,
+                amountNagarParkar: p.amountNagarParkar ?? 0
+            }));
+            setMarkazPayments(migratedMarkaz);
 
             // Debug logging
             const totalPromise = filteredRecords.reduce((sum, r) => sum + (r.promiseAmount || 0) + (r.nagarparAmount || 0), 0) +
@@ -462,28 +458,40 @@ const WaqfJadeed: React.FC = () => {
                              <tr style="background: #f0f0f0;">
                                  <th style="padding: 8px; text-align: left; border: 1px solid #ddd;">Date</th>
                                  <th style="padding: 8px; text-align: left; border: 1px solid #ddd;">Coupon No</th>
-                                 <th style="padding: 8px; text-align: right; border: 1px solid #ddd;">Amount</th>
+                                 <th style="padding: 8px; text-align: right; border: 1px solid #ddd;">WJ (Alif)</th>
+                                 <th style="padding: 8px; text-align: right; border: 1px solid #ddd;">WJ (Atfal)</th>
+                                 <th style="padding: 8px; text-align: right; border: 1px solid #ddd;">Nagar Parkar</th>
+                                 <th style="padding: 8px; text-align: right; border: 1px solid #ddd;">Total</th>
                              </tr>
                          </thead>
                          <tbody>
-                             ${markazPayments.map(p => `
+                             ${markazPayments.map(p => {
+                    const total = (p.amountWJ || 0) + (p.amountAtfal || 0) + (p.amountNagarParkar || 0);
+                    return `
                                  <tr>
                                      <td style="padding: 8px; border: 1px solid #ddd;">${new Date(p.paymentDate).toLocaleDateString()}</td>
                                      <td style="padding: 8px; border: 1px solid #ddd;">${p.couponNo}</td>
-                                     <td style="padding: 8px; text-align: right; border: 1px solid #ddd;">${formatCurrency(p.amount)}</td>
+                                     <td style="padding: 8px; text-align: right; border: 1px solid #ddd;">${formatCurrency(p.amountWJ || 0)}</td>
+                                     <td style="padding: 8px; text-align: right; border: 1px solid #ddd;">${formatCurrency(p.amountAtfal || 0)}</td>
+                                     <td style="padding: 8px; text-align: right; border: 1px solid #ddd;">${formatCurrency(p.amountNagarParkar || 0)}</td>
+                                     <td style="padding: 8px; text-align: right; border: 1px solid #ddd;">${formatCurrency(total)}</td>
                                  </tr>
-                             `).join('')}
+                             `;
+                }).join('')}
                              <tr style="background: #e6f7ff; font-weight: bold;">
                                  <td colspan="2" style="padding: 8px; text-align: right; border: 1px solid #ddd;">Total Paid to Markaz</td>
-                                 <td style="padding: 8px; text-align: right; border: 1px solid #ddd;">${formatCurrency(markazPayments.reduce((sum, p) => sum + p.amount, 0))}</td>
+                                 <td style="padding: 8px; text-align: right; border: 1px solid #ddd;">${formatCurrency(markazPayments.reduce((sum, p) => sum + (p.amountWJ || 0), 0))}</td>
+                                 <td style="padding: 8px; text-align: right; border: 1px solid #ddd;">${formatCurrency(markazPayments.reduce((sum, p) => sum + (p.amountAtfal || 0), 0))}</td>
+                                 <td style="padding: 8px; text-align: right; border: 1px solid #ddd;">${formatCurrency(markazPayments.reduce((sum, p) => sum + (p.amountNagarParkar || 0), 0))}</td>
+                                 <td style="padding: 8px; text-align: right; border: 1px solid #ddd;">${formatCurrency(markazPayments.reduce((sum, p) => sum + (p.amountWJ || 0) + (p.amountAtfal || 0) + (p.amountNagarParkar || 0), 0))}</td>
                              </tr>
                          </tbody>
                      </table>
                      
                      <div style="margin-top: 20px; text-align: right; font-size: 16px;">
                          <strong>Net Balance in Hand: </strong>
-                         <span style="color: ${(stats.totalPaid - markazPayments.reduce((sum, p) => sum + p.amount, 0)) >= 0 ? 'green' : 'red'}">
-                             ${formatCurrency(stats.totalPaid - markazPayments.reduce((sum, p) => sum + p.amount, 0))}
+                         <span style="color: ${(stats.totalPaid - markazPayments.reduce((sum, p) => sum + (p.amountWJ || 0) + (p.amountAtfal || 0) + (p.amountNagarParkar || 0), 0)) >= 0 ? 'green' : 'red'}">
+                             ${formatCurrency(stats.totalPaid - markazPayments.reduce((sum, p) => sum + (p.amountWJ || 0) + (p.amountAtfal || 0) + (p.amountNagarParkar || 0), 0))}
                          </span>
                      </div>
                  </div>
@@ -1811,7 +1819,7 @@ const WaqfJadeed: React.FC = () => {
                                     <Col span={8}>
                                         <Statistic
                                             title="Paid to Markaz"
-                                            value={markazPayments.reduce((sum, p) => sum + p.amount, 0)}
+                                            value={markazPayments.reduce((sum, p) => sum + (p.amountWJ || 0) + (p.amountAtfal || 0) + (p.amountNagarParkar || 0), 0)}
                                             prefix="Rs."
                                             valueStyle={{ color: '#cf1322' }}
                                         />
@@ -1819,7 +1827,7 @@ const WaqfJadeed: React.FC = () => {
                                     <Col span={8}>
                                         <Statistic
                                             title="Net Balance in Hand"
-                                            value={stats.totalPaid - markazPayments.reduce((sum, p) => sum + p.amount, 0)}
+                                            value={stats.totalPaid - markazPayments.reduce((sum, p) => sum + (p.amountWJ || 0) + (p.amountAtfal || 0) + (p.amountNagarParkar || 0), 0)}
                                             prefix="Rs."
                                             valueStyle={{ color: '#3f8600', fontWeight: 'bold' }}
                                         />
@@ -1837,7 +1845,10 @@ const WaqfJadeed: React.FC = () => {
                                 columns={[
                                     { title: 'Date', dataIndex: 'paymentDate', render: (d: string) => new Date(d).toLocaleDateString() },
                                     { title: 'Coupon No', dataIndex: 'couponNo' },
-                                    { title: 'Amount', dataIndex: 'amount', render: (v: number) => `Rs. ${v.toLocaleString()}` },
+                                    { title: 'WJ (Alif)', dataIndex: 'amountWJ', render: (v: number) => `Rs. ${(v || 0).toLocaleString()}` },
+                                    { title: 'WJ (Atfal)', dataIndex: 'amountAtfal', render: (v: number) => `Rs. ${(v || 0).toLocaleString()}` },
+                                    { title: 'N. Parkar', dataIndex: 'amountNagarParkar', render: (v: number) => `Rs. ${(v || 0).toLocaleString()}` },
+                                    { title: 'Total', key: 'total', render: (_, r) => `Rs. ${((r.amountWJ || 0) + (r.amountAtfal || 0) + (r.amountNagarParkar || 0)).toLocaleString()}` },
                                     { title: 'Notes', dataIndex: 'notes' },
                                     {
                                         title: 'Action',
@@ -1867,12 +1878,14 @@ const WaqfJadeed: React.FC = () => {
                         onFinish={handleSaveMarkazPayment}
                         initialValues={{ paymentDate: dayjs() }}
                     >
-                        <Form.Item name="amount" label="Amount Sent" rules={[{ required: true, message: 'Please enter amount' }]}>
-                            <InputNumber
-                                style={{ width: '100%' }}
-                                formatter={value => `Rs. ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
-                                parser={value => value!.replace(/Rs\.\s?|(,*)/g, '') as any}
-                            />
+                        <Form.Item name="amountWJ" label="Waqf-e-Jadeed (Alif)">
+                            <InputNumber style={{ width: '100%' }} formatter={value => `Rs. ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')} parser={value => value!.replace(/Rs\.\s?|(,*)/g, '') as any} />
+                        </Form.Item>
+                        <Form.Item name="amountAtfal" label="Waqf-e-Jadeed (Atfal)">
+                            <InputNumber style={{ width: '100%' }} formatter={value => `Rs. ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')} parser={value => value!.replace(/Rs\.\s?|(,*)/g, '') as any} />
+                        </Form.Item>
+                        <Form.Item name="amountNagarParkar" label="Imdad-e-Marakaz Nagar Parkar">
+                            <InputNumber style={{ width: '100%' }} formatter={value => `Rs. ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')} parser={value => value!.replace(/Rs\.\s?|(,*)/g, '') as any} />
                         </Form.Item>
                         <Form.Item name="couponNo" label="Coupon Number" rules={[{ required: true, message: 'Please enter coupon number' }]}>
                             <Input placeholder="Enter coupon number" />
