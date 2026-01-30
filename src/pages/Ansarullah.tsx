@@ -40,6 +40,7 @@ import dayjs from 'dayjs';
 import AnsarullahDashboard from '../components/AnsarullahDashboard';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 const { Text, Title } = Typography;
 
@@ -245,39 +246,152 @@ const Ansarullah: React.FC = () => {
     };
 
     const handleExportPDF = async () => {
-        const input = document.getElementById('audit-report-content');
-        if (!input) return;
-
         try {
-            const canvas = await html2canvas(input, {
-                scale: 2, // Higher scale for better quality
-                useCORS: true,
-                backgroundColor: '#ffffff'
+            message.loading({ content: 'Generating Professional Audit Report...', key: 'audit-pdf' });
+
+            const pdf = new jsPDF('p', 'mm', 'a4');
+            const pageWidth = pdf.internal.pageSize.getWidth();
+            const margin = 15;
+
+            // Header
+            pdf.setFontSize(22);
+            pdf.setTextColor(24, 144, 255); // Ant Design primary blue
+            pdf.text('Ansarullah Audit Report', pageWidth / 2, 20, { align: 'center' });
+
+            pdf.setFontSize(14);
+            pdf.setTextColor(100);
+            pdf.text(`Financial Year: ${selectedYear}`, pageWidth / 2, 30, { align: 'center' });
+
+            pdf.setFontSize(10);
+            pdf.text(`Generated on: ${new Date().toLocaleDateString()}`, pageWidth - margin, 10, { align: 'right' });
+
+            // Summary Stats Section
+            pdf.setFontSize(16);
+            pdf.setTextColor(0);
+            pdf.text('1. Summary Statistics', margin, 45);
+
+            const totalMembers = ansarMembers.length;
+            const totalPromised = records.reduce((sum, r) => sum + (r.promiseAmount || 0), 0);
+            const totalPaid = records.reduce((sum, r) => sum + (r.paidAmount || 0), 0);
+            const balance = totalPromised - totalPaid;
+
+            autoTable(pdf, {
+                startY: 50,
+                head: [['Category', 'Details']],
+                body: [
+                    ['Total Ansar Members', totalMembers.toString()],
+                    ['Total Promised Amount', `Rs. ${totalPromised.toLocaleString()}`],
+                    ['Total Paid Amount', `Rs. ${totalPaid.toLocaleString()}`],
+                    ['Outstanding Balance', `Rs. ${balance.toLocaleString()}`],
+                    ['Collection Progress', `${totalPromised > 0 ? ((totalPaid / totalPromised) * 100).toFixed(1) : 0}%`]
+                ],
+                theme: 'striped',
+                headStyles: { fillColor: [24, 144, 255] },
+                margin: { left: margin, right: margin }
             });
 
-            const imgData = canvas.toDataURL('image/png');
-            const pdf = new jsPDF('p', 'mm', 'a4');
-            const pdfWidth = pdf.internal.pageSize.getWidth();
+            // Chanda Type Breakdown
+            const lastY = (pdf as any).lastAutoTable.finalY || 50;
+            pdf.setFontSize(16);
+            pdf.text('2. Chanda Type Breakdown', margin, lastY + 15);
 
-            const imgWidth = canvas.width;
-            const imgHeight = canvas.height;
+            const chandaBreakdown = [
+                { type: 'Chanda Majlis', amount: records.reduce((sum, r) => sum + (r.chandaMajlis || 0), 0) },
+                { type: 'Salana Ijtema', amount: records.reduce((sum, r) => sum + (r.chandaSalanaIjtema || 0), 0) },
+                { type: 'Asyat', amount: records.reduce((sum, r) => sum + (r.chandaAsyat || 0), 0) },
+                { type: 'Tawsea Imarat', amount: records.reduce((sum, r) => sum + (r.chandaTawseaImarat || 0), 0) }
+            ];
 
+            autoTable(pdf, {
+                startY: lastY + 20,
+                head: [['Chanda Type', 'Total Amount']],
+                body: chandaBreakdown.map(c => [c.type, `Rs. ${c.amount.toLocaleString()}`]),
+                foot: [['Total', `Rs. ${totalPromised.toLocaleString()}`]],
+                theme: 'grid',
+                headStyles: { fillColor: [24, 14, 255] },
+                footStyles: { fillColor: [240, 240, 240], textColor: [0, 0, 0], fontStyle: 'bold' },
+                margin: { left: margin, right: margin }
+            });
 
-            // Log details for debugging if needed
-            // console.log({ pdfWidth, pdfHeight, imgWidth, imgHeight, ratio });
+            // Halqa-wise Report
+            const lastY2 = (pdf as any).lastAutoTable.finalY;
+            pdf.addPage();
+            pdf.setFontSize(16);
+            pdf.text('3. Halqa-wise Breakdown', margin, 20);
 
-            // Calculate height based on width to maintain aspect ratio
-            const finalImgHeight = (imgHeight * pdfWidth) / imgWidth;
+            const halqaMap: Record<string, { count: number; promised: number; paid: number }> = {};
+            ansarMembers.forEach(m => {
+                const h = m.halqa || 'Unknown';
+                if (!halqaMap[h]) halqaMap[h] = { count: 0, promised: 0, paid: 0 };
+                halqaMap[h].count++;
+            });
+            records.forEach(r => {
+                const member = ansarMembers.find(m => m.id === r.memberId);
+                const h = member?.halqa || 'Unknown';
+                if (!halqaMap[h]) halqaMap[h] = { count: 0, promised: 0, paid: 0 };
+                halqaMap[h].promised += (r.promiseAmount || 0);
+                halqaMap[h].paid += (r.paidAmount || 0);
+            });
 
-            // If image is too long, we might need multiple pages, but for now let's fit to width
-            // For a single page report usually fitting to width is fine unless it's very long
+            const halqaData = Object.entries(halqaMap).map(([name, data]) => [
+                name,
+                data.count,
+                `Rs. ${data.promised.toLocaleString()}`,
+                `Rs. ${data.paid.toLocaleString()}`,
+                `Rs. ${(data.promised - data.paid).toLocaleString()}`,
+                `${data.promised > 0 ? Math.round((data.paid / data.promised) * 100) : 0}%`
+            ]);
 
-            pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, finalImgHeight);
+            autoTable(pdf, {
+                startY: 25,
+                head: [['Halqa', 'Count', 'Promised', 'Paid', 'Balance', 'Progress']],
+                body: halqaData,
+                theme: 'striped',
+                headStyles: { fillColor: [82, 196, 26] }, // Green for Halqa
+                margin: { left: margin, right: margin }
+            });
+
+            // Markaz Payments
+            const lastY3 = (pdf as any).lastAutoTable.finalY;
+            pdf.setFontSize(16);
+            pdf.text('4. Markaz Payment Records', margin, lastY3 + 15);
+
+            autoTable(pdf, {
+                startY: lastY3 + 20,
+                head: [['Date', 'Coupon No', 'Notes', 'Amount']],
+                body: markazPayments.map(p => [
+                    dayjs(p.paymentDate).format('DD MMM YYYY'),
+                    p.couponNo,
+                    p.notes || '-',
+                    `Rs. ${p.amount.toLocaleString()}`
+                ]),
+                foot: [['Total Paid to Markaz', '', '', `Rs. ${markazPayments.reduce((sum, p) => sum + p.amount, 0).toLocaleString()}`]],
+                theme: 'grid',
+                headStyles: { fillColor: [245, 34, 45] }, // Red for Markaz
+                footStyles: { fillColor: [255, 241, 240], textColor: [0, 0, 0], fontStyle: 'bold' },
+                margin: { left: margin, right: margin }
+            });
+
+            // Final Balance Card
+            const lastY4 = (pdf as any).lastAutoTable.finalY;
+            const netBalance = totalPaid - markazPayments.reduce((sum, p) => sum + p.amount, 0);
+
+            pdf.setDrawColor(24, 144, 255);
+            pdf.setFillColor(240, 245, 255);
+            pdf.roundedRect(margin, lastY4 + 10, pageWidth - (2 * margin), 30, 3, 3, 'FD');
+
+            pdf.setFontSize(12);
+            pdf.setTextColor(100);
+            pdf.text('Net Balance in Hand (Net Profit/Cash)', margin + 10, lastY4 + 20);
+            pdf.setFontSize(18);
+            pdf.setTextColor(24, 144, 255);
+            pdf.text(`Rs. ${netBalance.toLocaleString()}`, margin + 10, lastY4 + 32);
+
             pdf.save(`Ansarullah_Audit_Report_${selectedYear}.pdf`);
-            message.success('PDF downloaded');
+            message.success({ content: 'Professional Audit Report Generated', key: 'audit-pdf' });
         } catch (error) {
             console.error('PDF Export Error:', error);
-            message.error('Failed to export PDF');
+            message.error('Failed to generate professional PDF');
         }
     };
 
