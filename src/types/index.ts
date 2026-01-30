@@ -324,3 +324,14 @@ export interface MarkazPayment {
   notes?: string;
   createdAt: string;
 }
+
+// Waqf-e-Jadeed Markaz Payment
+export interface WaqfJadeedMarkazPayment {
+  id: string;
+  amount: number;
+  couponNo: string;
+  paymentDate: string; // ISO date
+  year: number;
+  notes?: string;
+  createdAt: string;
+}

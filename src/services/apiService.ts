@@ -10,7 +10,7 @@ import {
   where,
   setDoc
 } from 'firebase/firestore';
-import type { Member, Family, WaqfJadeedRecord, WaqfJadeedSpecialRecord, TahreqJadeedRecord, TahreqJadeedSpecialRecord, AnsarullahRecord, Payment, MarkazPayment } from '../types';
+import type { Member, Family, WaqfJadeedRecord, WaqfJadeedSpecialRecord, TahreqJadeedRecord, TahreqJadeedSpecialRecord, AnsarullahRecord, Payment, MarkazPayment, WaqfJadeedMarkazPayment } from '../types';
 
 // Helper to determine Tanzeem
 const calculateAge = (dob: string) => {
@@ -278,6 +278,34 @@ export class ApiService {
       updatedAt: new Date().toISOString()
     });
     return total;
+  }
+
+
+
+  // --- Waqf-e-Jadeed Markaz Payments ---
+
+  static async saveWaqfJadeedMarkazPayment(data: any): Promise<WaqfJadeedMarkazPayment> {
+    const id = data.id || crypto.randomUUID();
+    const payload = {
+      ...data,
+      id,
+      createdAt: data.createdAt || new Date().toISOString()
+    };
+    await setDoc(doc(db, 'waqfJadeedMarkazPayments', id), payload, { merge: true });
+    return payload as WaqfJadeedMarkazPayment;
+  }
+
+  static async getWaqfJadeedMarkazPayments(year: number): Promise<WaqfJadeedMarkazPayment[]> {
+    const q = query(
+      collection(db, 'waqfJadeedMarkazPayments'),
+      where('year', '==', year)
+    );
+    const snap = await getDocs(q);
+    return snap.docs.map(d => d.data() as WaqfJadeedMarkazPayment).sort((a, b) => new Date(b.paymentDate).getTime() - new Date(a.paymentDate).getTime());
+  }
+
+  static async deleteWaqfJadeedMarkazPayment(id: string): Promise<void> {
+    await deleteDoc(doc(db, 'waqfJadeedMarkazPayments', id));
   }
 
   // --- Special Members ---

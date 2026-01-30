@@ -51,7 +51,7 @@ import dayjs from 'dayjs';
 import { jsPDF } from 'jspdf';
 import html2canvas from 'html2canvas';
 import { ApiService } from '../services/apiService';
-import type { Member, WaqfJadeedRecord, Family, Payment, WaqfJadeedSpecialRecord, ReceiptBook } from '../types';
+import type { Member, WaqfJadeedRecord, Family, Payment, WaqfJadeedSpecialRecord, ReceiptBook, WaqfJadeedMarkazPayment } from '../types';
 import { ReceiptTemplate } from '../components/ReceiptTemplate';
 import PaymentPlanManager from '../components/PaymentPlanManager';
 import { getTanzeemDisplayName, calculateAge, determineTanzeem, getTanzeemUrduName, formatCNIC } from '../utils/helpers';
@@ -115,6 +115,11 @@ const WaqfJadeed: React.FC = () => {
     const [editingBookId, setEditingBookId] = useState<string | null>(null);
     const [editingBookName, setEditingBookName] = useState('');
     const [newBookForm] = Form.useForm();
+
+    // Markaz Payment State
+    const [markazPayments, setMarkazPayments] = useState<WaqfJadeedMarkazPayment[]>([]);
+    const [markazModalVisible, setMarkazModalVisible] = useState(false);
+    const [markazForm] = Form.useForm();
 
     useEffect(() => {
         loadData();
@@ -181,7 +186,8 @@ const WaqfJadeed: React.FC = () => {
                 ApiService.getWaqfJadeedRecords(selectedYear),
                 ApiService.getWaqfJadeedSpecialRecords(selectedYear),
                 ApiService.getWaqfJadeedRecords(selectedYear - 1),
-                ApiService.getWaqfJadeedSpecialRecords(selectedYear - 1)
+                ApiService.getWaqfJadeedSpecialRecords(selectedYear - 1),
+                ApiService.getWaqfJadeedMarkazPayments(selectedYear)
             ]);
             // Filter out moved members
             setMembers(membersData.filter(m => !m.isMoved && !m.isDeceased));
@@ -212,6 +218,21 @@ const WaqfJadeed: React.FC = () => {
             setSpecialRecords(filteredSpecial);
             setPrevRecords(prevRecordsData);
             setPrevSpecialRecords(Array.isArray(prevSpecialData) ? prevSpecialData : []);
+
+            setPrevSpecialRecords(Array.isArray(prevSpecialData) ? prevSpecialData : []);
+            setMarkazPayments(Array.isArray(membersData[4]) ? membersData[4] : []); // Using index from Promise.all result is risky if types mismatch, better destruct correctly or separate call.
+            // Wait, Promise.all returns an array. Let's destructure properly.
+            // Destructuring was: [membersData, familiesData, recordsData, specialData, prevRecordsData, prevSpecialData]
+            // We added one more. The 7th element (index 6) is our new data.
+            // Let's correct the destructuring above first.
+
+            // Actually, I can't easily change the destructuring line in this chunk because it's further up.
+            // Ah, I see "ApiService.getWaqfJadeedMarkazPayments(selectedYear)" is added to the Promise.all array.
+            // So I need to capture it. The previous chunk only showed the call inside Promise.all. 
+            // I need to update the destructuring line or fetch independently.
+            // Let's just fetch it separately to be safe and cleaner.
+            const markazData = await ApiService.getWaqfJadeedMarkazPayments(selectedYear);
+            setMarkazPayments(markazData);
 
             // Debug logging
             const totalPromise = filteredRecords.reduce((sum, r) => sum + (r.promiseAmount || 0) + (r.nagarparAmount || 0), 0) +
@@ -430,6 +451,40 @@ const WaqfJadeed: React.FC = () => {
                         <div style="font-size: 20px; font-weight: bold;">${formatCurrency(stats.totalPaid)}</div>
                         <div style="font-size: 12px; color: #666;">Total of All Funds</div>
                     </div>
+                 </div>
+
+                 <!-- Markaz Payments Section -->
+                 <div style="margin-top: 30px; border: 1px solid #000; padding: 15px; border-radius: 8px;">
+                     <h3 style="margin: 0 0 15px 0; border-bottom: 2px solid #000; padding-bottom: 5px;">Markaz Payments (مرکز کو ادائیگی)</h3>
+                     <table style="width: 100%; border-collapse: collapse; font-size: 12px;">
+                         <thead>
+                             <tr style="background: #f0f0f0;">
+                                 <th style="padding: 8px; text-align: left; border: 1px solid #ddd;">Date</th>
+                                 <th style="padding: 8px; text-align: left; border: 1px solid #ddd;">Coupon No</th>
+                                 <th style="padding: 8px; text-align: right; border: 1px solid #ddd;">Amount</th>
+                             </tr>
+                         </thead>
+                         <tbody>
+                             ${markazPayments.map(p => `
+                                 <tr>
+                                     <td style="padding: 8px; border: 1px solid #ddd;">${new Date(p.paymentDate).toLocaleDateString()}</td>
+                                     <td style="padding: 8px; border: 1px solid #ddd;">${p.couponNo}</td>
+                                     <td style="padding: 8px; text-align: right; border: 1px solid #ddd;">${formatCurrency(p.amount)}</td>
+                                 </tr>
+                             `).join('')}
+                             <tr style="background: #e6f7ff; font-weight: bold;">
+                                 <td colspan="2" style="padding: 8px; text-align: right; border: 1px solid #ddd;">Total Paid to Markaz</td>
+                                 <td style="padding: 8px; text-align: right; border: 1px solid #ddd;">${formatCurrency(markazPayments.reduce((sum, p) => sum + p.amount, 0))}</td>
+                             </tr>
+                         </tbody>
+                     </table>
+                     
+                     <div style="margin-top: 20px; text-align: right; font-size: 16px;">
+                         <strong>Net Balance in Hand: </strong>
+                         <span style="color: ${(stats.totalPaid - markazPayments.reduce((sum, p) => sum + p.amount, 0)) >= 0 ? 'green' : 'red'}">
+                             ${formatCurrency(stats.totalPaid - markazPayments.reduce((sum, p) => sum + p.amount, 0))}
+                         </span>
+                     </div>
                  </div>
             `;
 
@@ -1705,9 +1760,103 @@ const WaqfJadeed: React.FC = () => {
                     <Tabs.TabPane tab="Family Wise" key="families" />
                     <Tabs.TabPane tab="Tanzeem Wise" key="tanzeem" />
                     <Tabs.TabPane tab="Reports" key="reports" />
-                    <Tabs.TabPane tab="Dashboard" key="dashboard" />
+                    <Tabs.TabPane tab="Reports" key="reports" />
+                    <Tabs.TabPane tab="Dashboard" key="dashboard">
+                        <div style={{ padding: 16 }}>
+                            <Row gutter={[16, 16]}>
+                                <Col span={24} style={{ textAlign: 'right', marginBottom: 16 }}>
+                                    <Button type="primary" onClick={() => setMarkazModalVisible(true)} icon={<PlusOutlined />}>
+                                        Record Markaz Payment
+                                    </Button>
+                                </Col>
+                            </Row>
+
+                            {/* Net Balance Section */}
+                            <Card style={{ marginBottom: 16, background: '#f0f5ff', borderColor: '#adc6ff' }}>
+                                <Row gutter={16}>
+                                    <Col span={8}>
+                                        <Statistic title="Total Collected" value={stats.totalPaid} prefix="Rs." />
+                                    </Col>
+                                    <Col span={8}>
+                                        <Statistic
+                                            title="Paid to Markaz"
+                                            value={markazPayments.reduce((sum, p) => sum + p.amount, 0)}
+                                            prefix="Rs."
+                                            valueStyle={{ color: '#cf1322' }}
+                                        />
+                                    </Col>
+                                    <Col span={8}>
+                                        <Statistic
+                                            title="Net Balance in Hand"
+                                            value={stats.totalPaid - markazPayments.reduce((sum, p) => sum + p.amount, 0)}
+                                            prefix="Rs."
+                                            valueStyle={{ color: '#3f8600', fontWeight: 'bold' }}
+                                        />
+                                    </Col>
+                                </Row>
+                            </Card>
+
+                            {/* Markaz Payments Table */}
+                            <Title level={4}>Recent Markaz Payments</Title>
+                            <Table
+                                dataSource={markazPayments}
+                                rowKey="id"
+                                size="small"
+                                pagination={{ pageSize: 5 }}
+                                columns={[
+                                    { title: 'Date', dataIndex: 'paymentDate', render: (d: string) => new Date(d).toLocaleDateString() },
+                                    { title: 'Coupon No', dataIndex: 'couponNo' },
+                                    { title: 'Amount', dataIndex: 'amount', render: (v: number) => `Rs. ${v.toLocaleString()}` },
+                                    { title: 'Notes', dataIndex: 'notes' },
+                                    {
+                                        title: 'Action',
+                                        key: 'action',
+                                        render: (_, r) => (
+                                            <Popconfirm title="Delete?" onConfirm={() => handleDeleteMarkazPayment(r.id)}>
+                                                <Button type="text" danger icon={<DeleteOutlined />} />
+                                            </Popconfirm>
+                                        )
+                                    }
+                                ]}
+                            />
+                        </div>
+                    </Tabs.TabPane>
                     <Tabs.TabPane tab="About" key="about" />
                 </Tabs>
+
+                <Modal
+                    title="Record Payment to Markaz"
+                    open={markazModalVisible}
+                    onCancel={() => setMarkazModalVisible(false)}
+                    footer={null}
+                >
+                    <Form
+                        form={markazForm}
+                        layout="vertical"
+                        onFinish={handleSaveMarkazPayment}
+                        initialValues={{ paymentDate: dayjs() }}
+                    >
+                        <Form.Item name="amount" label="Amount Sent" rules={[{ required: true, message: 'Please enter amount' }]}>
+                            <InputNumber
+                                style={{ width: '100%' }}
+                                formatter={value => `Rs. ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
+                                parser={value => value!.replace(/Rs\.\s?|(,*)/g, '') as any}
+                            />
+                        </Form.Item>
+                        <Form.Item name="couponNo" label="Coupon Number" rules={[{ required: true, message: 'Please enter coupon number' }]}>
+                            <Input placeholder="Enter coupon number" />
+                        </Form.Item>
+                        <Form.Item name="paymentDate" label="Date Sent" rules={[{ required: true, message: 'Please select date' }]}>
+                            <DatePicker style={{ width: '100%' }} />
+                        </Form.Item>
+                        <Form.Item name="notes" label="Notes (Optional)">
+                            <Input.TextArea />
+                        </Form.Item>
+                        <Button type="primary" htmlType="submit" loading={submitting} block>
+                            Save Record
+                        </Button>
+                    </Form>
+                </Modal>
             </Card>
 
             {/* Stats Cards */}
