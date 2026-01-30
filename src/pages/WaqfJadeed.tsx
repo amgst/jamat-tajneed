@@ -431,8 +431,8 @@ const WaqfJadeed: React.FC = () => {
                     </table>
                 </div>
 
-                <!-- Summary Grid -->
-                 <div style="display: flex; gap: 20px;">
+                 <!-- Summary Grid -->
+                 <div style="display: flex; gap: 20px; margin-bottom: 25px;">
                     <div style="flex: 1; border: 1px solid #fa8c16; border-radius: 8px; padding: 15px;">
                         <h4 style="margin: 0 0 10px 0; color: #d46b08;">Nagar Parkar</h4>
                         <div style="font-size: 20px; font-weight: bold;">${formatCurrency(stats.totalNagarParkar)}</div>
@@ -451,17 +451,34 @@ const WaqfJadeed: React.FC = () => {
                  </div>
 
                  <!-- Markaz Payments Section -->
-                 <div style="margin-top: 30px; border: 1px solid #000; padding: 15px; border-radius: 8px;">
-                     <h3 style="margin: 0 0 15px 0; border-bottom: 2px solid #000; padding-bottom: 5px;">Markaz Payments (مرکز کو ادائیگی)</h3>
-                     <table style="width: 100%; border-collapse: collapse; font-size: 12px;">
+                 <div style="margin-top: 30px; border: 1px solid #000; padding: 20px; border-radius: 8px; background-color: #fafafa;">
+                     <h3 style="margin: 0 0 20px 0; border-bottom: 2px solid #000; padding-bottom: 5px; font-size: 18px;">Markaz Payments & Net Balance (مرکز کو ادائیگی اور نیٹ بیلنس)</h3>
+                     
+                     <!-- Markaz Summary Stats -->
+                     <div style="display: flex; gap: 15px; margin-bottom: 25px;">
+                         <div style="flex: 1; border: 1px solid #adc6ff; border-radius: 8px; padding: 12px; background: #f0f5ff;">
+                             <div style="font-size: 12px; color: #666; margin-bottom: 5px;">Total Collected</div>
+                             <div style="font-size: 18px; font-weight: bold; color: #000;">${formatCurrency(stats.totalPaid)}</div>
+                         </div>
+                         <div style="flex: 1; border: 1px solid #adc6ff; border-radius: 8px; padding: 12px; background: #f0f5ff;">
+                             <div style="font-size: 12px; color: #666; margin-bottom: 5px;">Paid to Markaz</div>
+                             <div style="font-size: 18px; font-weight: bold; color: #cf1322;">${formatCurrency(markazPayments.reduce((sum, p) => sum + (p.amountWJ || 0) + (p.amountAtfal || 0) + (p.amountNagarParkar || 0), 0))}</div>
+                         </div>
+                         <div style="flex: 1; border: 1px solid #adc6ff; border-radius: 8px; padding: 12px; background: #f0f5ff;">
+                             <div style="font-size: 12px; color: #666; margin-bottom: 5px;">Net Balance in Hand</div>
+                             <div style="font-size: 18px; font-weight: bold; color: #3f8600;">${formatCurrency(stats.totalPaid - markazPayments.reduce((sum, p) => sum + (p.amountWJ || 0) + (p.amountAtfal || 0) + (p.amountNagarParkar || 0), 0))}</div>
+                         </div>
+                     </div>
+
+                     <table style="width: 100%; border-collapse: collapse; font-size: 11px;">
                          <thead>
-                             <tr style="background: #f0f0f0;">
-                                 <th style="padding: 8px; text-align: left; border: 1px solid #ddd;">Date</th>
-                                 <th style="padding: 8px; text-align: left; border: 1px solid #ddd;">Coupon No</th>
-                                 <th style="padding: 8px; text-align: right; border: 1px solid #ddd;">WJ (Alif)</th>
-                                 <th style="padding: 8px; text-align: right; border: 1px solid #ddd;">WJ (Atfal)</th>
-                                 <th style="padding: 8px; text-align: right; border: 1px solid #ddd;">Nagar Parkar</th>
-                                 <th style="padding: 8px; text-align: right; border: 1px solid #ddd;">Total</th>
+                             <tr style="background: #e8e8e8;">
+                                 <th style="padding: 10px 8px; text-align: left; border: 1px solid #ddd;">Date</th>
+                                 <th style="padding: 10px 8px; text-align: left; border: 1px solid #ddd;">Coupon No</th>
+                                 <th style="padding: 10px 8px; text-align: right; border: 1px solid #ddd;">WJ (Alif)</th>
+                                 <th style="padding: 10px 8px; text-align: right; border: 1px solid #ddd;">WJ (Atfal)</th>
+                                 <th style="padding: 10px 8px; text-align: right; border: 1px solid #ddd;">Nagar Parkar</th>
+                                 <th style="padding: 10px 8px; text-align: right; border: 1px solid #ddd;">Total</th>
                              </tr>
                          </thead>
                          <tbody>
@@ -479,21 +496,14 @@ const WaqfJadeed: React.FC = () => {
                              `;
                 }).join('')}
                              <tr style="background: #e6f7ff; font-weight: bold;">
-                                 <td colspan="2" style="padding: 8px; text-align: right; border: 1px solid #ddd;">Total Paid to Markaz</td>
-                                 <td style="padding: 8px; text-align: right; border: 1px solid #ddd;">${formatCurrency(markazPayments.reduce((sum, p) => sum + (p.amountWJ || 0), 0))}</td>
-                                 <td style="padding: 8px; text-align: right; border: 1px solid #ddd;">${formatCurrency(markazPayments.reduce((sum, p) => sum + (p.amountAtfal || 0), 0))}</td>
-                                 <td style="padding: 8px; text-align: right; border: 1px solid #ddd;">${formatCurrency(markazPayments.reduce((sum, p) => sum + (p.amountNagarParkar || 0), 0))}</td>
-                                 <td style="padding: 8px; text-align: right; border: 1px solid #ddd;">${formatCurrency(markazPayments.reduce((sum, p) => sum + (p.amountWJ || 0) + (p.amountAtfal || 0) + (p.amountNagarParkar || 0), 0))}</td>
+                                 <td colspan="2" style="padding: 10px 8px; text-align: right; border: 1px solid #ddd;">Total Paid to Markaz</td>
+                                 <td style="padding: 10px 8px; text-align: right; border: 1px solid #ddd;">${formatCurrency(markazPayments.reduce((sum, p) => sum + (p.amountWJ || 0), 0))}</td>
+                                 <td style="padding: 10px 8px; text-align: right; border: 1px solid #ddd;">${formatCurrency(markazPayments.reduce((sum, p) => sum + (p.amountAtfal || 0), 0))}</td>
+                                 <td style="padding: 10px 8px; text-align: right; border: 1px solid #ddd;">${formatCurrency(markazPayments.reduce((sum, p) => sum + (p.amountNagarParkar || 0), 0))}</td>
+                                 <td style="padding: 10px 8px; text-align: right; border: 1px solid #ddd;">${formatCurrency(markazPayments.reduce((sum, p) => sum + (p.amountWJ || 0) + (p.amountAtfal || 0) + (p.amountNagarParkar || 0), 0))}</td>
                              </tr>
                          </tbody>
                      </table>
-                     
-                     <div style="margin-top: 20px; text-align: right; font-size: 16px;">
-                         <strong>Net Balance in Hand: </strong>
-                         <span style="color: ${(stats.totalPaid - markazPayments.reduce((sum, p) => sum + (p.amountWJ || 0) + (p.amountAtfal || 0) + (p.amountNagarParkar || 0), 0)) >= 0 ? 'green' : 'red'}">
-                             ${formatCurrency(stats.totalPaid - markazPayments.reduce((sum, p) => sum + (p.amountWJ || 0) + (p.amountAtfal || 0) + (p.amountNagarParkar || 0), 0))}
-                         </span>
-                     </div>
                  </div>
             `;
 
@@ -776,7 +786,7 @@ const WaqfJadeed: React.FC = () => {
 
             const validation = validateMemberData(memberDataRaw);
             if (!validation.valid) {
-                message.error(`Validation failed: ${validation.errors.join(', ')}`);
+                message.error(`Validation failed: ${validation.errors.join(', ')} `);
                 return;
             }
 
@@ -886,7 +896,7 @@ const WaqfJadeed: React.FC = () => {
             loadData(); // Reload to see updates
         } catch (error: any) {
             console.error('Save Markaz Payment Error:', error);
-            message.error(`Failed to save payment: ${error.message || 'Unknown error'}`);
+            message.error(`Failed to save payment: ${error.message || 'Unknown error'} `);
         } finally {
             setSubmitting(false);
         }
@@ -1344,9 +1354,9 @@ const WaqfJadeed: React.FC = () => {
 
             // Build HTML content
             let htmlContent = `
-<div style="text-align: center; margin-bottom: 20px;">
+                < div style = "text-align: center; margin-bottom: 20px;" >
                     <h1 style="font-size: 24px; margin: 0; font-weight: bold;">${family.familyName} - Waqf-e-Jadeed ${selectedYear}</h1>
-                </div>
+                </div >
 
                 <div style="margin-bottom: 20px; font-size: 12px; direction: rtl; text-align: right; background-color: #f8f9fa; border: 1px solid #dee2e6; border-radius: 8px; padding: 15px;">
                     <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #dee2e6; padding-bottom: 10px; margin-bottom: 10px;">
@@ -1359,7 +1369,7 @@ const WaqfJadeed: React.FC = () => {
                     </div>
                 </div>
 
-                <!-- Totals Summary Box -->
+                <!--Totals Summary Box-- >
                 <div style="margin-bottom: 25px; direction: rtl;">
                     <div style="display: flex; border: 1px solid #1890ff; border-radius: 8px; overflow: hidden;">
                         <div style="flex: 1; text-align: center; padding: 15px; border-left: 1px solid #e8e8e8; background-color: #e6f7ff;">
