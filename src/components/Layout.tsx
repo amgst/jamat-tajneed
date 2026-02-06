@@ -109,12 +109,12 @@ const AppLayout: React.FC = () => {
       label: 'Members (JSON)',
     },
     {
-      key: '/tools',
+      key: 'tools-menu',
       icon: <ToolOutlined />,
       label: 'Tools',
       children: [
         {
-          key: '/tools',
+          key: 'tools-overview',
           label: 'Overview',
         },
         {
@@ -147,7 +147,11 @@ const AppLayout: React.FC = () => {
   ];
 
   const handleMenuClick = ({ key }: { key: string }) => {
-    navigate(key);
+    if (key === 'tools-overview') {
+      navigate('/tools');
+    } else {
+      navigate(key);
+    }
     if (isMobile) setDrawerVisible(false);
   };
 

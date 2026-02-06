@@ -104,7 +104,7 @@ export const ReceiptTemplate = React.forwardRef<HTMLDivElement, ReceiptTemplateP
             </Row>
 
             <div style={{ textAlign: 'center', marginTop: 40 }}>
-                <Text type="secondary" style={{ fontSize: 10 }}>Generated via Jamat Tajneed System • {dayjs().format('DD MMM YYYY HH:mm')}</Text>
+                <Text type="secondary" style={{ fontSize: 10 }}>Generated via JTS • {dayjs().format('DD MMM YYYY HH:mm')}</Text>
             </div>
 
             {/* Print Styles */}

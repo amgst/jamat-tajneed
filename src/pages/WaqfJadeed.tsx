@@ -1368,9 +1368,9 @@ const WaqfJadeed: React.FC = () => {
 
             // Build HTML content
             let htmlContent = `
-                < div style = "text-align: center; margin-bottom: 20px;" >
+                <div style="text-align: center; margin-bottom: 20px;">
                     <h1 style="font-size: 24px; margin: 0; font-weight: bold;">${family.familyName} - Waqf-e-Jadeed ${selectedYear}</h1>
-                </div >
+                </div>
 
                 <div style="margin-bottom: 20px; font-size: 12px; direction: rtl; text-align: right; background-color: #f8f9fa; border: 1px solid #dee2e6; border-radius: 8px; padding: 15px;">
                     <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #dee2e6; padding-bottom: 10px; margin-bottom: 10px;">
@@ -1383,7 +1383,7 @@ const WaqfJadeed: React.FC = () => {
                     </div>
                 </div>
 
-                <!--Totals Summary Box-- >
+                <!--Totals Summary Box-->
                 <div style="margin-bottom: 25px; direction: rtl;">
                     <div style="display: flex; border: 1px solid #1890ff; border-radius: 8px; overflow: hidden;">
                         <div style="flex: 1; text-align: center; padding: 15px; border-left: 1px solid #e8e8e8; background-color: #e6f7ff;">
@@ -1557,25 +1557,7 @@ const WaqfJadeed: React.FC = () => {
 
                 </div>
 
-                <!-- Markaz Payment Summary in Family PDF -->
-                <div style="margin-top: 30px; border: 1px solid #000; padding: 15px; border-radius: 8px; background-color: #fafafa; direction: rtl;">
-                    <h3 style="margin: 0 0 10px 0; border-bottom: 2px solid #000; padding-bottom: 5px; font-size: 14px; text-align: right;">مرکز کو ادائیگی کی صورتحال (Jamat Overall Progress)</h3>
-                    <div style="display: flex; gap: 10px; font-size: 11px;">
-                        <div style="flex: 1; border: 1px solid #ddd; padding: 8px; background: #fff; text-align: center;">
-                            <div>کل وصولی (Jamat)</div>
-                            <div style="font-weight: bold;">روپے ${stats.totalPaid.toLocaleString()}</div>
-                        </div>
-                        <div style="flex: 1; border: 1px solid #ddd; padding: 8px; background: #fff; text-align: center;">
-                            <div>مرکز کو ادا شدہ</div>
-                            <div style="font-weight: bold; color: #cf1322;">روپے ${markazPayments.reduce((sum, p) => sum + (p.amountWJ || 0) + (p.amountAtfal || 0) + (p.amountNagarParkar || 0), 0).toLocaleString()}</div>
-                        </div>
-                        <div style="flex: 1; border: 1px solid #ddd; padding: 8px; background: #fff; text-align: center;">
-                            <div>بقیہ رقم (In Hand)</div>
-                            <div style="font-weight: bold; color: #3f8600;">روپے ${(stats.totalPaid - markazPayments.reduce((sum, p) => sum + (p.amountWJ || 0) + (p.amountAtfal || 0) + (p.amountNagarParkar || 0), 0)).toLocaleString()}</div>
-                        </div>
-                    </div>
-                    <p style="font-size: 10px; color: #666; margin-top: 5px; text-align: center;">یہ رپورٹ صرف جماعت کی مجموعی کارکردگی کو ظاہر کرتی ہے۔</p>
-                </div>
+
 
                 <div style="margin-top: 15px; font-size: 10px; text-align: center; color: #666; direction: rtl;">
                     <p>تیار کیا گیا: ${new Date().toLocaleDateString()}</p>
@@ -1790,7 +1772,7 @@ const WaqfJadeed: React.FC = () => {
     return (
         <div style={{ margin: 0, padding: '0 8px', width: '100%', maxWidth: '100%', boxSizing: 'border-box', paddingBottom: 80 }} className="waqf-jadeed-container">
             {/* Search Header */}
-            <Card style={{ marginBottom: 16, position: 'sticky', top: 0, zIndex: 10 }} bodyStyle={{ padding: 12 }}>
+            <Card style={{ marginBottom: 16, position: 'sticky', top: 0, zIndex: 10 }} styles={{ body: { padding: 12 } }}>
                 <Row gutter={[8, 8]} align="middle">
                     <Col xs={24} sm={12} md={8}>
                         <Title level={4} style={{ margin: 0, fontSize: 'clamp(16px, 4vw, 20px)' }}>Waqf-e-Jadeed</Title>
@@ -1846,19 +1828,28 @@ const WaqfJadeed: React.FC = () => {
                         </Space>
                     </Col>
                 </Row>
-                <Tabs activeKey={activeTab} onChange={setActiveTab} style={{ marginTop: 12 }} type="card">
-                    <Tabs.TabPane tab="Members" key="members" />
-                    <Tabs.TabPane tab="Family Wise" key="families" />
-                    <Tabs.TabPane tab="Tanzeem Wise" key="tanzeem" />
-                    <Tabs.TabPane tab="Reports" key="reports" />
-                    <Tabs.TabPane tab="Reports" key="reports" />
-                    <Tabs.TabPane tab="Dashboard" key="dashboard">
-                        <div style={{ padding: 16 }}>
-                            <Text type="secondary">Dashboard insights are available in the main section below.</Text>
-                        </div>
-                    </Tabs.TabPane>
-                    <Tabs.TabPane tab="About" key="about" />
-                </Tabs>
+                <Tabs
+                    activeKey={activeTab}
+                    onChange={setActiveTab}
+                    style={{ marginTop: 12 }}
+                    type="card"
+                    items={[
+                        { key: 'members', label: 'Members' },
+                        { key: 'families', label: 'Family Wise' },
+                        { key: 'tanzeem', label: 'Tanzeem Wise' },
+                        { key: 'reports', label: 'Reports' },
+                        {
+                            key: 'dashboard',
+                            label: 'Dashboard',
+                            children: (
+                                <div style={{ padding: 16 }}>
+                                    <Text type="secondary">Dashboard insights are available in the main section below.</Text>
+                                </div>
+                            )
+                        },
+                        { key: 'about', label: 'About' }
+                    ]}
+                />
 
                 <Modal
                     title="Record Payment to Markaz"
@@ -2119,8 +2110,10 @@ const WaqfJadeed: React.FC = () => {
                         />
                     </div>
                     {loading ? <p>Loading...</p> : (
-                        <Collapse defaultActiveKey={[]} ghost>
-                            {filteredFamilyData.map(family => {
+                        <Collapse
+                            defaultActiveKey={[]}
+                            ghost
+                            items={filteredFamilyData.map(family => {
                                 // Filter out deceased and moved members from family members list
                                 const familyMembersCtx = family.memberIds
                                     .map(mid => getMemberData(mid))
@@ -2141,181 +2134,73 @@ const WaqfJadeed: React.FC = () => {
 
                                 const familyPercent = familyTotalPromise > 0 ? Math.round((familyTotalPaid / familyTotalPromise) * 100) : 0;
 
-                                return (
-                                    <Panel
-                                        key={family.id}
-                                        header={
-                                            <Row justify="space-between" align="middle" style={{ width: '100%' }} gutter={[8, 8]}>
-                                                <Col xs={24} sm={16} md={14}>
-                                                    <Text strong style={{ fontSize: 'clamp(14px, 3.5vw, 16px)' }}>{family.familyName}</Text>
-                                                    {family.isMoved && family.movedTo && (
-                                                        <Tag color="orange" style={{ marginLeft: 8 }}>Moved to {family.movedTo}</Tag>
-                                                    )}
-                                                    <br />
-                                                    <Text type="secondary" style={{ fontSize: 'clamp(11px, 2.5vw, 12px)' }}>
-                                                        {family.familyNumber ? <span>#{family.familyNumber} • </span> : ''}
-                                                        Head: {getMemberData(family.headId)?.member.name || 'Unknown'} • {familyMembersCtx.length + familySpecialRecords.length} Cards
-                                                    </Text>
-                                                </Col>
-                                                <Col xs={18} sm={6} md={6} style={{ textAlign: 'right' }}>
-                                                    <Text type="secondary" style={{ fontSize: 'clamp(11px, 2.5vw, 12px)' }}>Paid / Promise</Text>
-                                                    <div style={{ fontWeight: 500, fontSize: 'clamp(12px, 3vw, 14px)' }}>
-                                                        {familyTotalPaid.toLocaleString()} / {familyTotalPromise.toLocaleString()}
-                                                    </div>
-                                                    <Progress percent={familyPercent} steps={5} size="small" strokeColor="#52c41a" />
-                                                </Col>
-                                                <Col xs={6} sm={2} md={4} style={{ textAlign: 'right' }}>
-                                                    <Space>
-                                                        <Button
-                                                            type="text"
-                                                            icon={<DeleteOutlined style={{ color: '#faad14' }} />}
-                                                            size="small"
-                                                            disabled={true}
-                                                            title="Move Family feature is now in Families page"
-                                                        />
-                                                        <Button
-                                                            type="text"
-                                                            icon={<ShareAltOutlined />}
-                                                            size="small"
-                                                            onClick={(e) => {
-                                                                e.stopPropagation();
-                                                                handleExportFamilyCard(family, familyTotalPromise, familyTotalPaid);
-                                                            }}
-                                                            title="Share Family Card"
-                                                        />
-                                                        <Button
-                                                            type="text"
-                                                            icon={<FilePdfOutlined />}
-                                                            size="small"
-                                                            onClick={(e) => {
-                                                                e.stopPropagation();
-                                                                handleExportFamilyPDF(
-                                                                    family,
-                                                                    familyMembersCtx,
-                                                                    familySpecialRecords,
-                                                                    familyTotalPromise,
-                                                                    familyTotalPaid
-                                                                );
-                                                            }}
-                                                            title="Download PDF"
-                                                        />
-                                                    </Space>
-                                                </Col>
-                                            </Row>
-                                        }
-                                    >
-                                        {/* Table for Family Members */}
-                                        <Table
-                                            size="small"
-                                            dataSource={familyMembersCtx.filter(item => item !== null)}
-                                            rowKey={(item) => item.member.id}
-                                            pagination={{
-                                                pageSize: 10,
-                                                showSizeChanger: true,
-                                                showQuickJumper: true,
-                                                pageSizeOptions: ['5', '10', '20', '50'],
-                                                showTotal: (total, range) => `${range[0]}-${range[1]} of ${total} items`,
-                                                onChange: (page: number, pageSize: number) => {
-                                                    setFamilyMembersCurrentPage(prev => ({
-                                                        ...prev,
-                                                        [family.id]: page || 1
-                                                    }));
-                                                    setFamilyMembersPageSize(prev => ({
-                                                        ...prev,
-                                                        [family.id]: pageSize || 10
-                                                    }));
-                                                }
-                                            }}
-                                            scroll={{ x: 'max-content' }}
-                                            columns={[{
-                                                title: '#',
-                                                key: 'serial',
-                                                width: 50,
-                                                render: (_, __, index) => {
-                                                    // Calculate serial number based on current page and page size
-                                                    const currentFamilyPage = familyMembersCurrentPage[family.id] || 1;
-                                                    const currentPageSize = familyMembersPageSize[family.id] || 10;
-                                                    return ((currentFamilyPage - 1) * currentPageSize + index + 1);
-                                                },
-                                            },
-                                            {
-                                                title: 'Name',
-                                                dataIndex: ['member', 'name'],
-                                                key: 'name',
-                                                width: 150,
-                                                render: (name, record) => (
-                                                    <a onClick={() => handleEdit(record.member)} style={{ cursor: 'pointer' }}>
-                                                        {name}
-                                                    </a>
-                                                ),
-                                            },
-                                            {
-                                                title: 'Promise',
-                                                key: 'promise',
-                                                width: 100,
-                                                render: (_, record) => record?.promise?.toLocaleString() || '0',
-                                            },
-                                            {
-                                                title: 'Paid',
-                                                key: 'paid',
-                                                width: 100,
-                                                render: (_, record) => (
-                                                    <span style={{ color: record?.paid >= record?.promise && record?.promise > 0 ? 'green' : 'inherit' }}>
-                                                        {(record?.paid || 0).toLocaleString()}
-                                                    </span>
-                                                ),
-                                            },
-                                            {
-                                                title: 'Progress',
-                                                key: 'progress',
-                                                width: 120,
-                                                render: (_, record) => (
-                                                    <div style={{ width: '100px' }}>
-                                                        <Progress
-                                                            percent={record?.promise > 0 ? Math.min(100, Math.round(((record?.paid || 0) / record?.promise) * 100)) : 0}
-                                                            size="small"
-                                                            showInfo={false}
-                                                            strokeColor={record?.paid >= record?.promise ? '#52c41a' : '#1890ff'}
-                                                        />
-                                                    </div>
-                                                ),
-                                            },
-                                            {
-                                                title: 'Actions',
-                                                key: 'actions',
-                                                width: 80,
-                                                render: (_, record) => (
-                                                    <Space size="small">
-                                                        <Button size="small" icon={<EditOutlined />} onClick={() => handleEdit(record.member)} />
-                                                        <Button size="small" icon={<ShareAltOutlined />} onClick={() => handleExportMemberCard(record)} title="Share Card" />
-                                                    </Space>
-                                                ),
-                                            },
-                                            ]}
-                                        />
-
-                                        {/* Special Members Section */}
-                                        <div style={{ marginTop: 16, borderTop: '1px dashed #d9d9d9', paddingTop: 16 }}>
-                                            <Row justify="space-between" align="middle" style={{ marginBottom: 12 }}>
-                                                <Text type="secondary"><strong style={{ color: '#1890ff' }}>Special / Deceased Pledges</strong></Text>
-                                                <Button
-                                                    size="small"
-                                                    type="dashed"
-                                                    icon={<PlusOutlined />}
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        setActiveFamilyId(family.id);
-                                                        specialForm.resetFields();
-                                                        setSpecialModalVisible(true);
-                                                    }}
-                                                >
-                                                    Add Special
-                                                </Button>
-                                            </Row>
+                                return {
+                                    key: family.id,
+                                    label: (
+                                        <Row justify="space-between" align="middle" style={{ width: '100%' }} gutter={[8, 8]}>
+                                            <Col xs={24} sm={16} md={14}>
+                                                <Text strong style={{ fontSize: 'clamp(14px, 3.5vw, 16px)' }}>{family.familyName}</Text>
+                                                {family.isMoved && family.movedTo && (
+                                                    <Tag color="orange" style={{ marginLeft: 8 }}>Moved to {family.movedTo}</Tag>
+                                                )}
+                                                <br />
+                                                <Text type="secondary" style={{ fontSize: 'clamp(11px, 2.5vw, 12px)' }}>
+                                                    {family.familyNumber ? <span>#{family.familyNumber} • </span> : ''}
+                                                    Head: {getMemberData(family.headId)?.member.name || 'Unknown'} • {familyMembersCtx.length + familySpecialRecords.length} Cards
+                                                </Text>
+                                            </Col>
+                                            <Col xs={18} sm={6} md={6} style={{ textAlign: 'right' }}>
+                                                <Text type="secondary" style={{ fontSize: 'clamp(11px, 2.5vw, 12px)' }}>Paid / Promise</Text>
+                                                <div style={{ fontWeight: 500, fontSize: 'clamp(12px, 3vw, 14px)' }}>
+                                                    {familyTotalPaid.toLocaleString()} / {familyTotalPromise.toLocaleString()}
+                                                </div>
+                                                <Progress percent={familyPercent} steps={5} size="small" strokeColor="#52c41a" />
+                                            </Col>
+                                            <Col xs={6} sm={2} md={4} style={{ textAlign: 'right' }}>
+                                                <Space>
+                                                    <Button
+                                                        type="text"
+                                                        icon={<DeleteOutlined style={{ color: '#faad14' }} />}
+                                                        size="small"
+                                                        disabled={true}
+                                                        title="Move Family feature is now in Families page"
+                                                    />
+                                                    <Button
+                                                        type="text"
+                                                        icon={<ShareAltOutlined />}
+                                                        size="small"
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            handleExportFamilyCard(family, familyTotalPromise, familyTotalPaid);
+                                                        }}
+                                                        title="Share Family Card"
+                                                    />
+                                                    <Button
+                                                        type="text"
+                                                        icon={<FilePdfOutlined />}
+                                                        size="small"
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            handleExportFamilyPDF(
+                                                                family,
+                                                                familyMembersCtx,
+                                                                familySpecialRecords,
+                                                                familyTotalPromise,
+                                                                familyTotalPaid
+                                                            );
+                                                        }}
+                                                        title="Download PDF"
+                                                    />
+                                                </Space>
+                                            </Col>
+                                        </Row>
+                                    ),
+                                    children: (
+                                        <>
                                             <Table
                                                 size="small"
-                                                dataSource={familySpecialRecords}
-                                                rowKey="id"
+                                                dataSource={familyMembersCtx.filter(item => item !== null)}
+                                                rowKey={(item) => item.member.id}
                                                 pagination={{
                                                     pageSize: 10,
                                                     showSizeChanger: true,
@@ -2323,96 +2208,173 @@ const WaqfJadeed: React.FC = () => {
                                                     pageSizeOptions: ['5', '10', '20', '50'],
                                                     showTotal: (total, range) => `${range[0]}-${range[1]} of ${total} items`,
                                                     onChange: (page: number, pageSize: number) => {
-                                                        setFamilySpecialCurrentPage(prev => ({
+                                                        setFamilyMembersCurrentPage(prev => ({
                                                             ...prev,
                                                             [family.id]: page || 1
                                                         }));
-                                                        setFamilySpecialPageSize(prev => ({
+                                                        setFamilyMembersPageSize(prev => ({
                                                             ...prev,
                                                             [family.id]: pageSize || 10
                                                         }));
                                                     }
                                                 }}
-                                                scroll={{ x: 'max-content' }}
-                                                columns={[{
-                                                    title: '#',
-                                                    key: 'serial',
-                                                    width: 50,
-                                                    render: (_, __, index) => {
-                                                        // Calculate serial number based on current page and page size
-                                                        const currentSpecialPage = familySpecialCurrentPage[family.id] || 1;
-                                                        const currentSpecialPageSize = familySpecialPageSize[family.id] || 10;
-                                                        return ((currentSpecialPage - 1) * currentSpecialPageSize + index + 1);
-                                                    },
-                                                },
-                                                {
-                                                    title: 'Name',
-                                                    dataIndex: 'name',
-                                                    key: 'name',
-                                                    width: 150,
-                                                    render: (name, record) => {
-                                                        const deceasedText = record?.isDeceased
-                                                            ? (record.gender === 'female' ? ' (مرحومہ)' : ' (مرحوم)')
-                                                            : '';
-                                                        return (
-                                                            <>
-                                                                <span style={{ direction: 'rtl', unicodeBidi: 'embed' }}>{getUrduName(name || '')}{deceasedText}</span>
-                                                            </>
-                                                        );
-                                                    },
-                                                },
-                                                {
-                                                    title: 'Promise',
-                                                    key: 'promise',
-                                                    width: 100,
-                                                    render: (_, record) => ((record?.promiseAmount || 0) + (record?.nagarparAmount || 0)).toLocaleString(),
-                                                },
-                                                {
-                                                    title: 'Paid',
-                                                    key: 'paid',
-                                                    width: 100,
-                                                    render: (_, record) => record?.paidAmount?.toLocaleString() || '0',
-                                                },
-                                                {
-                                                    title: 'Progress',
-                                                    key: 'progress',
-                                                    width: 120,
-                                                    render: (_, record) => {
-                                                        const totalPromise = (record?.promiseAmount || 0) + (record?.nagarparAmount || 0);
-                                                        const percent = totalPromise > 0 ? Math.round((record?.paidAmount || 0) / totalPromise * 100) : 0;
-                                                        return (
-                                                            <div style={{ width: '100px' }}>
-                                                                <Progress
-                                                                    percent={percent}
-                                                                    size="small"
-                                                                    showInfo={false}
-                                                                    strokeColor={(record?.paidAmount || 0) >= totalPromise ? '#52c41a' : '#1890ff'}
+                                                columns={[
+                                                    { title: '#', key: 'index', width: 50, render: (_, __, i) => i + 1 },
+                                                    { title: 'Name', dataIndex: ['member', 'name'], key: 'name', render: (text, record) => (<span>{text} ({record.member.gender === 'female' ? 'F' : 'M'}) {record.member.tanzeem && <Tag color="blue" style={{ marginLeft: 5 }}>{record.member.tanzeem}</Tag>}</span>) },
+                                                    { title: 'Promised', dataIndex: 'promise', key: 'promise', render: (val) => `Rs. ${val.toLocaleString()}` },
+                                                    { title: 'Paid', dataIndex: 'paid', key: 'paid', render: (val, record) => <span style={{ color: val >= record.promise && record.promise > 0 ? 'green' : undefined }}>Rs. {val.toLocaleString()}</span> },
+                                                    { title: 'Progress', key: 'progress', render: (_, record) => <Progress percent={record.promise > 0 ? Math.round((record.paid / record.promise) * 100) : 0} size="small" steps={5} strokeColor={record.paid >= record.promise ? '#52c41a' : '#1890ff'} /> },
+                                                    {
+                                                        title: 'Actions',
+                                                        key: 'actions',
+                                                        width: 120,
+                                                        render: (_, record) => (
+                                                            <Space size="small">
+                                                                <Button
+                                                                    type="link"
+                                                                    icon={<EditOutlined />}
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation();
+                                                                        handleEdit(record.member);
+                                                                    }}
+                                                                >
+                                                                    Edit
+                                                                </Button>
+                                                                <Button
+                                                                    type="link"
+                                                                    icon={<ShareAltOutlined />}
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation();
+                                                                        handleExportMemberCard(record);
+                                                                    }}
+                                                                    title="Share Card"
                                                                 />
-                                                            </div>
-                                                        );
-                                                    },
-                                                },
-                                                {
-                                                    title: 'Actions',
-                                                    key: 'actions',
-                                                    width: 100,
-                                                    render: (_, record) => (
-                                                        <Space size="small">
-                                                            <Button size="small" icon={<EditOutlined />} onClick={() => handleEditSpecial(record)} />
-                                                            <Button size="small" icon={<ShareAltOutlined />} onClick={() => handleExportMemberCard(record, true)} title="Share Card" />
-                                                            <Button size="small" icon={<DeleteOutlined />} danger onClick={() => handleDeleteSpecial(record.id)} />
-                                                        </Space>
-                                                    ),
-                                                },
+                                                            </Space>
+                                                        )
+                                                    }
                                                 ]}
                                             />
-                                        </div>
-                                    </Panel>
-                                );
+                                            {/* Special Members Section */}
+                                            <div style={{ marginTop: 16, borderTop: '1px dashed #d9d9d9', paddingTop: 16 }}>
+                                                <Row justify="space-between" align="middle" style={{ marginBottom: 12 }}>
+                                                    <Text type="secondary"><strong style={{ color: '#1890ff' }}>Special / Deceased Pledges</strong></Text>
+                                                    <Button
+                                                        size="small"
+                                                        type="dashed"
+                                                        icon={<PlusOutlined />}
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            setActiveFamilyId(family.id);
+                                                            specialForm.resetFields();
+                                                            setSpecialModalVisible(true);
+                                                        }}
+                                                    >
+                                                        Add Special
+                                                    </Button>
+                                                </Row>
+                                                <Table
+                                                    size="small"
+                                                    dataSource={familySpecialRecords}
+                                                    rowKey="id"
+                                                    pagination={{
+                                                        pageSize: 10,
+                                                        showSizeChanger: true,
+                                                        showQuickJumper: true,
+                                                        pageSizeOptions: ['5', '10', '20', '50'],
+                                                        showTotal: (total, range) => `${range[0]}-${range[1]} of ${total} items`,
+                                                        onChange: (page: number, pageSize: number) => {
+                                                            setFamilySpecialCurrentPage(prev => ({
+                                                                ...prev,
+                                                                [family.id]: page || 1
+                                                            }));
+                                                            setFamilySpecialPageSize(prev => ({
+                                                                ...prev,
+                                                                [family.id]: pageSize || 10
+                                                            }));
+                                                        }
+                                                    }}
+                                                    scroll={{ x: 'max-content' }}
+                                                    columns={[{
+                                                        title: '#',
+                                                        key: 'serial',
+                                                        width: 50,
+                                                        render: (_, __, index) => {
+                                                            // Calculate serial number based on current page and page size
+                                                            const currentSpecialPage = familySpecialCurrentPage[family.id] || 1;
+                                                            const currentSpecialPageSize = familySpecialPageSize[family.id] || 10;
+                                                            return ((currentSpecialPage - 1) * currentSpecialPageSize + index + 1);
+                                                        },
+                                                    },
+                                                    {
+                                                        title: 'Name',
+                                                        dataIndex: 'name',
+                                                        key: 'name',
+                                                        width: 150,
+                                                        render: (name, record) => {
+                                                            const deceasedText = record?.isDeceased
+                                                                ? (record.gender === 'female' ? ' (مرحومہ)' : ' (مرحوم)')
+                                                                : '';
+                                                            return (
+                                                                <>
+                                                                    <span style={{ direction: 'rtl', unicodeBidi: 'embed' }}>{getUrduName(name || '')}{deceasedText}</span>
+                                                                </>
+                                                            );
+                                                        },
+                                                    },
+                                                    {
+                                                        title: 'Promise',
+                                                        key: 'promise',
+                                                        width: 100,
+                                                        render: (_, record) => ((record?.promiseAmount || 0) + (record?.nagarparAmount || 0)).toLocaleString(),
+                                                    },
+                                                    {
+                                                        title: 'Paid',
+                                                        key: 'paid',
+                                                        width: 100,
+                                                        render: (_, record) => record?.paidAmount?.toLocaleString() || '0',
+                                                    },
+                                                    {
+                                                        title: 'Progress',
+                                                        key: 'progress',
+                                                        width: 120,
+                                                        render: (_, record) => {
+                                                            const totalPromise = (record?.promiseAmount || 0) + (record?.nagarparAmount || 0);
+                                                            const percent = totalPromise > 0 ? Math.round((record?.paidAmount || 0) / totalPromise * 100) : 0;
+                                                            return (
+                                                                <div style={{ width: '100px' }}>
+                                                                    <Progress
+                                                                        percent={percent}
+                                                                        size="small"
+                                                                        showInfo={false}
+                                                                        strokeColor={(record?.paidAmount || 0) >= totalPromise ? '#52c41a' : '#1890ff'}
+                                                                    />
+                                                                </div>
+                                                            );
+                                                        },
+                                                    },
+                                                    {
+                                                        title: 'Actions',
+                                                        key: 'actions',
+                                                        width: 100,
+                                                        render: (_, record) => (
+                                                            <Space size="small">
+                                                                <Button size="small" icon={<EditOutlined />} onClick={() => handleEditSpecial(record)} />
+                                                                <Button size="small" icon={<ShareAltOutlined />} onClick={() => handleExportMemberCard(record, true)} title="Share Card" />
+                                                                <Button size="small" icon={<DeleteOutlined />} danger onClick={() => handleDeleteSpecial(record.id)} />
+                                                            </Space>
+                                                        ),
+                                                    },
+                                                    ]}
+                                                />
+                                            </div>
+                                        </>
+                                    )
+                                };
                             })}
-                        </Collapse>
+                        />
+
                     )}
-                </div>
+                </div >
             ) : activeTab === 'tanzeem' ? (
                 <div className="tanzeem-list">
                     {loading ? <p>Loading...</p> : (

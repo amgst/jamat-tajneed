@@ -295,8 +295,7 @@ const Dashboard: React.FC = () => {
                 colorField="type"
                 radius={0.8}
                 label={{
-                  type: 'outer',
-                  content: '{name}: {value}',
+                  content: (data: any) => `${data.type}: ${data.value}`,
                 }}
                 height={300}
               />
