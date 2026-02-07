@@ -36,6 +36,7 @@ interface WaqfReportsProps {
     prevRecords: WaqfJadeedRecord[];
     prevSpecialRecords: WaqfJadeedSpecialRecord[];
     selectedYear: number;
+    allRecords: WaqfJadeedRecord[];
 }
 
 const WaqfReports: React.FC<WaqfReportsProps> = ({
@@ -45,7 +46,8 @@ const WaqfReports: React.FC<WaqfReportsProps> = ({
     allPayments,
     prevRecords,
     prevSpecialRecords,
-    selectedYear
+    selectedYear,
+    allRecords
 }) => {
     const [activeReport, setActiveReport] = useState('halqa');
     const [selectedBook, setSelectedBook] = useState<string | null>(null);
@@ -251,10 +253,15 @@ const WaqfReports: React.FC<WaqfReportsProps> = ({
                 dates.push(dayjs(payment.date).format('DD MMM YYYY'));
 
                 let memberName = 'Unknown';
-                const memberRecord = records.find(r => r.record?.id === payment.waqfJadeedId);
-                if (memberRecord) {
-                    memberName = memberRecord.member.name;
+                // Try finding in regular records first (using allRecords to bypass filters)
+                const rawRecord = allRecords.find(r => r.id === payment.waqfJadeedId);
+                if (rawRecord) {
+                    const member = members.find(m => m.id === rawRecord.memberId);
+                    if (member) {
+                        memberName = member.name;
+                    }
                 } else {
+                    // Try special records
                     const special = specialRecords.find(sr => sr.id === payment.waqfJadeedId);
                     if (special) memberName = `${special.name} (Special)`;
                 }
@@ -272,7 +279,7 @@ const WaqfReports: React.FC<WaqfReportsProps> = ({
             });
         }
         return data;
-    }, [selectedBook, allPayments, records, specialRecords]);
+    }, [selectedBook, allPayments, records, specialRecords, allRecords, members]);
 
     const bookStats = useMemo(() => {
         const used = bookDetails.filter(d => d.status === 'Paid');

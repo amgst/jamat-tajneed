@@ -109,6 +109,8 @@ const WaqfJadeed: React.FC = () => {
     const [familySpecialPageSize, setFamilySpecialPageSize] = useState<Record<string, number>>({});
     const [tanzeemMembersCurrentPage, setTanzeemMembersCurrentPage] = useState<Record<string, number>>({});
     const [tanzeemMembersPageSize, setTanzeemMembersPageSize] = useState<Record<string, number>>({});
+    const [membersCurrentPage, setMembersCurrentPage] = useState(1);
+    const [membersPageSize, setMembersPageSize] = useState(20);
 
     const [books, setBooks] = useState<ReceiptBook[]>([]);
     const [addBookModalVisible, setAddBookModalVisible] = useState(false);
@@ -1041,11 +1043,16 @@ const WaqfJadeed: React.FC = () => {
 
     // Group members by tanzeem for Tanzeem Wise view
     const tanzeemGroupedData = useMemo(() => {
-        const tanzeemOrder = ['ansar', 'lajna', 'khuddam', 'atfal', 'nasirat', 'saf-e-awal', 'saf-e-awal-girls'];
+        const tanzeemOrder = ['ansar', 'lajna', 'khuddam', 'dafar-atfal'];
         const grouped: Record<string, typeof filteredMemberData> = {};
 
         filteredMemberData.forEach(item => {
-            const tanzeem = item.member.tanzeem || 'Unknown';
+            let tanzeem = item.member.tanzeem || 'Unknown';
+            // Group Atfal, Nasirat, Saf-e-Awal into Daftar Atfal
+            if (['atfal', 'nasirat', 'saf-e-awal', 'saf-e-awal-girls'].includes(tanzeem)) {
+                tanzeem = 'dafar-atfal';
+            }
+
             if (!grouped[tanzeem]) {
                 grouped[tanzeem] = [];
             }
@@ -1898,10 +1905,15 @@ const WaqfJadeed: React.FC = () => {
                         loading={loading}
                         rowKey={(record) => record.member.id}
                         pagination={{
-                            pageSize: 20,
+                            current: membersCurrentPage,
+                            pageSize: membersPageSize,
                             showSizeChanger: true,
                             pageSizeOptions: ['10', '20', '50', '100'],
-                            showTotal: (total, range) => `${range[0]}-${range[1]} of ${total} members`
+                            showTotal: (total, range) => `${range[0]}-${range[1]} of ${total} members`,
+                            onChange: (page, pageSize) => {
+                                setMembersCurrentPage(page);
+                                setMembersPageSize(pageSize);
+                            }
                         }}
                         scroll={{ x: 'max-content' }}
                         onRow={(record) => ({
@@ -2202,7 +2214,8 @@ const WaqfJadeed: React.FC = () => {
                                                 dataSource={familyMembersCtx.filter(item => item !== null)}
                                                 rowKey={(item) => item.member.id}
                                                 pagination={{
-                                                    pageSize: 10,
+                                                    current: familyMembersCurrentPage[family.id] || 1,
+                                                    pageSize: familyMembersPageSize[family.id] || 10,
                                                     showSizeChanger: true,
                                                     showQuickJumper: true,
                                                     pageSizeOptions: ['5', '10', '20', '50'],
@@ -2221,7 +2234,8 @@ const WaqfJadeed: React.FC = () => {
                                                 columns={[
                                                     { title: '#', key: 'index', width: 50, render: (_, __, i) => i + 1 },
                                                     { title: 'Name', dataIndex: ['member', 'name'], key: 'name', render: (text, record) => (<span>{text} ({record.member.gender === 'female' ? 'F' : 'M'}) {record.member.tanzeem && <Tag color="blue" style={{ marginLeft: 5 }}>{record.member.tanzeem}</Tag>}</span>) },
-                                                    { title: 'Promised', dataIndex: 'promise', key: 'promise', render: (val) => `Rs. ${val.toLocaleString()}` },
+                                                    { title: 'Promise', dataIndex: 'originalPromise', key: 'originalPromise', render: (val) => `Rs. ${val.toLocaleString()}` },
+                                                    { title: 'NagarParker', dataIndex: 'nagarpar', key: 'nagarpar', render: (val) => `Rs. ${val.toLocaleString()}` },
                                                     { title: 'Paid', dataIndex: 'paid', key: 'paid', render: (val, record) => <span style={{ color: val >= record.promise && record.promise > 0 ? 'green' : undefined }}>Rs. {val.toLocaleString()}</span> },
                                                     { title: 'Progress', key: 'progress', render: (_, record) => <Progress percent={record.promise > 0 ? Math.round((record.paid / record.promise) * 100) : 0} size="small" steps={5} strokeColor={record.paid >= record.promise ? '#52c41a' : '#1890ff'} /> },
                                                     {
@@ -2277,7 +2291,8 @@ const WaqfJadeed: React.FC = () => {
                                                     dataSource={familySpecialRecords}
                                                     rowKey="id"
                                                     pagination={{
-                                                        pageSize: 10,
+                                                        current: familySpecialCurrentPage[family.id] || 1,
+                                                        pageSize: familySpecialPageSize[family.id] || 10,
                                                         showSizeChanger: true,
                                                         showQuickJumper: true,
                                                         pageSizeOptions: ['5', '10', '20', '50'],
@@ -2325,7 +2340,13 @@ const WaqfJadeed: React.FC = () => {
                                                         title: 'Promise',
                                                         key: 'promise',
                                                         width: 100,
-                                                        render: (_, record) => ((record?.promiseAmount || 0) + (record?.nagarparAmount || 0)).toLocaleString(),
+                                                        render: (_, record) => (record?.promiseAmount || 0).toLocaleString(),
+                                                    },
+                                                    {
+                                                        title: 'NagarParker',
+                                                        key: 'nagarpar',
+                                                        width: 100,
+                                                        render: (_, record) => (record?.nagarparAmount || 0).toLocaleString(),
                                                     },
                                                     {
                                                         title: 'Paid',
@@ -2410,7 +2431,8 @@ const WaqfJadeed: React.FC = () => {
                                             dataSource={group.members.filter(item => item !== null)}
                                             rowKey={(item) => item.member.id}
                                             pagination={{
-                                                pageSize: 10,
+                                                current: tanzeemMembersCurrentPage[group.tanzeem] || 1,
+                                                pageSize: tanzeemMembersPageSize[group.tanzeem] || 10,
                                                 showSizeChanger: true,
                                                 showQuickJumper: true,
                                                 pageSizeOptions: ['5', '10', '20', '50'],
@@ -2514,6 +2536,7 @@ const WaqfJadeed: React.FC = () => {
                     prevRecords={prevRecords}
                     prevSpecialRecords={prevSpecialRecords}
                     selectedYear={selectedYear}
+                    allRecords={records}
                 />
             ) : activeTab === 'dashboard' ? (
                 <div className="dashboard-view">
