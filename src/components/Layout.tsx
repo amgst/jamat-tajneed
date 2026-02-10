@@ -15,7 +15,8 @@ import {
 
   DatabaseOutlined,
   MenuOutlined,
-  ToolOutlined
+  ToolOutlined,
+  SolutionOutlined
 } from '@ant-design/icons';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 // import { logout } from '../services/storage'; // Using mock logout
@@ -97,6 +98,21 @@ const AppLayout: React.FC = () => {
       key: '/financial-reports',
       icon: <FileTextOutlined />,
       label: 'Financial Reports',
+    },
+    {
+      key: 'reports-menu',
+      icon: <SolutionOutlined />,
+      label: 'Reports',
+      children: [
+        {
+          key: '/reports/waqfe-nau',
+          label: 'Waqf-e-Nau',
+        },
+        {
+          key: '/reports/mossi',
+          label: 'Mossi',
+        }
+      ]
     },
     {
       key: '/settings',

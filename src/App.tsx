@@ -23,6 +23,8 @@ import Graveyard from './pages/Graveyard';
 import FinancialReportsPage from './pages/FinancialReportsPage';
 import Tools from './pages/Tools';
 import ZakatCalculator from './pages/ZakatCalculator';
+import WaqfeNau from './pages/Reports/WaqfeNau';
+import Mossi from './pages/Reports/Mossi';
 
 // Protected Route component
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -92,6 +94,8 @@ function App() {
                 <Route path="tahreq-jadeed" element={<TahreqJadeed />} />
                 <Route path="graveyard" element={<Graveyard />} />
                 <Route path="financial-reports" element={<FinancialReportsPage />} />
+                <Route path="reports/waqfe-nau" element={<WaqfeNau />} />
+                <Route path="reports/mossi" element={<Mossi />} />
                 <Route path="tools" element={<Tools />} />
                 <Route path="tools/zakat-calculator" element={<ZakatCalculator />} />
               </Route>
