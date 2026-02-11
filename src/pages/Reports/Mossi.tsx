@@ -21,7 +21,8 @@ import { ApiService } from '../../services/apiService';
 import type { Member } from '../../types';
 import {
   getTanzeemDisplayName,
-  exportToCSV
+  exportToCSV,
+  exportToPDF
 } from '../../utils/helpers';
 import { generateAvatarFromName } from '../../utils/imageUtils';
 
@@ -62,8 +63,8 @@ const Mossi: React.FC = () => {
     );
   });
 
-  const handleExport = () => {
-    const dataToExport = filteredMembers.map(m => ({
+  const getExportData = () => {
+    return filteredMembers.map(m => ({
       'Wasiyyat No': m.wasitNo,
       'Name': m.name,
       'Father Name': m.fatherName || '',
@@ -72,7 +73,16 @@ const Mossi: React.FC = () => {
       'Phone': m.phone || '',
       'Address': m.address || ''
     }));
-    exportToCSV(dataToExport, 'mossi-members');
+  };
+
+  const handleExportCSV = () => {
+    exportToCSV(getExportData(), 'mossi-members');
+  };
+
+  const handleExportPDF = async () => {
+    const data = getExportData();
+    const headers = ['Wasiyyat No', 'Name', 'Father Name', 'Tanzeem', 'Age', 'Phone', 'Address'];
+    await exportToPDF(data, headers, 'mossi-members', 'Mossi Members Report');
   };
 
   const columns = [
@@ -154,13 +164,19 @@ const Mossi: React.FC = () => {
         <Space>
           <Button 
             icon={<DownloadOutlined />} 
-            onClick={handleExport}
+            onClick={handleExportCSV}
           >
             Export CSV
           </Button>
           <Button 
+            icon={<DownloadOutlined />} 
+            onClick={handleExportPDF}
+          >
+            Export PDF
+          </Button>
+          <Button 
             icon={<ReloadOutlined />} 
-            onClick={loadMembers} 
+            onClick={loadMembers}  
             loading={loading}
           >
             Refresh

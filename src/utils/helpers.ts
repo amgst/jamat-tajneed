@@ -138,6 +138,9 @@ export const formatDate = (date: string): string => {
   return dayjs(date).format('DD/MM/YYYY');
 };
 
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
+
 /**
  * Export data to CSV
  */
@@ -149,12 +152,84 @@ export const exportToCSV = (data: any[], filename: string): void => {
   if (link.download !== undefined) {
     const url = URL.createObjectURL(blob);
     link.setAttribute('href', url);
-    link.setAttribute('download', filename);
+    link.setAttribute('download', `${filename}.csv`);
     link.style.visibility = 'hidden';
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
   }
+};
+
+/**
+ * Export data to PDF
+ */
+export const exportToPDF = async (
+  data: any[], 
+  headers: string[], 
+  filename: string, 
+  title: string
+): Promise<void> => {
+  const doc = new jsPDF();
+  
+  try {
+    // Load Amiri font for Urdu support
+    const response = await fetch('https://raw.githubusercontent.com/google/fonts/main/ofl/amiri/Amiri-Regular.ttf');
+    if (response.ok) {
+      const buffer = await response.arrayBuffer();
+      // Convert array buffer to base64 string
+      const base64Font = btoa(
+        new Uint8Array(buffer).reduce((data, byte) => data + String.fromCharCode(byte), '')
+      );
+      
+      doc.addFileToVFS('Amiri-Regular.ttf', base64Font);
+      doc.addFont('Amiri-Regular.ttf', 'Amiri', 'normal');
+      doc.setFont('Amiri');
+    } else {
+      console.error('Failed to load Amiri font');
+    }
+  } catch (error) {
+    console.error('Error loading font:', error);
+  }
+  
+  // Add title
+  doc.setFontSize(18);
+  // Right align title for RTL
+  const pageWidth = doc.internal.pageSize.getWidth();
+  doc.text(title, pageWidth - 14, 22, { align: 'right' });
+  doc.setFontSize(11);
+  doc.text(`Generated on: ${dayjs().format('DD/MM/YYYY')}`, pageWidth - 14, 30, { align: 'right' });
+  
+  if (data.length === 0) return;
+  
+  // Reverse columns for RTL
+  const tableColumn = [...headers].reverse();
+  const tableRows = [];
+
+  data.forEach(item => {
+    // Map data to headers then reverse for RTL
+    const rowData = headers.map(header => item[header]).reverse();
+    tableRows.push(rowData);
+  });
+
+  autoTable(doc, {
+    head: [tableColumn],
+    body: tableRows,
+    startY: 35,
+    theme: 'grid',
+    styles: { 
+      fontSize: 8,
+      font: 'Amiri', // Use the Urdu font
+      fontStyle: 'normal',
+      halign: 'right' // Right align text
+    },
+    headStyles: { 
+      fillColor: [22, 160, 133],
+      font: 'Amiri',
+      halign: 'right'
+    },
+  });
+
+  doc.save(`${filename}.pdf`);
 };
 
 /**
@@ -168,7 +243,7 @@ const convertToCSV = (data: any[]): string => {
     headers.join(','),
     ...data.map(row =>
       headers.map(header => {
-        const value = row[header];
+        const value = row[header] !== undefined && row[header] !== null ? row[header] : '';
         return typeof value === 'string' && value.includes(',')
           ? `"${value}"`
           : value;
