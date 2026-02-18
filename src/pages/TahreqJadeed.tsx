@@ -87,9 +87,13 @@ const TahreqJadeed: React.FC = () => {
                 ApiService.getTahreqJadeedRecords(selectedYear),
                 ApiService.getTahreqJadeedSpecialRecords(selectedYear)
             ]);
-            setMembers(membersData);
-            setFamilies(familiesData);
-            setRecords(recordsData);
+
+            const filteredMembers = membersData.filter(m => !m.isMoved && !m.isDeceased && !m.isBList);
+            const activeMemberIds = new Set(filteredMembers.map(m => m.id));
+
+            setMembers(filteredMembers);
+            setFamilies(familiesData.filter(f => !f.isMoved && !f.isBList));
+            setRecords(recordsData.filter(r => activeMemberIds.has(r.memberId)));
             setSpecialRecords(Array.isArray(specialData) ? specialData : []);
         } catch (error) {
             message.error('Failed to load data');

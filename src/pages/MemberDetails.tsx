@@ -88,6 +88,7 @@ const MemberDetails: React.FC = () => {
         isDeceased: formData.isDeceased || false,
         isMoved: formData.isMoved || false,
         movedTo: formData.movedTo || '',
+        isBList: formData.isBList || false,
         isBaitByBirth: formData.isBaitByBirth,
         baitYear: formData.isBaitByBirth ? undefined : formData.baitYear,
         wasitNo: formData.wasitNo || '',
@@ -197,6 +198,11 @@ const MemberDetails: React.FC = () => {
                         <Tag color="orange">Moved to {member.movedTo || 'unknown location'}</Tag>
                       </Descriptions.Item>
                     )}
+                    {member.isBList && (
+                      <Descriptions.Item label="Status">
+                        <Tag color="blue">B List</Tag>
+                      </Descriptions.Item>
+                    )}
                   </Descriptions>
                 </Card>
               </Tabs.TabPane>
@@ -254,7 +260,7 @@ const MemberDetails: React.FC = () => {
         open={isEditModalVisible}
         onCancel={() => setIsEditModalVisible(false)}
         width={700}
-        destroyOnClose
+        destroyOnHidden
         footer={null}
       >
         <MemberForm

@@ -100,12 +100,12 @@ const MemberForm: React.FC<MemberFormProps> = ({
             layout="vertical"
             requiredMark={true}
             onValuesChange={(changedValues, allValues) => {
-                if (changedValues.isBaitByBirth !== undefined || changedValues.gender !== undefined || changedValues.isMarried !== undefined) {
+                if (changedValues.isBaitByBirth !== undefined || changedValues.gender !== undefined || changedValues.maritalStatus !== undefined) {
                     // Force update to re-render when flags change
                     form.setFieldsValue({ ...allValues });
                 }
             }}
-            initialValues={{ isBaitByBirth: true }}
+            initialValues={{ isBaitByBirth: true, isBList: false }}
         >
             {initialValues?.updatedAt && (
                 <div style={{ marginBottom: 16, display: 'flex', alignItems: 'center', justifyContent: 'flex-end', color: '#8c8c8c' }}>
@@ -176,51 +176,50 @@ const MemberForm: React.FC<MemberFormProps> = ({
                     </Col>
                     <Col xs={24} md={12}>
                         <Form.Item
+                            name="maritalStatus"
                             label="Marital Status"
-                            style={{ marginBottom: 0 }}
+                            rules={[{ required: false }]}
                         >
-                            <Form.Item
-                                name="isMarried"
-                                valuePropName="checked"
-                                noStyle
+                            <Select
+                                placeholder="Select marital status"
+                                onChange={(val) => {
+                                    form.setFieldValue('isMarried', val === 'married');
+                                    if (val === 'unmarried') {
+                                        form.setFieldValue('husbandName', '');
+                                    }
+                                }}
+                                allowClear
                             >
-                                <Checkbox
-                                    onChange={(e) => {
-                                        if (!e.target.checked) {
-                                            form.setFieldValue('husbandName', '');
-                                        }
-                                    }}
-                                >
-                                    Married
-                                </Checkbox>
-                            </Form.Item>
+                                <Option value="unmarried">Unmarried</Option>
+                                <Option value="married">Married</Option>
+                                <Option value="divorced">Divorced</Option>
+                                <Option value="widower">Widower (Male)</Option>
+                                <Option value="widow">Widow (Female)</Option>
+                            </Select>
                         </Form.Item>
                         <Form.Item
                             noStyle
-                            shouldUpdate={(prev, current) => prev.isMarried !== current.isMarried || prev.gender !== current.gender}
+                            shouldUpdate={(prev, current) => prev.maritalStatus !== current.maritalStatus || prev.gender !== current.gender}
                         >
                             {({ getFieldValue }) => {
-                                const isMarried = getFieldValue('isMarried');
+                                const maritalStatus = getFieldValue('maritalStatus');
                                 const gender = getFieldValue('gender');
-
-                                if (isMarried && gender === 'female') {
-                                    return (
-                                        <Form.Item
-                                            name="husbandName"
-                                            label="Husband Name"
-                                            style={{ marginTop: 8 }}
-                                        >
-                                            <AutoComplete
-                                                options={maleNames}
-                                                placeholder="Enter or select husband name"
-                                                filterOption={(inputValue, option) =>
-                                                    option!.value.toUpperCase().indexOf(inputValue.toUpperCase()) !== -1
-                                                }
-                                            />
-                                        </Form.Item>
-                                    )
-                                }
-                                return null;
+                                const showHusbandField = gender === 'female' && maritalStatus && maritalStatus !== 'unmarried';
+                                return showHusbandField ? (
+                                    <Form.Item
+                                        name="husbandName"
+                                        label="Husband Name"
+                                        style={{ marginTop: 8 }}
+                                    >
+                                        <AutoComplete
+                                            options={maleNames}
+                                            placeholder="Enter or select husband name"
+                                            filterOption={(inputValue, option) =>
+                                                option!.value.toUpperCase().indexOf(inputValue.toUpperCase()) !== -1
+                                            }
+                                        />
+                                    </Form.Item>
+                                ) : null;
                             }}
                         </Form.Item>
                     </Col>
@@ -477,7 +476,18 @@ const MemberForm: React.FC<MemberFormProps> = ({
                             </Form.Item>
                         </Col>
                     </Row>
+                    <Row gutter={16}>
+                        <Col xs={24} md={12}>
+                            <Form.Item
+                                name="isBList"
+                                valuePropName="checked"
+                            >
+                                <Checkbox>B List</Checkbox>
+                            </Form.Item>
+                        </Col>
+                    </Row>
                 </Card>
+
             </div>
 
             <Row justify="end" style={{ marginTop: 24 }}>

@@ -21,10 +21,9 @@ import {
   HeartOutlined,
   InfoCircleOutlined
 } from '@ant-design/icons';
-import { Column, Pie, Bar } from '@ant-design/charts';
+import { Pie, Bar } from '@ant-design/charts';
 import { ApiService } from '../services/apiService';
-import type { DashboardStats, Tanzeem } from '../types';
-import { getTanzeemDisplayName } from '../utils/helpers';
+import type { DashboardStats } from '../types';
 
 const { Title, Text } = Typography;
 
@@ -50,10 +49,7 @@ const Dashboard: React.FC = () => {
 
 
 
-  const tanzeemData = stats?.tanzeemStats ? Object.entries(stats.tanzeemStats).map(([key, value]) => ({
-    tanzeem: getTanzeemDisplayName(key as Tanzeem),
-    count: value,
-  })) : []; return (
+  return (
     <div>
       {/* Header Section */}
       <div style={{ marginBottom: 24, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
@@ -253,37 +249,9 @@ const Dashboard: React.FC = () => {
 
       {/* Charts Row */}
       <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
-        {/* Tanzeem Distribution */}
-        <Col xs={24} lg={12}>
-          <Card title="Members by Tanzeem">
-            {tanzeemData.length > 0 ? (
-              <Column
-                data={tanzeemData}
-                xField="tanzeem"
-                yField="count"
-                color="#1890ff"
-                columnStyle={{
-                  fill: '#1890ff',
-                  fillOpacity: 0.6,
-                }}
-                label={{
-                  position: 'top',
-                  style: {
-                    fill: '#000',
-                    fontSize: 12,
-                    fontWeight: 'bold',
-                  },
-                }}
-                height={300}
-              />
-            ) : (
-              <div style={{ textAlign: 'center', padding: '50px' }}>No data available</div>
-            )}
-          </Card>
-        </Col>
 
         {/* Age Groups */}
-        <Col xs={24} lg={12}>
+        <Col xs={24} lg={24}>
           <Card title="Age Distribution">
             {stats?.ageGroups ? (
               <Pie

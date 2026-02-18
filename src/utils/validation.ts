@@ -236,12 +236,19 @@ export const validateMemberData = (data: any): { valid: boolean; errors: string[
   if (data.wasitNo && typeof data.wasitNo !== 'string') {
     errors.push('Wasit No must be a string');
   }
+  if (data.maritalStatus && !['married', 'unmarried', 'divorced', 'widower', 'widow'].includes(data.maritalStatus)) {
+    errors.push('Marital status is invalid');
+  }
   if (data.education && typeof data.education !== 'string') {
     errors.push('Education must be a string');
   }
   if (data.waqfeNauNumber && typeof data.waqfeNauNumber !== 'string') {
     errors.push('Waqf-e-Nau Number must be a string');
   }
+  if (data.isBList !== undefined && typeof data.isBList !== 'boolean') {
+    errors.push('Is B List must be a boolean');
+  }
+
 
   return {
     valid: errors.length === 0,
@@ -275,11 +282,13 @@ export const sanitizeMemberData = (data: any): any => {
   // New fields
   if (data.isBaitByBirth !== undefined) sanitized.isBaitByBirth = data.isBaitByBirth;
   if (data.baitYear !== undefined) sanitized.baitYear = data.baitYear;
+  if (data.isBList !== undefined) sanitized.isBList = data.isBList;
+
   if (data.wasitNo) sanitized.wasitNo = sanitizeInput(data.wasitNo, { maxLength: 50 });
   if (data.education) sanitized.education = sanitizeInput(data.education, { maxLength: 100 });
   if (data.bloodGroup) sanitized.bloodGroup = sanitizeInput(data.bloodGroup, { maxLength: 10 });
   if (data.waqfeNauNumber) sanitized.waqfeNauNumber = sanitizeInput(data.waqfeNauNumber, { maxLength: 50 });
-
+  if (data.maritalStatus) sanitized.maritalStatus = data.maritalStatus;
   // Metadata and sub-objects
   if (data.religiousActivities) sanitized.religiousActivities = data.religiousActivities;
   if (data.createdAt) sanitized.createdAt = data.createdAt;
@@ -287,6 +296,30 @@ export const sanitizeMemberData = (data: any): any => {
   if (data.dateOfDeath) sanitized.dateOfDeath = data.dateOfDeath;
   if (data.hasNewTanzeemTransition !== undefined) sanitized.hasNewTanzeemTransition = data.hasNewTanzeemTransition;
   if (data.talem) sanitized.talem = sanitizeInput(data.talem, { maxLength: 100 });
+
+  return sanitized;
+};
+
+// Sanitize family data
+export const sanitizeFamilyData = (data: any): any => {
+  const sanitized: any = {};
+
+  if (data.familyName) sanitized.familyName = sanitizeInput(data.familyName, { maxLength: 100 });
+  if (data.halqa) sanitized.halqa = sanitizeInput(data.halqa, { maxLength: 100 });
+  if (data.familyHistory) sanitized.familyHistory = sanitizeInput(data.familyHistory, { maxLength: 5000 });
+  if (data.movedTo) sanitized.movedTo = sanitizeInput(data.movedTo, { maxLength: 100 });
+
+  // Preserve non-string fields
+  if (data.headId) sanitized.headId = data.headId;
+  if (data.memberIds) sanitized.memberIds = data.memberIds;
+  if (data.totalMembers !== undefined) sanitized.totalMembers = data.totalMembers;
+  if (data.familyNumber !== undefined) sanitized.familyNumber = data.familyNumber;
+  if (data.isMoved !== undefined) sanitized.isMoved = data.isMoved;
+  if (data.isBList !== undefined) sanitized.isBList = data.isBList;
+
+  // Metadata
+  if (data.createdAt) sanitized.createdAt = data.createdAt;
+  if (data.updatedAt) sanitized.updatedAt = data.updatedAt;
 
   return sanitized;
 };

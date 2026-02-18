@@ -50,14 +50,22 @@ export interface Member {
   dateOfDeath?: string;
   isMoved?: boolean;
   movedTo?: string;
+  isBList?: boolean;
 
   // New fields
   baitYear?: number; // Year of Bait (if not by birth)
   isBaitByBirth?: boolean;
   wasitNo?: string;
   education?: string;
+  profession?: string;
+  tajneedCode?: string;
   bloodGroup?: string;
   waqfeNauNumber?: string;
+  // Marital status: 
+  // married = شادی شدہ, unmarried = غیر شادی شدہ, divorced = طلاق یافتہ,
+  // widower = رنڈوا (wife deceased), widow = بیوہ (husband deceased)
+  maritalStatus?: 'married' | 'unmarried' | 'divorced' | 'widower' | 'widow';
+  serialNo?: number;
 
   // Religious Activities (per member)
   religiousActivities?: ReligiousActivities;
@@ -94,6 +102,7 @@ export interface Family {
   familyHistory?: string; // Family history and background notes
   isMoved?: boolean;
   movedTo?: string;
+  isBList?: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -306,6 +315,8 @@ export interface AnsarullahRecord {
   chandaSalanaIjtema?: number;
   chandaAsyat?: number;
   chandaTawseaImarat?: number; // توسیع عمارت (Building Expansion)
+  ishaatLiterature?: number;   // اشاعت لٹریچر
+  monthlyIncome?: number;      // ماہانہ امدن
   // Total (calculated from the four chanda types)
   promiseAmount: number;
   paidAmount: number;

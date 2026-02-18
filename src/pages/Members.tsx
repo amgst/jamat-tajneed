@@ -123,7 +123,7 @@ const Members: React.FC = () => {
         cnic: formData.cnic ? formatCNIC(formData.cnic) : '',
         dateOfBirth: formData.dateOfBirth.format('YYYY-MM-DD'),
         age,
-        phone: formData.phone || '',
+        phone: (formData.phone && String(formData.phone).trim()) ? String(formData.phone).trim() : '0000000000',
         address: formData.address,
         tanzeem,
         halqa: '',
@@ -132,6 +132,7 @@ const Members: React.FC = () => {
         isDeceased: formData.isDeceased || false,
         isMoved: formData.isMoved || false,
         movedTo: formData.movedTo || '',
+        isBList: formData.isBList || false,
 
         // New fields
         isBaitByBirth: formData.isBaitByBirth,
@@ -140,6 +141,8 @@ const Members: React.FC = () => {
         education: formData.education || '',
         bloodGroup: formData.bloodGroup || '',
         waqfeNauNumber: formData.waqfeNauNumber || '',
+        maritalStatus: formData.maritalStatus || (formData.isMarried ? 'married' : 'unmarried'),
+        isMarried: formData.maritalStatus ? formData.maritalStatus === 'married' : !!formData.isMarried,
 
         updatedAt: new Date().toISOString(),
       };
@@ -193,6 +196,7 @@ const Members: React.FC = () => {
       Name: member.name,
       'Father Name': member.fatherName,
       Gender: member.gender,
+      'Marital Status': member.maritalStatus || ((member as any).isMarried ? 'married' : 'unmarried'),
       CNIC: member.cnic || '',
       'Date of Birth': member.dateOfBirth,
       Age: member.age,
@@ -246,11 +250,13 @@ const Members: React.FC = () => {
     let filtered = members;
 
     if (activeTab === 'deceased') {
-      filtered = filtered.filter(m => m.isDeceased);
+      filtered = filtered.filter(m => m.isDeceased && !m.isBList);
     } else if (activeTab === 'moved') {
-      filtered = filtered.filter(m => m.isMoved);
+      filtered = filtered.filter(m => m.isMoved && !m.isBList);
+    } else if (activeTab === 'b-list') {
+      filtered = filtered.filter(m => m.isBList);
     } else {
-      filtered = filtered.filter(m => !m.isDeceased && !m.isMoved);
+      filtered = filtered.filter(m => !m.isDeceased && !m.isMoved && !m.isBList);
     }
 
     if (selectedFamilyId) {
@@ -383,6 +389,22 @@ const Members: React.FC = () => {
       ),
     },
     {
+      title: 'Marital Status',
+      key: 'maritalStatus',
+      render: (record: Member) => {
+        const status = record.maritalStatus ? record.maritalStatus : ((record as any).isMarried ? 'married' : 'unmarried');
+        const map: Record<string, { text: string; color: string }> = {
+          married: { text: 'شادی شدہ', color: 'green' },
+          unmarried: { text: 'غیر شادی شدہ', color: 'default' },
+          divorced: { text: 'طلاق یافتہ', color: 'orange' },
+          widower: { text: 'رنڈوا', color: 'blue' },
+          widow: { text: 'بیوہ', color: 'purple' }
+        };
+        const meta = map[status] || map.unmarried;
+        return <Tag color={meta.color}>{meta.text}</Tag>;
+      }
+    },
+    {
       title: 'Age',
       dataIndex: 'age',
       key: 'age',
@@ -420,6 +442,7 @@ const Members: React.FC = () => {
       render: (record: Member) => {
         if (record.isDeceased) return <Tag color="red">Deceased</Tag>;
         if (record.isMoved) return <Tag color="orange">Moved</Tag>;
+        if (record.isBList) return <Tag color="blue">B List</Tag>;
         return <Tag color="green">Active</Tag>;
       },
       width: 100,
@@ -478,13 +501,14 @@ const Members: React.FC = () => {
   ];
 
   const getTabCounts = () => {
-    const activeCount = members.filter(m => !m.isDeceased && !m.isMoved).length;
-    const deceasedCount = members.filter(m => m.isDeceased).length;
-    const movedCount = members.filter(m => m.isMoved).length;
-    return { activeCount, deceasedCount, movedCount };
+    const activeCount = members.filter(m => !m.isDeceased && !m.isMoved && !m.isBList).length;
+    const deceasedCount = members.filter(m => m.isDeceased && !m.isBList).length;
+    const movedCount = members.filter(m => m.isMoved && !m.isBList).length;
+    const bListCount = members.filter(m => m.isBList).length;
+    return { activeCount, deceasedCount, movedCount, bListCount };
   };
 
-  const { activeCount, deceasedCount, movedCount } = getTabCounts();
+  const { activeCount, deceasedCount, movedCount, bListCount } = getTabCounts();
 
   return (
     <div>
@@ -571,6 +595,20 @@ const Members: React.FC = () => {
                   scroll={{ x: 1000 }}
                 />
               )
+            },
+            {
+              key: 'b-list',
+              label: `B List (${bListCount})`,
+              children: (
+                <Table
+                  columns={columns}
+                  dataSource={getFilteredAndSortedMembers()}
+                  rowKey="id"
+                  loading={loading}
+                  pagination={{ pageSize: 10 }}
+                  scroll={{ x: 1000 }}
+                />
+              )
             }
           ]}
         />
@@ -584,7 +622,7 @@ const Members: React.FC = () => {
           setEditingMember(null);
         }}
         width={700}
-        destroyOnClose
+        destroyOnHidden
         footer={null}
       >
         <MemberForm

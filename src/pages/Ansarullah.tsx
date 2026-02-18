@@ -5,6 +5,7 @@ import {
     Avatar,
     Typography,
     Input,
+    AutoComplete,
     Select,
     Button,
     Drawer,
@@ -38,7 +39,6 @@ import { ApiService } from '../services/apiService';
 import type { Member, AnsarullahRecord, Payment, ReceiptBook, MarkazPayment } from '../types';
 import dayjs from 'dayjs';
 import AnsarullahDashboard from '../components/AnsarullahDashboard';
-import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
@@ -65,6 +65,21 @@ const Ansarullah: React.FC = () => {
 
     const [markazForm] = Form.useForm();
     const [markazModalVisible, setMarkazModalVisible] = useState(false);
+    const [currentPage, setCurrentPage] = useState(1);
+    const [membersPageSize, setMembersPageSize] = useState(10);
+
+    const professionOptions = useMemo(
+        () => [
+            { value: 'پرائیوٹ' },
+            { value: 'فارغ' },
+            { value: 'زراعت' },
+            { value: 'ملازمت' },
+            { value: 'کاروبار' },
+            { value: 'دکاندار' },
+            { value: 'ریٹائیر' },
+        ],
+        []
+    );
 
     useEffect(() => {
         loadData();
@@ -89,8 +104,8 @@ const Ansarullah: React.FC = () => {
                 ApiService.getMarkazPayments(selectedYear)
             ]);
 
-            // Filter only Ansar members
-            setAnsarMembers(membersData.filter(m => m.tanzeem === 'ansar' && !m.isDeceased && !m.isMoved));
+            // Filter only Ansar members and exclude B List
+            setAnsarMembers(membersData.filter(m => m.tanzeem === 'ansar' && !m.isDeceased && !m.isMoved && !m.isBList));
             setRecords(recordsData);
             setMarkazPayments(markazData);
         } catch (error) {
@@ -122,6 +137,13 @@ const Ansarullah: React.FC = () => {
             chandaSalanaIjtema: record?.chandaSalanaIjtema || 0,
             chandaAsyat: record?.chandaAsyat || 0,
             chandaTawseaImarat: record?.chandaTawseaImarat || 0,
+            ishaatLiterature: record?.ishaatLiterature || 0,
+            monthlyIncome: record?.monthlyIncome || 0,
+            profession: member.profession || '',
+            tajneedCode: member.tajneedCode || '',
+            phone: member.phone || '',
+            wasitNo: member.wasitNo || '',
+            serialNo: member.serialNo || undefined,
         });
         setDrawerVisible(true);
     };
@@ -138,7 +160,38 @@ const Ansarullah: React.FC = () => {
                 chandaSalanaIjtema: values.chandaSalanaIjtema || 0,
                 chandaAsyat: values.chandaAsyat || 0,
                 chandaTawseaImarat: values.chandaTawseaImarat || 0,
+                ishaatLiterature: values.ishaatLiterature || 0,
+                monthlyIncome: values.monthlyIncome || 0,
             };
+
+            // Update member details if changed
+            if (values.profession !== editingMember.profession ||
+                values.tajneedCode !== editingMember.tajneedCode ||
+                (values.phone || '0000000000') !== (editingMember.phone || '0000000000') ||
+                values.wasitNo !== editingMember.wasitNo ||
+                values.serialNo !== editingMember.serialNo
+            ) {
+                await ApiService.updateMember(editingMember.id, {
+                    profession: values.profession,
+                    tajneedCode: values.tajneedCode,
+                    phone: values.phone && String(values.phone).trim() ? String(values.phone).trim() : '0000000000',
+                    wasitNo: values.wasitNo,
+                    serialNo: values.serialNo || null
+                });
+                // Update local members list
+                setAnsarMembers(prev => prev.map(m =>
+                    m.id === editingMember.id
+                        ? {
+                            ...m,
+                            profession: values.profession,
+                            tajneedCode: values.tajneedCode,
+                            phone: values.phone && String(values.phone).trim() ? String(values.phone).trim() : '0000000000',
+                            wasitNo: values.wasitNo,
+                            serialNo: values.serialNo || undefined
+                        }
+                        : m
+                ));
+            }
 
             const savedRecord = await ApiService.saveAnsarullahRecord(payload);
             if (savedRecord) {
@@ -314,7 +367,6 @@ const Ansarullah: React.FC = () => {
             });
 
             // Halqa-wise Report
-            const lastY2 = (pdf as any).lastAutoTable.finalY;
             pdf.addPage();
             pdf.setFontSize(16);
             pdf.text('3. Halqa-wise Breakdown', margin, 20);
@@ -387,6 +439,36 @@ const Ansarullah: React.FC = () => {
             pdf.setTextColor(24, 144, 255);
             pdf.text(`Rs. ${netBalance.toLocaleString()}`, margin + 10, lastY4 + 32);
 
+            // Member-wise Breakdown
+            pdf.addPage();
+            pdf.setFontSize(16);
+            pdf.setTextColor(0);
+            pdf.text('5. Member-wise Breakdown', margin, 20);
+
+            const memberData = filteredMembers.map((m, index) => {
+                const record = records.find(r => r.memberId === m.id);
+                return [
+                    index + 1,
+                    m.tajneedCode || m.id.substring(0, 8),
+                    m.name,
+                    m.profession || '-',
+                    record?.ishaatLiterature || 0,
+                    `Rs. ${record?.monthlyIncome?.toLocaleString() || 0}`,
+                    `Rs. ${record?.promiseAmount?.toLocaleString() || 0}`,
+                    `Rs. ${record?.paidAmount?.toLocaleString() || 0}`
+                ];
+            });
+
+            autoTable(pdf, {
+                startY: 25,
+                head: [['#', 'Tajneed Code', 'Name', 'Profession', 'Ishaat', 'Monthly Income', 'Promise', 'Paid']],
+                body: memberData,
+                theme: 'striped',
+                headStyles: { fillColor: [24, 144, 255] },
+                margin: { left: margin, right: margin },
+                styles: { fontSize: 8 }
+            });
+
             pdf.save(`Ansarullah_Audit_Report_${selectedYear}.pdf`);
             message.success({ content: 'Professional Audit Report Generated', key: 'audit-pdf' });
         } catch (error) {
@@ -402,10 +484,28 @@ const Ansarullah: React.FC = () => {
         );
     }, [ansarMembers, searchTerm]);
 
+    const getMemberRecord = (id: string) => records.find(r => r.memberId === id);
     const columns = [
         {
-            title: 'Member',
+            title: 'نمبر شمار',
+            key: 'serial',
+            width: 80,
+            sorter: (a: Member, b: Member) => (a.serialNo ?? Number.MAX_SAFE_INTEGER) - (b.serialNo ?? Number.MAX_SAFE_INTEGER),
+            sortDirections: ['ascend', 'descend'],
+            render: (_: any, m: Member, index: number) => (m.serialNo ? m.serialNo : index + 1),
+        },
+        {
+            title: 'تجنید کوڈ',
+            key: 'tajneedCode',
+            sorter: (a: Member, b: Member) => (a.tajneedCode || a.id).localeCompare(b.tajneedCode || b.id),
+            sortDirections: ['ascend', 'descend'],
+            render: (m: Member) => m.tajneedCode || m.id.substring(0, 8),
+        },
+        {
+            title: 'نام ناصر',
             key: 'member',
+            sorter: (a: Member, b: Member) => a.name.localeCompare(b.name),
+            sortDirections: ['ascend', 'descend'],
             render: (m: Member) => (
                 <Space>
                     <Avatar src={m.profilePhoto} icon={<UserOutlined />} />
@@ -418,16 +518,17 @@ const Ansarullah: React.FC = () => {
             ),
         },
         {
-            title: 'Promise (Owe)',
-            key: 'promise',
-            render: (m: Member) => {
-                const record = records.find(r => r.memberId === m.id);
-                return <Text strong>Rs. {record?.promiseAmount?.toLocaleString() || 0}</Text>;
-            },
+            title: 'پیشہ',
+            key: 'profession',
+            sorter: (a: Member, b: Member) => (a.profession || '').localeCompare(b.profession || ''),
+            sortDirections: ['ascend', 'descend'],
+            render: (m: Member) => m.profession || '-',
         },
         {
             title: 'Paid',
             key: 'paid',
+            sorter: (a: Member, b: Member) => (getMemberRecord(a.id)?.paidAmount || 0) - (getMemberRecord(b.id)?.paidAmount || 0),
+            sortDirections: ['ascend', 'descend'],
             render: (m: Member) => {
                 const record = records.find(r => r.memberId === m.id);
                 return <Text type="success" strong>Rs. {record?.paidAmount?.toLocaleString() || 0}</Text>;
@@ -436,6 +537,14 @@ const Ansarullah: React.FC = () => {
         {
             title: 'Balance',
             key: 'balance',
+            sorter: (a: Member, b: Member) => {
+                const ra = getMemberRecord(a.id);
+                const rb = getMemberRecord(b.id);
+                const ba = (ra?.promiseAmount || 0) - (ra?.paidAmount || 0);
+                const bb = (rb?.promiseAmount || 0) - (rb?.paidAmount || 0);
+                return ba - bb;
+            },
+            sortDirections: ['ascend', 'descend'],
             render: (m: Member) => {
                 const record = records.find(r => r.memberId === m.id);
                 const balance = (record?.promiseAmount || 0) - (record?.paidAmount || 0);
@@ -497,7 +606,21 @@ const Ansarullah: React.FC = () => {
                                     dataSource={filteredMembers}
                                     rowKey="id"
                                     loading={loading}
-                                    pagination={{ pageSize: 10 }}
+                                    onRow={(record) => ({
+                                        onClick: () => handleEditRecord(record),
+                                        style: { cursor: 'pointer' }
+                                    })}
+                                    pagination={{
+                                        current: currentPage,
+                                        pageSize: membersPageSize,
+                                        onChange: (page, pageSize) => {
+                                            setCurrentPage(page);
+                                            setMembersPageSize(pageSize);
+                                        },
+                                        showTotal: (total, range) => `${range[0]}-${range[1]} of ${total} entries`,
+                                        showSizeChanger: true,
+                                        pageSizeOptions: ['10', '20', '50', '100']
+                                    }}
                                 />
                             </Card>
                         )
@@ -872,7 +995,7 @@ const Ansarullah: React.FC = () => {
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
                         {/* Summary Stats */}
                         <div style={{ background: '#f5f5f5', padding: '16px', borderRadius: '8px' }}>
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '16px', marginBottom: '12px' }}>
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr 1fr 1fr', gap: '16px', marginBottom: '12px' }}>
                                 <div>
                                     <Text type="secondary">Chanda Majlis</Text>
                                     <Title level={5} style={{ margin: 0 }}>Rs. {currentRecord?.chandaMajlis?.toLocaleString() || 0}</Title>
@@ -888,6 +1011,14 @@ const Ansarullah: React.FC = () => {
                                 <div>
                                     <Text type="secondary">توسیع عمارت</Text>
                                     <Title level={5} style={{ margin: 0 }}>Rs. {currentRecord?.chandaTawseaImarat?.toLocaleString() || 0}</Title>
+                                </div>
+                                <div>
+                                    <Text type="secondary">اشاعت لٹریچر</Text>
+                                    <Title level={5} style={{ margin: 0 }}>{currentRecord?.ishaatLiterature || 0}</Title>
+                                </div>
+                                <div>
+                                    <Text type="secondary">ماہانہ امدن</Text>
+                                    <Title level={5} style={{ margin: 0 }}>Rs. {currentRecord?.monthlyIncome?.toLocaleString() || 0}</Title>
                                 </div>
                             </div>
                             <Divider style={{ margin: '12px 0' }} />
@@ -907,6 +1038,34 @@ const Ansarullah: React.FC = () => {
                             </div>
                         </div>
 
+                        {/* Member Details Form */}
+                        <Card size="small" title="Member Details">
+                            <Form form={form} layout="vertical">
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                                    <Form.Item name="tajneedCode" label="تجنید کوڈ">
+                                        <Input placeholder="Enter Tajneed Code" />
+                                    </Form.Item>
+                                    <Form.Item name="serialNo" label="نمبر شمار">
+                                        <InputNumber style={{ width: '100%' }} min={1} placeholder="Serial No (optional)" />
+                                    </Form.Item>
+                                    <Form.Item name="profession" label="پیشہ">
+                                        <AutoComplete
+                                            options={professionOptions}
+                                            style={{ width: '100%' }}
+                                            placeholder="پیشہ منتخب کریں یا لکھیں"
+                                            allowClear
+                                        />
+                                    </Form.Item>
+                                    <Form.Item name="phone" label="فون نمبر">
+                                        <Input placeholder="Enter Phone Number" />
+                                    </Form.Item>
+                                    <Form.Item name="wasitNo" label="وصیت نمبر">
+                                        <Input placeholder="Enter Wasiyat Number" />
+                                    </Form.Item>
+                                </div>
+                            </Form>
+                        </Card>
+
                         {/* Promise Form */}
                         <Card size="small" title="Manage Promise (Budget)">
                             <Form
@@ -922,7 +1081,7 @@ const Ansarullah: React.FC = () => {
                                     form.setFieldsValue({ total });
                                 }}
                             >
-                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr 1fr', gap: '16px' }}>
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px' }}>
                                     <Form.Item name="chandaMajlis" label="Chanda Majlis" rules={[{ required: true, message: 'Required' }]}>
                                         <InputNumber
                                             formatter={value => `Rs. ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
@@ -948,6 +1107,17 @@ const Ansarullah: React.FC = () => {
                                         />
                                     </Form.Item>
                                     <Form.Item name="chandaTawseaImarat" label="توسیع عمارت" rules={[{ required: true, message: 'Required' }]}>
+                                        <InputNumber
+                                            formatter={value => `Rs. ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
+                                            parser={value => value!.replace(/Rs\.\s?|(,*)/g, '') as any}
+                                            style={{ width: '100%' }}
+                                            min={0}
+                                        />
+                                    </Form.Item>
+                                    <Form.Item name="ishaatLiterature" label="اشاعت لٹریچر">
+                                        <InputNumber style={{ width: '100%' }} min={0} />
+                                    </Form.Item>
+                                    <Form.Item name="monthlyIncome" label="ماہانہ امدن">
                                         <InputNumber
                                             formatter={value => `Rs. ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
                                             parser={value => value!.replace(/Rs\.\s?|(,*)/g, '') as any}

@@ -1,5 +1,9 @@
 import { initializeApp } from "firebase/app";
-import { getFirestore } from "firebase/firestore";
+import {
+    initializeFirestore,
+    persistentLocalCache,
+    persistentMultipleTabManager
+} from "firebase/firestore";
 import { getAuth } from "firebase/auth";
 
 const firebaseConfig = {
@@ -13,14 +17,17 @@ const firebaseConfig = {
 
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
-export const db = getFirestore(app);
+export const db = initializeFirestore(app, {
+    localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }),
+    experimentalForceLongPolling: true,
+});
 export const auth = getAuth(app);
 export default app;
 
 // Configure Firestore emulator if in development
 if (import.meta.env.VITE_USE_EMULATOR === 'true') {
     console.log('Using Firebase emulator');
-    
+
     // Only connect to emulator in development
     if (location.hostname === 'localhost' || location.hostname === '127.0.0.1') {
         import('firebase/firestore').then(({ connectFirestoreEmulator }) => {

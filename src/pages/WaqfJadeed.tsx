@@ -192,18 +192,19 @@ const WaqfJadeed: React.FC = () => {
                 ApiService.getWaqfJadeedSpecialRecords(selectedYear - 1),
                 ApiService.getWaqfJadeedMarkazPayments(selectedYear)
             ]);
-            // Filter out moved members
-            setMembers(membersData.filter(m => !m.isMoved && !m.isDeceased));
-            setFamilies(familiesData);
-            // Filter records to ensure they match the selected year (in case API returns wrong data)
+            // Filter members and get active IDs
+            const filteredMembers = membersData.filter(m => !m.isMoved && !m.isDeceased && !m.isBList);
+            const activeMemberIds = new Set(filteredMembers.map(m => m.id));
+            setMembers(filteredMembers);
+
+            // Filter families to exclude B List and moved
+            setFamilies(familiesData.filter(f => !f.isMoved && !f.isBList));
+
+            // Filter records to ensure they match the selected year AND are for active members
             const filteredRecords = Array.isArray(recordsData)
                 ? recordsData.filter(r => {
-                    // Check if year matches
-                    if (r.year !== selectedYear) {
-                        console.warn(`Record for member ${r.memberId} has year ${r.year} but selected year is ${selectedYear}`);
-                        return false;
-                    }
-                    return true;
+                    if (r.year !== selectedYear) return false;
+                    return activeMemberIds.has(r.memberId);
                 })
                 : [];
             setRecords(filteredRecords);
@@ -598,6 +599,8 @@ const WaqfJadeed: React.FC = () => {
         form.setFieldsValue({
             promiseAmount: record?.promiseAmount || 0,
             nagarparAmount: record?.nagarparAmount || 0,
+            tajneedCode: member.tajneedCode || '',
+            profession: member.profession || '',
         });
         // If no promise exists, default to editing mode. If it exists, view mode.
         setIsEditingPromise(!record?.promiseAmount);
@@ -620,6 +623,20 @@ const WaqfJadeed: React.FC = () => {
         try {
             const values = await form.validateFields();
             if (editingMember) {
+                // Update member details if changed
+                if (values.tajneedCode !== editingMember.tajneedCode || values.profession !== editingMember.profession) {
+                    await ApiService.updateMember(editingMember.id, {
+                        tajneedCode: values.tajneedCode,
+                        profession: values.profession
+                    });
+                    // Update local members state
+                    setMembers(prev => prev.map(m =>
+                        m.id === editingMember.id
+                            ? { ...m, tajneedCode: values.tajneedCode, profession: values.profession }
+                            : m
+                    ));
+                }
+
                 // Member update
                 const payload = {
                     memberId: editingMember.id,
@@ -1948,7 +1965,15 @@ const WaqfJadeed: React.FC = () => {
                                 sorter: (a, b) => a.member.name.localeCompare(b.member.name),
                                 render: (_, record) => (
                                     <div>
-                                        <Text strong style={{ fontSize: '14px' }}>{record.member.name}</Text>
+                                        <Text
+                                            strong
+                                            style={{
+                                                fontSize: '14px',
+                                                color: record.paid >= record.promise && record.promise > 0 ? '#52c41a' : undefined
+                                            }}
+                                        >
+                                            {record.member.name}
+                                        </Text>
                                         {record.member.fatherName && (
                                             <div>
                                                 <Text type="secondary" style={{ fontSize: '12px' }}>
@@ -1958,6 +1983,16 @@ const WaqfJadeed: React.FC = () => {
                                         )}
                                     </div>
                                 )
+                            },
+                            {
+                                title: 'Tajneed Code',
+                                key: 'tajneedCode',
+                                render: (_, record) => record.member.tajneedCode || record.member.id.substring(0, 8),
+                            },
+                            {
+                                title: 'Profession',
+                                key: 'profession',
+                                render: (_, record) => record.member.profession || '-',
                             },
                             {
                                 title: 'Halqa',
@@ -1991,9 +2026,26 @@ const WaqfJadeed: React.FC = () => {
                                 key: 'promise',
                                 sorter: (a, b) => a.promise - b.promise,
                                 render: (_, record) => (
-                                    <Text strong style={{ fontSize: '14px' }}>
-                                        Rs. {record.promise.toLocaleString()}
-                                    </Text>
+                                    <Space>
+                                        <Text strong style={{ fontSize: '14px' }}>
+                                            Rs. {record.promise.toLocaleString()}
+                                        </Text>
+                                        <Button type="link" size="small" icon={<EditOutlined />} onClick={() => handleQuickEdit(record.member)} />
+                                    </Space>
+                                ),
+                                align: 'right'
+                            },
+                            {
+                                title: 'NagarParker',
+                                key: 'nagarpar',
+                                sorter: (a, b) => (a.record?.nagarparAmount || 0) - (b.record?.nagarparAmount || 0),
+                                render: (_, record) => (
+                                    <Space>
+                                        <Text strong style={{ fontSize: '14px' }}>
+                                            Rs. {(record.record?.nagarparAmount || 0).toLocaleString()}
+                                        </Text>
+                                        <Button type="link" size="small" icon={<EditOutlined />} onClick={() => handleQuickEdit(record.member)} />
+                                    </Space>
                                 ),
                                 align: 'right'
                             },
@@ -2151,7 +2203,15 @@ const WaqfJadeed: React.FC = () => {
                                     label: (
                                         <Row justify="space-between" align="middle" style={{ width: '100%' }} gutter={[8, 8]}>
                                             <Col xs={24} sm={16} md={14}>
-                                                <Text strong style={{ fontSize: 'clamp(14px, 3.5vw, 16px)' }}>{family.familyName}</Text>
+                                                <Text
+                                                    strong
+                                                    style={{
+                                                        fontSize: 'clamp(14px, 3.5vw, 16px)',
+                                                        color: familyPercent >= 100 && familyTotalPromise > 0 ? '#52c41a' : undefined
+                                                    }}
+                                                >
+                                                    {family.familyName}
+                                                </Text>
                                                 {family.isMoved && family.movedTo && (
                                                     <Tag color="orange" style={{ marginLeft: 8 }}>Moved to {family.movedTo}</Tag>
                                                 )}
@@ -2233,9 +2293,59 @@ const WaqfJadeed: React.FC = () => {
                                                 }}
                                                 columns={[
                                                     { title: '#', key: 'index', width: 50, render: (_, __, i) => i + 1 },
-                                                    { title: 'Name', dataIndex: ['member', 'name'], key: 'name', render: (text, record) => (<span>{text} ({record.member.gender === 'female' ? 'F' : 'M'}) {record.member.tanzeem && <Tag color="blue" style={{ marginLeft: 5 }}>{record.member.tanzeem}</Tag>}</span>) },
-                                                    { title: 'Promise', dataIndex: 'originalPromise', key: 'originalPromise', render: (val) => `Rs. ${val.toLocaleString()}` },
-                                                    { title: 'NagarParker', dataIndex: 'nagarpar', key: 'nagarpar', render: (val) => `Rs. ${val.toLocaleString()}` },
+                                                    {
+                                                        title: 'Name',
+                                                        dataIndex: ['member', 'name'],
+                                                        key: 'name',
+                                                        render: (text, record) => (
+                                                            <span style={{ color: record.paid >= record.promise && record.promise > 0 ? '#52c41a' : undefined }}>
+                                                                {text} ({record.member.gender === 'female' ? 'F' : 'M'})
+                                                                {record.member.tanzeem && <Tag color="blue" style={{ marginLeft: 5 }}>{record.member.tanzeem}</Tag>}
+                                                            </span>
+                                                        )
+                                                    },
+                                                    {
+                                                        title: 'Code',
+                                                        key: 'tajneedCode',
+                                                        render: (_, record) => (
+                                                            <Space>
+                                                                {record.member.tajneedCode || record.member.id.substring(0, 8)}
+                                                                <Button type="link" size="small" icon={<EditOutlined />} onClick={() => handleQuickEdit(record.member)} />
+                                                            </Space>
+                                                        ),
+                                                    },
+                                                    {
+                                                        title: 'Profession',
+                                                        key: 'profession',
+                                                        render: (_, record) => (
+                                                            <Space>
+                                                                {record.member.profession || '-'}
+                                                                <Button type="link" size="small" icon={<EditOutlined />} onClick={() => handleQuickEdit(record.member)} />
+                                                            </Space>
+                                                        ),
+                                                    },
+                                                    {
+                                                        title: 'Promise',
+                                                        dataIndex: 'originalPromise',
+                                                        key: 'originalPromise',
+                                                        render: (val, record) => (
+                                                            <Space>
+                                                                {`Rs. ${val.toLocaleString()}`}
+                                                                <Button type="link" size="small" icon={<EditOutlined />} onClick={() => handleQuickEdit(record.member)} />
+                                                            </Space>
+                                                        )
+                                                    },
+                                                    {
+                                                        title: 'NagarParker',
+                                                        dataIndex: 'nagarpar',
+                                                        key: 'nagarpar',
+                                                        render: (val, record) => (
+                                                            <Space>
+                                                                {`Rs. ${val.toLocaleString()}`}
+                                                                <Button type="link" size="small" icon={<EditOutlined />} onClick={() => handleQuickEdit(record.member)} />
+                                                            </Space>
+                                                        )
+                                                    },
                                                     { title: 'Paid', dataIndex: 'paid', key: 'paid', render: (val, record) => <span style={{ color: val >= record.promise && record.promise > 0 ? 'green' : undefined }}>Rs. {val.toLocaleString()}</span> },
                                                     { title: 'Progress', key: 'progress', render: (_, record) => <Progress percent={record.promise > 0 ? Math.round((record.paid / record.promise) * 100) : 0} size="small" steps={5} strokeColor={record.paid >= record.promise ? '#52c41a' : '#1890ff'} /> },
                                                     {
@@ -3224,6 +3334,22 @@ const WaqfJadeed: React.FC = () => {
                 <Tabs defaultActiveKey="financial">
                     <Tabs.TabPane tab="Financial Records" key="financial">
                         <Form form={form} layout="vertical" requiredMark={true}>
+                            {editingMember && (
+                                <Card size="small" title="Member Details" style={{ marginBottom: 16 }}>
+                                    <Row gutter={16}>
+                                        <Col span={12}>
+                                            <Form.Item name="tajneedCode" label="تجنید کوڈ">
+                                                <Input placeholder="Enter Tajneed Code" />
+                                            </Form.Item>
+                                        </Col>
+                                        <Col span={12}>
+                                            <Form.Item name="profession" label="پیشہ">
+                                                <Input placeholder="Enter Profession" />
+                                            </Form.Item>
+                                        </Col>
+                                    </Row>
+                                </Card>
+                            )}
                             <Row gutter={[16, 16]}>
                                 <Col xs={24} sm={12} md={12} lg={6}>
                                     <Form.Item label="Promise">

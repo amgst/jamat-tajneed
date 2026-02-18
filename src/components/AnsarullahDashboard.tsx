@@ -39,6 +39,8 @@ const AnsarullahDashboard: React.FC<AnsarullahDashboardProps> = ({
         const participationCount = records.filter(r => (r.paidAmount || 0) > 0).length;
         const participationRate = members.length > 0 ? (participationCount / members.length) * 100 : 0;
         const collectionRate = totalPromised > 0 ? (totalPaid / totalPromised) * 100 : 0;
+        const totalIshaat = records.reduce((sum, r) => sum + (r.ishaatLiterature || 0), 0);
+        const totalMonthlyIncome = records.reduce((sum, r) => sum + (r.monthlyIncome || 0), 0);
 
         return {
             totalPromised,
@@ -47,7 +49,9 @@ const AnsarullahDashboard: React.FC<AnsarullahDashboardProps> = ({
             participationCount,
             participationRate,
             collectionRate,
-            totalAnsar: members.length
+            totalAnsar: members.length,
+            totalIshaat,
+            totalMonthlyIncome
         };
     }, [members, records]);
 
@@ -168,6 +172,30 @@ const AnsarullahDashboard: React.FC<AnsarullahDashboardProps> = ({
                             precision={1}
                         />
                         <Text type="secondary" style={{ fontSize: '12px' }}>{stats.participationCount} / {stats.totalAnsar} Ansar paid</Text>
+                    </Card>
+                </Col>
+            </Row>
+
+            <Row gutter={[16, 16]}>
+                <Col xs={24} sm={12} lg={12}>
+                    <Card bordered={false} className="stat-card">
+                        <Statistic
+                            title="Total Monthly Income"
+                            value={stats.totalMonthlyIncome}
+                            prefix="Rs."
+                            precision={0}
+                            valueStyle={{ color: '#1890ff' }}
+                        />
+                    </Card>
+                </Col>
+                <Col xs={24} sm={12} lg={12}>
+                    <Card bordered={false} className="stat-card">
+                        <Statistic
+                            title="Total Ishaat Literature"
+                            value={stats.totalIshaat}
+                            precision={0}
+                            valueStyle={{ color: '#52c41a' }}
+                        />
                     </Card>
                 </Col>
             </Row>

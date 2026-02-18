@@ -9,7 +9,6 @@ import {
   Form,
   Input,
   Select,
-  message,
   Popconfirm,
   Tag,
   Avatar,
@@ -18,7 +17,9 @@ import {
   List,
   Row,
   Col,
-  Tabs
+  Tabs,
+  Checkbox,
+  App
 } from 'antd';
 import {
   PlusOutlined,
@@ -29,11 +30,13 @@ import {
   UserOutlined,
   ProfileOutlined,
   ReloadOutlined,
-  SearchOutlined
+  SearchOutlined,
+  CheckCircleOutlined
 } from '@ant-design/icons';
 import { ApiService } from '../services/apiService';
 import type { Family, Member } from '../types';
 import { getTanzeemDisplayName, formatDate } from '../utils/helpers';
+import { sanitizeFamilyData } from '../utils/validation';
 
 const { Option } = Select;
 const { Text, Title } = Typography;
@@ -43,9 +46,11 @@ interface FamilyForm {
   familyNumber?: number;
   headId: string;
   halqa?: string;
+  isBList?: boolean;
 }
 
 const Families: React.FC = () => {
+  const { message } = App.useApp();
   const navigate = useNavigate();
   const [families, setFamilies] = useState<Family[]>([]);
   const [members, setMembers] = useState<Member[]>([]);
@@ -113,17 +118,19 @@ const Families: React.FC = () => {
   const getFilteredAndSortedFamilies = (): Family[] => {
     let filtered = families;
 
-    // Filter by Active/Moved Tab
+    // Filter by Active/Moved/B-List Tab
     if (activeTab === 'active') {
-      filtered = filtered.filter(f => !f.isMoved);
+      filtered = filtered.filter(f => !f.isMoved && !f.isBList);
     } else if (activeTab === 'moved') {
       filtered = filtered.filter(f => !!f.isMoved);
+    } else if (activeTab === 'b-list') {
+      filtered = filtered.filter(f => !!f.isBList && !f.isMoved);
     }
 
     // Apply search filter
     if (searchText.trim()) {
       const searchLower = searchText.toLowerCase();
-      filtered = families.filter(family => {
+      filtered = filtered.filter(family => {
         const familyName = family.familyName.toLowerCase();
         const headName = getMemberName(family.headId).toLowerCase();
         const halqa = (family.halqa || '').toLowerCase();
@@ -192,12 +199,16 @@ const Families: React.FC = () => {
   const handleAddFamily = () => {
     setEditingFamily(null);
     form.resetFields();
+    form.setFieldsValue({ isBList: false });
     setModalVisible(true);
   };
 
   const handleEditFamily = (family: Family) => {
     setEditingFamily(family);
-    form.setFieldsValue(family);
+    form.setFieldsValue({
+      ...family,
+      isBList: family.isBList || false
+    });
     setModalVisible(true);
   };
 
@@ -222,46 +233,44 @@ const Families: React.FC = () => {
   const handleModalOk = async () => {
     try {
       const values = await form.validateFields();
-      const formData: FamilyForm = values;
+      const rawData: FamilyForm = {
+        ...values,
+        familyNumber: values.familyNumber ? Number(values.familyNumber) : undefined,
+      };
 
       if (editingFamily) {
         const existingFamily = await ApiService.getFamily(editingFamily.id);
         if (existingFamily) {
-          const updatedFamily: any = {
+          const updatedFamily = sanitizeFamilyData({
             ...existingFamily,
-            familyName: formData.familyName,
-            headId: formData.headId,
-            halqa: formData.halqa || '',
-            updatedAt: new Date().toISOString(),
-          };
-          // Only include familyNumber if it has a value (Firebase doesn't accept undefined)
-          if (formData.familyNumber !== undefined && formData.familyNumber !== null) {
-            updatedFamily.familyNumber = Number(formData.familyNumber);
-          } else {
-            // Remove the field if it's empty
-            delete updatedFamily.familyNumber;
-          }
+            ...rawData,
+          });
           await ApiService.updateFamily(editingFamily.id, updatedFamily);
+
+          // Sync isBList status to members if it changed
+          if (updatedFamily.isBList !== existingFamily.isBList) {
+            const familyMembersList = members.filter(m => existingFamily.memberIds.includes(m.id));
+            await Promise.all(familyMembersList.map(m =>
+              ApiService.updateMember(m.id, {
+                isBList: updatedFamily.isBList,
+                updatedAt: new Date().toISOString()
+              })
+            ));
+            message.info(`B List status synced to ${familyMembersList.length} family members`);
+          }
+
           message.success('Family updated successfully');
         } else {
           message.error('Failed to find existing family data.');
           return;
         }
       } else {
-        // Original logic for adding a new family
-        const familyData: any = {
-          familyName: formData.familyName,
-          headId: formData.headId,
-          memberIds: [], // Will be updated when members are assigned
+        const familyData = sanitizeFamilyData({
+          ...rawData,
+          memberIds: [],
           totalMembers: 0,
-          halqa: formData.halqa || '',
           createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        };
-        // Only include familyNumber if it has a value (Firebase doesn't accept undefined)
-        if (formData.familyNumber !== undefined && formData.familyNumber !== null) {
-          familyData.familyNumber = Number(formData.familyNumber);
-        }
+        });
         await ApiService.createFamily(familyData);
         message.success('Family added successfully');
       }
@@ -291,6 +300,7 @@ const Families: React.FC = () => {
         ApiService.updateMember(m.id, {
           isMoved: true,
           movedTo: values.destination,
+          isBList: true, // Auto add to B List when moved
           updatedAt: new Date().toISOString()
         })
       ));
@@ -323,6 +333,7 @@ const Families: React.FC = () => {
         ApiService.updateMember(m.id, {
           isMoved: false,
           movedTo: '',
+          isBList: false, // Also remove from B List when restored
           updatedAt: new Date().toISOString()
         })
       ));
@@ -358,12 +369,12 @@ const Families: React.FC = () => {
     },
     {
       title: 'Family Name',
-      dataIndex: 'familyName',
       key: 'familyName',
-      render: (familyName: string) => (
+      render: (record: Family) => (
         <Space>
           <Avatar size="small" icon={<TeamOutlined />} />
-          <Text strong>{familyName}</Text>
+          <Text strong>{record.familyName}</Text>
+          {record.isBList && <Tag color="blue" icon={<CheckCircleOutlined />}>B List</Tag>}
         </Space>
       ),
     },
@@ -536,7 +547,11 @@ const Families: React.FC = () => {
           items={[
             {
               key: 'active',
-              label: `Active Families (${families.filter(f => !f.isMoved).length})`,
+              label: `Active Families (${families.filter(f => !f.isMoved && !f.isBList).length})`,
+            },
+            {
+              key: 'b-list',
+              label: `B List Families (${families.filter(f => !!f.isBList && !f.isMoved).length})`,
             },
             {
               key: 'moved',
@@ -580,6 +595,7 @@ const Families: React.FC = () => {
           form={form}
           layout="vertical"
           requiredMark={true}
+          initialValues={{ isBList: false }}
         >
           <Form.Item
             name="familyName"
@@ -629,6 +645,13 @@ const Families: React.FC = () => {
           >
             <Input placeholder="Enter halqa name" />
           </Form.Item>
+
+          <Form.Item
+            name="isBList"
+            valuePropName="checked"
+          >
+            <Checkbox>B List (Special Tracking)</Checkbox>
+          </Form.Item>
         </Form>
       </Modal>
 
@@ -661,6 +684,10 @@ const Families: React.FC = () => {
               </Descriptions.Item>
               <Descriptions.Item label="Halqa">
                 {viewingFamily.halqa || 'Not specified'}
+              </Descriptions.Item>
+              <Descriptions.Item label="Status">
+                {viewingFamily.isBList && <Tag color="blue">B List</Tag>}
+                {viewingFamily.isMoved ? <Tag color="orange">Moved</Tag> : <Tag color="green">Active</Tag>}
               </Descriptions.Item>
               <Descriptions.Item label="Created">
                 {formatDate(viewingFamily.createdAt)}

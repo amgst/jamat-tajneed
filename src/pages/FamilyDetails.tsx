@@ -12,7 +12,6 @@ import {
   Col,
   Statistic,
   Descriptions,
-  message,
   Spin,
   Popconfirm,
   Modal,
@@ -21,6 +20,7 @@ import {
   Input,
 
   Tabs,
+  App
 } from 'antd';
 import {
   ArrowLeftOutlined,
@@ -42,6 +42,7 @@ const { Title, Text } = Typography;
 const { Option } = Select;
 
 const FamilyDetails: React.FC = () => {
+  const { message } = App.useApp();
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [family, setFamily] = useState<Family | null>(null);
@@ -246,6 +247,7 @@ const FamilyDetails: React.FC = () => {
         education: values.education || '',
         bloodGroup: values.bloodGroup || '',
         waqfeNauNumber: values.waqfeNauNumber || '',
+        isBList: values.isBList || false,
         updatedAt: new Date().toISOString(),
       };
 
@@ -295,6 +297,19 @@ const FamilyDetails: React.FC = () => {
       };
 
       await ApiService.updateFamily(family.id, updatedFamily);
+
+      // If family is moved, ensure added members are also marked as moved and B List
+      if (family.isMoved) {
+        await Promise.all(selectedMemberIds.map(memberId =>
+          ApiService.updateMember(memberId, {
+            isMoved: true,
+            movedTo: family.movedTo || '',
+            isBList: true,
+            updatedAt: new Date().toISOString()
+          })
+        ));
+      }
+
       message.success(`${selectedMemberIds.length} member(s) added to family successfully`);
 
       setAddMemberModalVisible(false);
@@ -540,6 +555,11 @@ const FamilyDetails: React.FC = () => {
               <Descriptions.Item label="Updated">
                 {formatDate(family.updatedAt)}
               </Descriptions.Item>
+              {family.isBList && (
+                <Descriptions.Item label="Status">
+                  <Tag color="blue">B List</Tag>
+                </Descriptions.Item>
+              )}
             </Descriptions>
 
             {/* Family History Section */}
@@ -746,7 +766,7 @@ const FamilyDetails: React.FC = () => {
         open={memberDetailModalVisible}
         onCancel={() => setMemberDetailModalVisible(false)}
         width={700}
-        destroyOnClose
+        destroyOnHidden
         footer={null}
       >
         <MemberForm
