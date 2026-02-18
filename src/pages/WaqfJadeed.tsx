@@ -192,8 +192,17 @@ const WaqfJadeed: React.FC = () => {
                 ApiService.getWaqfJadeedSpecialRecords(selectedYear - 1),
                 ApiService.getWaqfJadeedMarkazPayments(selectedYear)
             ]);
-            // Filter members and get active IDs
-            const filteredMembers = membersData.filter(m => !m.isMoved && !m.isDeceased && !m.isBList);
+
+            const memberIdsWithRecords = Array.isArray(recordsData)
+                ? new Set(recordsData.map((r: any) => r.memberId))
+                : new Set<string>();
+
+            const filteredMembers = membersData.filter(m => {
+                const hasRecord = memberIdsWithRecords.has(m.id);
+                if (hasRecord) return true;
+                return !m.isMoved && !m.isDeceased && !m.isBList;
+            });
+
             const activeMemberIds = new Set(filteredMembers.map(m => m.id));
             setMembers(filteredMembers);
 
