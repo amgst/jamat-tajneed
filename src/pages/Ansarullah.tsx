@@ -164,28 +164,29 @@ const Ansarullah: React.FC = () => {
                 monthlyIncome: values.monthlyIncome || 0,
             };
 
-            // Update member details if changed
+            const normalizedPhone = values.phone && String(values.phone).trim() ? String(values.phone).trim() : '';
+            const existingPhone = editingMember.phone && String(editingMember.phone).trim() ? String(editingMember.phone).trim() : '';
+
             if (values.profession !== editingMember.profession ||
                 values.tajneedCode !== editingMember.tajneedCode ||
-                (values.phone || '0000000000') !== (editingMember.phone || '0000000000') ||
+                normalizedPhone !== existingPhone ||
                 values.wasitNo !== editingMember.wasitNo ||
                 values.serialNo !== editingMember.serialNo
             ) {
                 await ApiService.updateMember(editingMember.id, {
                     profession: values.profession,
                     tajneedCode: values.tajneedCode,
-                    phone: values.phone && String(values.phone).trim() ? String(values.phone).trim() : '0000000000',
+                    phone: normalizedPhone,
                     wasitNo: values.wasitNo,
                     serialNo: values.serialNo || null
                 });
-                // Update local members list
                 setAnsarMembers(prev => prev.map(m =>
                     m.id === editingMember.id
                         ? {
                             ...m,
                             profession: values.profession,
                             tajneedCode: values.tajneedCode,
-                            phone: values.phone && String(values.phone).trim() ? String(values.phone).trim() : '0000000000',
+                            phone: normalizedPhone,
                             wasitNo: values.wasitNo,
                             serialNo: values.serialNo || undefined
                         }

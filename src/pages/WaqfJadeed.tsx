@@ -45,7 +45,8 @@ import {
     FilePdfOutlined,
     SaveOutlined,
     ShareAltOutlined,
-    BookOutlined
+    BookOutlined,
+    DownloadOutlined
 } from '@ant-design/icons';
 import WaqfReports from '../components/WaqfReports';
 import dayjs from 'dayjs';
@@ -55,7 +56,7 @@ import { ApiService } from '../services/apiService';
 import type { Member, WaqfJadeedRecord, Family, Payment, WaqfJadeedSpecialRecord, ReceiptBook, WaqfJadeedMarkazPayment } from '../types';
 import { ReceiptTemplate } from '../components/ReceiptTemplate';
 import PaymentPlanManager from '../components/PaymentPlanManager';
-import { getTanzeemDisplayName, calculateAge, determineTanzeem, getTanzeemUrduName, formatCNIC } from '../utils/helpers';
+import { getTanzeemDisplayName, calculateAge, determineTanzeem, getTanzeemUrduName, formatCNIC, exportToPDF } from '../utils/helpers';
 import MemberForm from '../components/MemberForm';
 import { generateAvatarFromName } from '../utils/imageUtils';
 import { validateMemberData, sanitizeMemberData } from '../utils/validation';
@@ -315,6 +316,25 @@ const WaqfJadeed: React.FC = () => {
                                 <div style="width: ${stats.percent}%; height: 100%; background-color: #52c41a;"></div>
                             </div>
                         </div>
+                        <Space>
+                            <Text strong>Active Families ({families.filter(f => !f.isMoved).length})</Text>
+                            <Select
+                                value={familySort}
+                                onChange={setFamilySort}
+                                style={{ width: 200 }}
+                                options={[
+                                    { value: 'default', label: 'Default (By Family #)' },
+                                    { value: 'zero_promise_first', label: 'Zero Promises First' },
+                                ]}
+                            />
+                        </Space>
+                        <Button
+                            icon={<DownloadOutlined />}
+                            onClick={handleExportFamilyFitranaEid}
+                            type="default"
+                        >
+                            Export Family Fitrana/Eid
+                        </Button>
                     </div>
                 </div>
 
@@ -608,10 +628,7 @@ const WaqfJadeed: React.FC = () => {
         form.setFieldsValue({
             promiseAmount: record?.promiseAmount || 0,
             nagarparAmount: record?.nagarparAmount || 0,
-            tajneedCode: member.tajneedCode || '',
-            profession: member.profession || '',
         });
-        // If no promise exists, default to editing mode. If it exists, view mode.
         setIsEditingPromise(!record?.promiseAmount);
         setDrawerVisible(true);
     };
@@ -632,21 +649,6 @@ const WaqfJadeed: React.FC = () => {
         try {
             const values = await form.validateFields();
             if (editingMember) {
-                // Update member details if changed
-                if (values.tajneedCode !== editingMember.tajneedCode || values.profession !== editingMember.profession) {
-                    await ApiService.updateMember(editingMember.id, {
-                        tajneedCode: values.tajneedCode,
-                        profession: values.profession
-                    });
-                    // Update local members state
-                    setMembers(prev => prev.map(m =>
-                        m.id === editingMember.id
-                            ? { ...m, tajneedCode: values.tajneedCode, profession: values.profession }
-                            : m
-                    ));
-                }
-
-                // Member update
                 const payload = {
                     memberId: editingMember.id,
                     year: selectedYear,
@@ -659,7 +661,6 @@ const WaqfJadeed: React.FC = () => {
                     updateLocalRecord(savedRecord);
                 }
             } else if (editingSpecial) {
-                // Special record update
                 const payload = {
                     ...editingSpecial,
                     promiseAmount: values.promiseAmount,
@@ -667,8 +668,6 @@ const WaqfJadeed: React.FC = () => {
                 };
                 const saved = await ApiService.saveWaqfJadeedSpecialRecord(payload);
                 if (saved) {
-                    // Preserving payments as saveWaqfJadeedSpecialRecord doesn't return them if just saving core data
-                    // Actually, the API returns the snap, but we usually want to keep payments in state
                     updateLocalSpecialRecord({ ...saved, payments: editingSpecial.payments } as WaqfJadeedSpecialRecord);
                     setEditingSpecial({ ...saved, payments: editingSpecial.payments } as WaqfJadeedSpecialRecord);
                 }
@@ -1066,6 +1065,35 @@ const WaqfJadeed: React.FC = () => {
             return numA - numB;
         });
     }, [families, searchTerm, familySort, members, records, specialRecords]);
+
+    const handleExportFamilyFitranaEid = async () => {
+        let totalMembers = 0;
+        const rows = filteredFamilyData.map((family, index) => {
+            const familyMembers = members.filter(m => m.familyId === family.id && !m.isDeceased && !m.isMoved);
+            const memberCount = familyMembers.length;
+            totalMembers += memberCount;
+            return {
+                no: index + 1,
+                familyDisplay: `${family.familyName} - ${memberCount}`,
+                fitrana: '',
+                eidFundTotal: ''
+            };
+        });
+
+        rows.push({
+            no: '',
+            familyDisplay: `Total Members: ${totalMembers}`,
+            fitrana: '',
+            eidFundTotal: ''
+        });
+        await exportToPDF(
+            rows,
+            ['no', 'familyDisplay', 'fitrana', 'eidFundTotal'],
+            `family_fitrana_eid_${selectedYear}`,
+            `Family Fitrana / Eid Fund - ${selectedYear}`
+        );
+        message.success('Family Fitrana/Eid PDF generated');
+    };
 
     // Group members by tanzeem for Tanzeem Wise view
     const tanzeemGroupedData = useMemo(() => {
@@ -1650,57 +1678,58 @@ const WaqfJadeed: React.FC = () => {
             message.loading({ content: 'Generating shareable card...', key: 'card-export' });
 
             const cardDiv = document.createElement('div');
-            cardDiv.style.width = '360px';
-            cardDiv.style.height = '640px';
+            cardDiv.style.width = '340px';
+            cardDiv.style.height = '520px';
             cardDiv.style.position = 'fixed';
             cardDiv.style.left = '-9999px';
-            cardDiv.style.background = 'linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%)';
-            cardDiv.style.color = 'white';
+            cardDiv.style.background = '#ffffff';
+            cardDiv.style.color = '#0f172a';
             cardDiv.style.fontFamily = '"Noto Sans Arabic", Arial, sans-serif';
-            cardDiv.style.padding = '30px';
+            cardDiv.style.padding = '24px';
             cardDiv.style.boxSizing = 'border-box';
             cardDiv.style.display = 'flex';
             cardDiv.style.flexDirection = 'column';
-            cardDiv.style.justifyContent = 'space-between';
-            cardDiv.style.borderRadius = '12px';
+            cardDiv.style.justifyContent = 'flex-start';
+            cardDiv.style.borderRadius = '20px';
+            cardDiv.style.boxShadow = '0 18px 45px rgba(15,23,42,0.15)';
 
             const name = isSpecial ? memberData.name : memberData.member.name;
+            const gender = isSpecial ? memberData.gender : memberData.member.gender;
+            const honorific = gender === 'female' ? 'محترمہ' : 'محترم';
             const promised = isSpecial ? (memberData.promiseAmount || 0) + (memberData.nagarparAmount || 0) : memberData.promise;
             const paid = isSpecial ? memberData.paidAmount : memberData.paid;
             const balance = promised - paid;
             const percent = promised > 0 ? Math.min(100, Math.round((paid / promised) * 100)) : 0;
 
             cardDiv.innerHTML = `
-                <div style="text-align: center;">
-                    <h2 style="margin: 0; font-size: 24px; color: #fbbf24;">Waqf-e-Jadeed ${selectedYear}</h2>
-                    <p style="margin: 5px 0 20px 0; opacity: 0.8; font-size: 14px;">Personal Collection Card</p>
-                    <div style="width: 80px; height: 80px; background: rgba(255,255,255,0.2); border-radius: 50%; margin: 0 auto 15px; display: flex; align-items: center; justify-content: center; font-size: 32px;">👤</div>
-                    <h1 style="margin: 0; font-size: 28px; direction: rtl;">${getUrduName(name)}</h1>
-                    <p style="margin: 5px 0 0 0; font-size: 16px; opacity: 0.9;">${name}</p>
+                <div style="text-align: center; margin-bottom: 20px;">
+                    <h2 style="margin: 0; font-size: 24px; color: #1d4ed8;">Waqf-e-Jadeed ${selectedYear}</h2>
+                    <p style="margin: 6px 0 18px 0; color: #6b7280; font-size: 13px; letter-spacing: 0.06em;">Personal Collection Card</p>
+                    <h1 style="margin: 0; font-size: 30px; direction: rtl; line-height: 1.3; color: #111827;">${honorific} ${getUrduName(name)}</h1>
                 </div>
 
-                <div style="background: rgba(255,255,255,0.1); padding: 20px; border-radius: 12px; backdrop-filter: blur(5px);">
-                    <div style="display: flex; justify-content: space-between; margin-bottom: 15px;">
-                        <span style="opacity: 0.8;">Promised (وعدہ)</span>
-                        <span style="font-weight: bold;">Rs. ${promised.toLocaleString()}</span>
+                <div style="background: #f9fafb; padding: 16px 16px 14px 16px; border-radius: 14px; box-shadow: 0 8px 22px rgba(15,23,42,0.06); border: 1px solid #e5e7eb; margin-bottom: 20px; color: #111827;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                        <span style="color: #6b7280; font-size: 13px;">Promised (وعدہ)</span>
+                        <span style="font-weight: 600; font-size: 15px;">Rs. ${promised.toLocaleString()}</span>
                     </div>
-                    <div style="display: flex; justify-content: space-between; margin-bottom: 15px;">
-                        <span style="opacity: 0.8;">Paid (ادا شدہ)</span>
-                        <span style="font-weight: bold; color: #34d399;">Rs. ${paid.toLocaleString()}</span>
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                        <span style="color: #6b7280; font-size: 13px;">Paid (ادا شدہ)</span>
+                        <span style="font-weight: 600; font-size: 15px; color: #16a34a;">Rs. ${paid.toLocaleString()}</span>
                     </div>
-                    <hr style="border: none; border-top: 1px solid rgba(255,255,255,0.2); margin: 15px 0;">
-                    <div style="display: flex; justify-content: space-between;">
-                        <span style="font-weight: bold;">Balance (بقیہ)</span>
-                        <span style="font-weight: bold; color: #f87171;">Rs. ${balance.toLocaleString()}</span>
+                    <div style="border-top: 1px solid #e5e7eb; margin: 10px 0 10px 0;"></div>
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <span style="font-weight: 600; font-size: 14px;">Balance (بقیہ)</span>
+                        <span style="font-weight: 700; font-size: 16px; color: ${balance > 0 ? '#dc2626' : '#16a34a'};">Rs. ${balance.toLocaleString()}</span>
                     </div>
                 </div>
 
                 <div style="text-align: center;">
-                    <div style="width: 100%; height: 8px; background: rgba(255,255,255,0.2); border-radius: 4px; margin-bottom: 8px; overflow: hidden;">
-                        <div style="width: ${percent}%; height: 100%; background: #34d399;"></div>
+                    <div style="width: 100%; height: 7px; background: #e5e7eb; border-radius: 999px; margin: 0 0 6px 0; overflow: hidden;">
+                        <div style="width: ${percent}%; height: 100%; background: #16a34a;"></div>
                     </div>
-                    <p style="margin: 0; font-size: 14px; font-weight: bold;">${percent}% Completed</p>
-                    <p style="margin: 20px 0 0 0; font-size: 10px; opacity: 0.6;">Generated on ${new Date().toLocaleDateString()} • Jamat Tajneed System</p>
+                    <p style="margin: 0 0 10px 0; font-size: 13px; font-weight: 600; color: #111827;">${percent}% Completed</p>
+                    <p style="margin: 0; font-size: 10px; color: #6b7280; letter-spacing: 0.06em;">Generated on ${new Date().toLocaleDateString()} • Jamat Tajneed System</p>
                 </div>
             `;
 
@@ -1736,7 +1765,7 @@ const WaqfJadeed: React.FC = () => {
             cardDiv.style.padding = '30px';
             cardDiv.style.background = 'linear-gradient(135deg, #1e293b 0%, #0f172a 100%)';
             cardDiv.style.color = '#ffffff';
-            cardDiv.style.fontFamily = "'Inter', system-ui, -apple-system, sans-serif";
+            cardDiv.style.fontFamily = '"Noto Sans Arabic", Arial, sans-serif';
             cardDiv.style.borderRadius = '20px';
             cardDiv.style.position = 'fixed';
             cardDiv.style.left = '-9999px';
@@ -1745,14 +1774,13 @@ const WaqfJadeed: React.FC = () => {
 
             cardDiv.innerHTML = `
                 <div style="text-align: center; margin-bottom: 30px;">
-                    <h2 style="margin: 0; color: #34d399; font-size: 24px; letter-spacing: 1px;">WAQF-E-JADEED</h2>
+                    <h2 style="margin: 0; color: #34d399; font-size: 24px; direction: rtl;">وقف جدید</h2>
                     <p style="margin: 5px 0 0 0; font-size: 14px; opacity: 0.7;">Family Collection Summary ${selectedYear}</p>
                 </div>
 
                 <div style="margin-bottom: 30px; text-align: center; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 20px;">
                     <p style="margin: 0; font-size: 14px; opacity: 0.7; text-transform: uppercase;">Family Name / سر براہ</p>
                     <h1 style="margin: 10px 0 0 0; font-size: 28px; font-weight: 800;">${family.familyName}</h1>
-                    <p style="margin: 5px 0 0 0; font-size: 16px; opacity: 0.9;">Head: ${head?.name || 'N/A'}</p>
                 </div>
 
                 <div style="background: rgba(255,255,255,0.1); padding: 25px; border-radius: 12px; backdrop-filter: blur(5px); margin-bottom: 30px;">
@@ -1955,19 +1983,6 @@ const WaqfJadeed: React.FC = () => {
                                 sorter: false
                             },
                             {
-                                title: 'Photo',
-                                key: 'photo',
-                                width: 80,
-                                render: (_, record) => (
-                                    <Avatar
-                                        size="large"
-                                        icon={<UserOutlined />}
-                                        src={record.member.profilePhoto}
-                                    />
-                                ),
-                                sorter: false
-                            },
-                            {
                                 title: 'Name',
                                 key: 'name',
                                 dataIndex: ['member', 'name'],
@@ -1992,16 +2007,6 @@ const WaqfJadeed: React.FC = () => {
                                         )}
                                     </div>
                                 )
-                            },
-                            {
-                                title: 'Tajneed Code',
-                                key: 'tajneedCode',
-                                render: (_, record) => record.member.tajneedCode || record.member.id.substring(0, 8),
-                            },
-                            {
-                                title: 'Profession',
-                                key: 'profession',
-                                render: (_, record) => record.member.profession || '-',
                             },
                             {
                                 title: 'Halqa',
@@ -2170,17 +2175,25 @@ const WaqfJadeed: React.FC = () => {
                         </Row>
                     </Card>
 
-                    <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <Text strong>Active Families ({families.filter(f => !f.isMoved).length})</Text>
-                        <Select
-                            value={familySort}
-                            onChange={setFamilySort}
-                            style={{ width: 200 }}
-                            options={[
-                                { value: 'default', label: 'Default (By Family #)' },
-                                { value: 'zero_promise_first', label: 'Zero Promises First' },
-                            ]}
-                        />
+                    <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 16 }}>
+                        <Space size="middle">
+                            <Text strong>Active Families ({families.filter(f => !f.isMoved).length})</Text>
+                            <Select
+                                value={familySort}
+                                onChange={setFamilySort}
+                                style={{ width: 200 }}
+                                options={[
+                                    { value: 'default', label: 'Default (By Family #)' },
+                                    { value: 'zero_promise_first', label: 'Zero Promises First' },
+                                ]}
+                            />
+                        </Space>
+                        <Button
+                            icon={<DownloadOutlined />}
+                            onClick={handleExportFamilyFitranaEid}
+                        >
+                            Family Fitrana/Eid Export
+                        </Button>
                     </div>
                     {loading ? <p>Loading...</p> : (
                         <Collapse
@@ -2312,26 +2325,6 @@ const WaqfJadeed: React.FC = () => {
                                                                 {record.member.tanzeem && <Tag color="blue" style={{ marginLeft: 5 }}>{record.member.tanzeem}</Tag>}
                                                             </span>
                                                         )
-                                                    },
-                                                    {
-                                                        title: 'Code',
-                                                        key: 'tajneedCode',
-                                                        render: (_, record) => (
-                                                            <Space>
-                                                                {record.member.tajneedCode || record.member.id.substring(0, 8)}
-                                                                <Button type="link" size="small" icon={<EditOutlined />} onClick={() => handleQuickEdit(record.member)} />
-                                                            </Space>
-                                                        ),
-                                                    },
-                                                    {
-                                                        title: 'Profession',
-                                                        key: 'profession',
-                                                        render: (_, record) => (
-                                                            <Space>
-                                                                {record.member.profession || '-'}
-                                                                <Button type="link" size="small" icon={<EditOutlined />} onClick={() => handleQuickEdit(record.member)} />
-                                                            </Space>
-                                                        ),
                                                     },
                                                     {
                                                         title: 'Promise',
@@ -3343,22 +3336,6 @@ const WaqfJadeed: React.FC = () => {
                 <Tabs defaultActiveKey="financial">
                     <Tabs.TabPane tab="Financial Records" key="financial">
                         <Form form={form} layout="vertical" requiredMark={true}>
-                            {editingMember && (
-                                <Card size="small" title="Member Details" style={{ marginBottom: 16 }}>
-                                    <Row gutter={16}>
-                                        <Col span={12}>
-                                            <Form.Item name="tajneedCode" label="تجنید کوڈ">
-                                                <Input placeholder="Enter Tajneed Code" />
-                                            </Form.Item>
-                                        </Col>
-                                        <Col span={12}>
-                                            <Form.Item name="profession" label="پیشہ">
-                                                <Input placeholder="Enter Profession" />
-                                            </Form.Item>
-                                        </Col>
-                                    </Row>
-                                </Card>
-                            )}
                             <Row gutter={[16, 16]}>
                                 <Col xs={24} sm={12} md={12} lg={6}>
                                     <Form.Item label="Promise">

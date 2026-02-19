@@ -393,44 +393,6 @@ const WaqfReports: React.FC<WaqfReportsProps> = ({
                 type="line"
                 items={[
                     {
-                        key: 'halqa',
-                        label: <span><PieChartOutlined /> Halqa Performance</span>,
-                        children: (
-                            <div>
-                                <Row justify="space-between" align="middle" style={{ marginBottom: 16 }}>
-                                    <Title level={5} style={{ margin: 0 }}>Halqa Collection Summary</Title>
-                                    <Button icon={<DownloadOutlined />} onClick={() => exportReport(halqaStats, 'halqa_report')}>Export CSV</Button>
-                                </Row>
-                                <Table
-                                    dataSource={halqaStats}
-                                    columns={summaryColumns}
-                                    pagination={false}
-                                    rowKey="name"
-                                    scroll={{ x: 600 }}
-                                />
-                            </div>
-                        )
-                    },
-                    {
-                        key: 'tanzeem',
-                        label: <span><FilterOutlined /> Tanzeem Wise</span>,
-                        children: (
-                            <div>
-                                <Row justify="space-between" align="middle" style={{ marginBottom: 16 }}>
-                                    <Title level={5} style={{ margin: 0 }}>Tanzeem Wise Breakdown</Title>
-                                    <Button icon={<DownloadOutlined />} onClick={() => exportReport(tanzeemStats, 'tanzeem_report')}>Export CSV</Button>
-                                </Row>
-                                <Table
-                                    dataSource={tanzeemStats}
-                                    columns={summaryColumns}
-                                    pagination={false}
-                                    rowKey="name"
-                                    scroll={{ x: 600 }}
-                                />
-                            </div>
-                        )
-                    },
-                    {
                         key: 'receipt_books',
                         label: <span><BookOutlined /> Receipt Books</span>,
                         children: (
@@ -482,6 +444,44 @@ const WaqfReports: React.FC<WaqfReportsProps> = ({
                                     pagination={false}
                                     rowKey="receiptNo"
                                     scroll={{ y: 500, x: 600 }}
+                                />
+                            </div>
+                        )
+                    },
+                    {
+                        key: 'halqa',
+                        label: <span><PieChartOutlined /> Halqa Performance</span>,
+                        children: (
+                            <div>
+                                <Row justify="space-between" align="middle" style={{ marginBottom: 16 }}>
+                                    <Title level={5} style={{ margin: 0 }}>Halqa Collection Summary</Title>
+                                    <Button icon={<DownloadOutlined />} onClick={() => exportReport(halqaStats, 'halqa_report')}>Export CSV</Button>
+                                </Row>
+                                <Table
+                                    dataSource={halqaStats}
+                                    columns={summaryColumns}
+                                    pagination={false}
+                                    rowKey="name"
+                                    scroll={{ x: 600 }}
+                                />
+                            </div>
+                        )
+                    },
+                    {
+                        key: 'tanzeem',
+                        label: <span><FilterOutlined /> Tanzeem Wise</span>,
+                        children: (
+                            <div>
+                                <Row justify="space-between" align="middle" style={{ marginBottom: 16 }}>
+                                    <Title level={5} style={{ margin: 0 }}>Tanzeem Wise Breakdown</Title>
+                                    <Button icon={<DownloadOutlined />} onClick={() => exportReport(tanzeemStats, 'tanzeem_report')}>Export CSV</Button>
+                                </Row>
+                                <Table
+                                    dataSource={tanzeemStats}
+                                    columns={summaryColumns}
+                                    pagination={false}
+                                    rowKey="name"
+                                    scroll={{ x: 600 }}
                                 />
                             </div>
                         )

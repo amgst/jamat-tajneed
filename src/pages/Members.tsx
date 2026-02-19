@@ -123,7 +123,7 @@ const Members: React.FC = () => {
         cnic: formData.cnic ? formatCNIC(formData.cnic) : '',
         dateOfBirth: formData.dateOfBirth.format('YYYY-MM-DD'),
         age,
-        phone: (formData.phone && String(formData.phone).trim()) ? String(formData.phone).trim() : '0000000000',
+        phone: formData.phone && String(formData.phone).trim() ? String(formData.phone).trim() : '',
         address: formData.address,
         tanzeem,
         halqa: '',
