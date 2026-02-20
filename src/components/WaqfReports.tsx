@@ -20,9 +20,10 @@ import {
     UserOutlined,
     LineChartOutlined,
     PieChartOutlined,
-    BookOutlined
+    BookOutlined,
+    DollarOutlined
 } from '@ant-design/icons';
-import type { Member, WaqfJadeedRecord, WaqfJadeedSpecialRecord, Payment } from '../types';
+import type { Member, WaqfJadeedRecord, WaqfJadeedSpecialRecord, Payment, Family } from '../types';
 import { getTanzeemDisplayName, exportToCSV } from '../utils/helpers';
 import dayjs from 'dayjs';
 
@@ -37,6 +38,7 @@ interface WaqfReportsProps {
     prevSpecialRecords: WaqfJadeedSpecialRecord[];
     selectedYear: number;
     allRecords: WaqfJadeedRecord[];
+    families?: Family[];
 }
 
 const WaqfReports: React.FC<WaqfReportsProps> = ({
@@ -47,7 +49,8 @@ const WaqfReports: React.FC<WaqfReportsProps> = ({
     prevRecords,
     prevSpecialRecords,
     selectedYear,
-    allRecords
+    allRecords,
+    families = []
 }) => {
     const [activeReport, setActiveReport] = useState('halqa');
     const [selectedBook, setSelectedBook] = useState<string | null>(null);
@@ -385,6 +388,60 @@ const WaqfReports: React.FC<WaqfReportsProps> = ({
         }
     ];
 
+    const fitranaData = useMemo(() => {
+        const rows = families
+            .filter(f => !f.isMoved)
+            .map((family, index) => ({
+                key: family.id,
+                no: index + 1,
+                familyName: family.familyName,
+                fitrana: family.fitrana || 0,
+                eidFund: family.eidFund || 0,
+                sadqa: family.sadqa || 0
+            }));
+
+        const totals = rows.reduce(
+            (acc, row) => {
+                acc.fitrana += row.fitrana;
+                acc.eidFund += row.eidFund;
+                acc.sadqa += row.sadqa;
+                return acc;
+            },
+            { fitrana: 0, eidFund: 0, sadqa: 0 }
+        );
+
+        return { rows, totals };
+    }, [families]);
+
+    const fitranaColumns = [
+        { title: 'No', dataIndex: 'no', key: 'no', width: 70 },
+        { title: 'Family Name', dataIndex: 'familyName', key: 'familyName' },
+        {
+            title: 'Fitrana',
+            dataIndex: 'fitrana',
+            key: 'fitrana',
+            align: 'right' as const,
+            sorter: (a: any, b: any) => (a.fitrana || 0) - (b.fitrana || 0),
+            render: (val: number) => (val || 0) > 0 ? val.toLocaleString() : '-'
+        },
+        {
+            title: 'Eid Fund',
+            dataIndex: 'eidFund',
+            key: 'eidFund',
+            align: 'right' as const,
+            sorter: (a: any, b: any) => (a.eidFund || 0) - (b.eidFund || 0),
+            render: (val: number) => (val || 0) > 0 ? val.toLocaleString() : '-'
+        },
+        {
+            title: 'Sadqa',
+            dataIndex: 'sadqa',
+            key: 'sadqa',
+            align: 'right' as const,
+            sorter: (a: any, b: any) => (a.sadqa || 0) - (b.sadqa || 0),
+            render: (val: number) => (val || 0) > 0 ? val.toLocaleString() : '-'
+        }
+    ];
+
     return (
         <Card className="waqf-reports-container">
             <Tabs
@@ -536,6 +593,40 @@ const WaqfReports: React.FC<WaqfReportsProps> = ({
                                     columns={comparisonColumns}
                                     pagination={false}
                                     rowKey="name"
+                                    scroll={{ x: 600 }}
+                                />
+                            </div>
+                        )
+                    },
+                    {
+                        key: 'fitrana',
+                        label: <span><DollarOutlined /> Fitrana</span>,
+                        children: (
+                            <div>
+                                <Row justify="space-between" align="middle" style={{ marginBottom: 16 }}>
+                                    <Title level={5} style={{ margin: 0 }}>Fitrana / Eid Fund / Sadqa (Family Wise)</Title>
+                                </Row>
+                                <Table
+                                    dataSource={fitranaData.rows}
+                                    columns={fitranaColumns}
+                                    pagination={false}
+                                    rowKey="key"
+                                    summary={() => (
+                                        <Table.Summary.Row>
+                                            <Table.Summary.Cell index={0} colSpan={2}>
+                                                <Text strong>Total</Text>
+                                            </Table.Summary.Cell>
+                                            <Table.Summary.Cell index={2} align="right">
+                                                <Text strong>{fitranaData.totals.fitrana.toLocaleString()}</Text>
+                                            </Table.Summary.Cell>
+                                            <Table.Summary.Cell index={3} align="right">
+                                                <Text strong>{fitranaData.totals.eidFund.toLocaleString()}</Text>
+                                            </Table.Summary.Cell>
+                                            <Table.Summary.Cell index={4} align="right">
+                                                <Text strong>{fitranaData.totals.sadqa.toLocaleString()}</Text>
+                                            </Table.Summary.Cell>
+                                        </Table.Summary.Row>
+                                    )}
                                     scroll={{ x: 600 }}
                                 />
                             </div>

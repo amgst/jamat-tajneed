@@ -164,10 +164,16 @@ export const exportToCSV = (data: any[], filename: string): void => {
  * Export data to PDF
  */
 export const exportToPDF = async (
-  data: any[], 
-  headers: string[], 
-  filename: string, 
-  title: string
+  data: any[],
+  headers: string[],
+  filename: string,
+  title: string,
+  options?: {
+    fontSize?: number;
+    showHeader?: boolean;
+    showTitle?: boolean;
+    showGeneratedOn?: boolean;
+  }
 ): Promise<void> => {
   const doc = new jsPDF();
   
@@ -191,13 +197,23 @@ export const exportToPDF = async (
     console.error('Error loading font:', error);
   }
   
-  // Add title
-  doc.setFontSize(18);
-  // Right align title for RTL
+  const showTitle = options?.showTitle ?? true;
+  const showGeneratedOn = options?.showGeneratedOn ?? true;
+
   const pageWidth = doc.internal.pageSize.getWidth();
-  doc.text(title, pageWidth - 14, 22, { align: 'right' });
-  doc.setFontSize(11);
-  doc.text(`Generated on: ${dayjs().format('DD/MM/YYYY')}`, pageWidth - 14, 30, { align: 'right' });
+  let currentY = 20;
+
+  if (showTitle && title) {
+    doc.setFontSize(18);
+    doc.text(title, pageWidth - 14, currentY + 2, { align: 'right' });
+    currentY = 28;
+  }
+
+  if (showGeneratedOn) {
+    doc.setFontSize(11);
+    doc.text(`Generated on: ${dayjs().format('DD/MM/YYYY')}`, pageWidth - 14, currentY + 2, { align: 'right' });
+    currentY += 8;
+  }
   
   if (data.length === 0) return;
   
@@ -211,13 +227,16 @@ export const exportToPDF = async (
     tableRows.push(rowData);
   });
 
+  const bodyFontSize = options?.fontSize ?? 8;
+  const showHeader = options?.showHeader ?? true;
+
   autoTable(doc, {
-    head: [tableColumn],
+    head: showHeader ? [tableColumn] : [],
     body: tableRows,
-    startY: 35,
+    startY: currentY + 5,
     theme: 'grid',
     styles: { 
-      fontSize: 8,
+      fontSize: bodyFontSize,
       font: 'Amiri', // Use the Urdu font
       fontStyle: 'normal',
       halign: 'right' // Right align text

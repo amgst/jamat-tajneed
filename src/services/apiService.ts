@@ -10,7 +10,7 @@ import {
   where,
   setDoc
 } from 'firebase/firestore';
-import type { Member, Family, WaqfJadeedRecord, WaqfJadeedSpecialRecord, TahreqJadeedRecord, TahreqJadeedSpecialRecord, AnsarullahRecord, Payment, MarkazPayment, WaqfJadeedMarkazPayment } from '../types';
+import type { Member, Family, WaqfJadeedRecord, WaqfJadeedSpecialRecord, TahreqJadeedRecord, TahreqJadeedSpecialRecord, AnsarullahRecord, Payment, MarkazPayment, WaqfJadeedMarkazPayment, TahreqJadeedMarkazPayment } from '../types';
 
 // Helper to determine Tanzeem
 const calculateAge = (dob: string) => {
@@ -430,7 +430,7 @@ export class ApiService {
     const records = await Promise.all(snapshot.docs.map(async (d) => {
       const data = d.data();
       // Fetch payments
-      const pQuery = query(collection(db, 'waqfJadeedPayments'), where('waqfJadeedId', '==', d.id));
+      const pQuery = query(collection(db, 'tahreqJadeedPayments'), where('tahreqJadeedId', '==', d.id));
       const pSnap = await getDocs(pQuery);
       const payments = pSnap.docs.map(pd => ({ ...pd.data(), id: pd.id } as Payment));
       return { ...data, id: d.id, payments } as TahreqJadeedRecord;
@@ -464,38 +464,53 @@ export class ApiService {
     const snap = await getDoc(doc(db, 'tahreqJadeed', id));
     if (!snap.exists()) return null;
 
-    const pQuery = query(collection(db, 'waqfJadeedPayments'), where('waqfJadeedId', '==', id));
+    const pQuery = query(collection(db, 'tahreqJadeedPayments'), where('tahreqJadeedId', '==', id));
     const pSnap = await getDocs(pQuery);
     const payments = pSnap.docs.map(pd => ({ ...pd.data(), id: pd.id } as Payment));
 
     return { ...snap.data(), id: snap.id, payments } as TahreqJadeedRecord;
   }
 
-  static async addTahreqJadeedPayment(data: { memberId: string; year: number; amount: number; date: string; notes?: string }): Promise<TahreqJadeedRecord | null> {
+  static async addTahreqJadeedPayment(data: { memberId: string; year: number; amount: number; date: string; notes?: string; bookId?: string; bookNo?: string; receiptNo?: number }): Promise<TahreqJadeedRecord | null> {
     const record = await this.saveTahreqJadeedRecord({ memberId: data.memberId, year: data.year });
 
     if (!record) throw new Error('Failed to create/fetch record');
 
     const paymentId = crypto.randomUUID();
-    await setDoc(doc(db, 'waqfJadeedPayments', paymentId), {
+    await setDoc(doc(db, 'tahreqJadeedPayments', paymentId), {
       id: paymentId,
-      waqfJadeedId: record.id,
+      tahreqJadeedId: record.id,
       amount: data.amount,
       date: data.date,
-      notes: data.notes || ''
+      notes: data.notes || '',
+      bookId: data.bookId || null,
+      bookNo: data.bookNo || null,
+      receiptNo: data.receiptNo || null
     });
 
     await this.recalculateTahreqPaidAmount(record.id);
-
     return this.getTahreqJadeedRecordById(record.id);
   }
 
+  static async updateTahreqJadeedPayment(data: { id: string; tahreqJadeedId: string; amount: number; date: string; notes?: string; bookId?: string; bookNo?: string; receiptNo?: number }): Promise<TahreqJadeedRecord | null> {
+    await updateDoc(doc(db, 'tahreqJadeedPayments', data.id), {
+      amount: data.amount,
+      date: data.date,
+      notes: data.notes || '',
+      bookId: data.bookId || null,
+      bookNo: data.bookNo || null,
+      receiptNo: data.receiptNo || null
+    });
+    await this.recalculateTahreqPaidAmount(data.tahreqJadeedId);
+    return this.getTahreqJadeedRecordById(data.tahreqJadeedId);
+  }
+
   static async deleteTahreqJadeedPayment(id: string) {
-    const snap = await getDoc(doc(db, 'waqfJadeedPayments', id));
+    const snap = await getDoc(doc(db, 'tahreqJadeedPayments', id));
     if (!snap.exists()) return { error: 'Not found' };
 
-    const tahreqJadeedId = snap.data().waqfJadeedId;
-    await deleteDoc(doc(db, 'waqfJadeedPayments', id));
+    const tahreqJadeedId = snap.data().tahreqJadeedId;
+    await deleteDoc(doc(db, 'tahreqJadeedPayments', id));
 
     const newTotal = await this.recalculateTahreqPaidAmount(tahreqJadeedId);
 
@@ -503,7 +518,7 @@ export class ApiService {
   }
 
   static async recalculateTahreqPaidAmount(tahreqJadeedId: string) {
-    const q = query(collection(db, 'waqfJadeedPayments'), where('waqfJadeedId', '==', tahreqJadeedId));
+    const q = query(collection(db, 'tahreqJadeedPayments'), where('tahreqJadeedId', '==', tahreqJadeedId));
     const snap = await getDocs(q);
     const total = snap.docs.reduce((sum, d) => sum + (d.data().amount || 0), 0);
 
@@ -524,7 +539,7 @@ export class ApiService {
     const snapshot = await getDocs(q);
     const records = await Promise.all(snapshot.docs.map(async (d) => {
       const data = d.data();
-      const pQuery = query(collection(db, 'waqfJadeedPayments'), where('waqfJadeedId', '==', d.id));
+      const pQuery = query(collection(db, 'tahreqJadeedPayments'), where('tahreqJadeedId', '==', d.id));
       const pSnap = await getDocs(pQuery);
       const payments = pSnap.docs.map(pd => ({ ...pd.data(), id: pd.id } as Payment));
       return { ...data, id: d.id, payments } as TahreqJadeedSpecialRecord;
@@ -552,29 +567,45 @@ export class ApiService {
     const snap = await getDoc(doc(db, 'tahreqJadeedSpecial', id));
     if (!snap.exists()) return null;
 
-    const pQuery = query(collection(db, 'waqfJadeedPayments'), where('waqfJadeedId', '==', id));
+    const pQuery = query(collection(db, 'tahreqJadeedPayments'), where('tahreqJadeedId', '==', id));
     const pSnap = await getDocs(pQuery);
     const payments = pSnap.docs.map(pd => ({ ...pd.data(), id: pd.id } as Payment));
 
     return { ...snap.data(), id: snap.id, payments } as TahreqJadeedSpecialRecord;
   }
 
-  static async addTahreqJadeedSpecialPayment(data: { specialId: string; amount: number; date: string; notes?: string }): Promise<TahreqJadeedSpecialRecord | null> {
+  static async addTahreqJadeedSpecialPayment(data: { specialId: string; amount: number; date: string; notes?: string; bookId?: string; bookNo?: string; receiptNo?: number }): Promise<TahreqJadeedSpecialRecord | null> {
     const paymentId = crypto.randomUUID();
-    await setDoc(doc(db, 'waqfJadeedPayments', paymentId), {
+    await setDoc(doc(db, 'tahreqJadeedPayments', paymentId), {
       id: paymentId,
-      waqfJadeedId: data.specialId,
+      tahreqJadeedId: data.specialId,
       amount: data.amount,
       date: data.date,
-      notes: data.notes || ''
+      notes: data.notes || '',
+      bookId: data.bookId || null,
+      bookNo: data.bookNo || null,
+      receiptNo: data.receiptNo || null
     });
 
     await this.recalculateTahreqSpecialPaidAmount(data.specialId);
     return this.getTahreqJadeedSpecialRecordById(data.specialId);
   }
 
+  static async updateTahreqJadeedSpecialPayment(data: { id: string; specialId: string; amount: number; date: string; notes?: string; bookId?: string; bookNo?: string; receiptNo?: number }): Promise<TahreqJadeedSpecialRecord | null> {
+    await updateDoc(doc(db, 'tahreqJadeedPayments', data.id), {
+      amount: data.amount,
+      date: data.date,
+      notes: data.notes || '',
+      bookId: data.bookId || null,
+      bookNo: data.bookNo || null,
+      receiptNo: data.receiptNo || null
+    });
+    await this.recalculateTahreqSpecialPaidAmount(data.specialId);
+    return this.getTahreqJadeedSpecialRecordById(data.specialId);
+  }
+
   static async recalculateTahreqSpecialPaidAmount(specialId: string) {
-    const q = query(collection(db, 'waqfJadeedPayments'), where('waqfJadeedId', '==', specialId));
+    const q = query(collection(db, 'tahreqJadeedPayments'), where('tahreqJadeedId', '==', specialId));
     const snap = await getDocs(q);
     const total = snap.docs.reduce((sum, d) => sum + (d.data().amount || 0), 0);
 
@@ -586,27 +617,61 @@ export class ApiService {
   }
 
   static async deleteTahreqJadeedSpecialPayment(id: string) {
-    // This is virtually same as normal payment delete but calls different recalculate
-    const snap = await getDoc(doc(db, 'waqfJadeedPayments', id));
+    const snap = await getDoc(doc(db, 'tahreqJadeedPayments', id));
     if (!snap.exists()) return { error: 'Not found' };
 
-    const tahreqJadeedId = snap.data().waqfJadeedId;
-    await deleteDoc(doc(db, 'waqfJadeedPayments', id));
+    const tahreqJadeedId = snap.data().tahreqJadeedId;
+    await deleteDoc(doc(db, 'tahreqJadeedPayments', id));
 
-    // Try to recalculate both ways or check which table reference exists?
-    // Optimization: Just try special table. If it fails, it might be normal table.
-    // Better approach: Generic payments don't distinguish parent type in DB.
-    // But here we need to update the parent sum.
-    // We can try updating Special table first.
     try {
       await this.recalculateTahreqSpecialPaidAmount(tahreqJadeedId);
     } catch (e) {
-      // If it fails (e.g. doc not found), it might be a normal record
-      // checking normal record update
       await this.recalculateTahreqPaidAmount(tahreqJadeedId);
     }
 
     return { success: true, tahreqJadeedId };
+  }
+
+  // --- Tahreq-e-Jadeed Markaz Payments ---
+
+  static async saveTahreqJadeedMarkazPayment(data: any): Promise<TahreqJadeedMarkazPayment> {
+    const id = data.id || crypto.randomUUID();
+    const payload = {
+      ...data,
+      id,
+      createdAt: data.createdAt || new Date().toISOString()
+    };
+    await setDoc(doc(db, 'tahreqJadeedMarkazPayments', id), payload, { merge: true });
+    return payload as TahreqJadeedMarkazPayment;
+  }
+
+  static async getTahreqJadeedMarkazPayments(year: number): Promise<TahreqJadeedMarkazPayment[]> {
+    const q = query(
+      collection(db, 'tahreqJadeedMarkazPayments'),
+      where('year', '==', year)
+    );
+    const snap = await getDocs(q);
+    return snap.docs.map(d => d.data() as TahreqJadeedMarkazPayment).sort((a, b) => new Date(b.paymentDate).getTime() - new Date(a.paymentDate).getTime());
+  }
+
+  static async deleteTahreqJadeedMarkazPayment(id: string): Promise<void> {
+    await deleteDoc(doc(db, 'tahreqJadeedMarkazPayments', id));
+  }
+
+  static async getTahreqTargetAmount(year: number): Promise<number> {
+    const docId = `tahreq_target_${year}`;
+    const snap = await getDoc(doc(db, 'settings', docId));
+    if (!snap.exists()) return 0;
+    return snap.data().amount || 0;
+  }
+
+  static async saveTahreqTargetAmount(year: number, amount: number): Promise<void> {
+    const docId = `tahreq_target_${year}`;
+    await setDoc(doc(db, 'settings', docId), {
+      amount,
+      year,
+      updatedAt: new Date().toISOString()
+    });
   }
 
   // --- Payment Plans ---

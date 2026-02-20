@@ -1067,32 +1067,67 @@ const WaqfJadeed: React.FC = () => {
     }, [families, searchTerm, familySort, members, records, specialRecords]);
 
     const handleExportFamilyFitranaEid = async () => {
-        let totalMembers = 0;
-        const rows = filteredFamilyData.map((family, index) => {
+        const rows: { col1: string; col2: string; col3: string; col4: string }[] = [];
+        let buffer: string[] = [];
+
+        filteredFamilyData.forEach(family => {
             const familyMembers = members.filter(m => m.familyId === family.id && !m.isDeceased && !m.isMoved);
             const memberCount = familyMembers.length;
-            totalMembers += memberCount;
+            const baseName = family.familyName.replace(/family/gi, '').trim();
+            const label = `${baseName} - ${memberCount}`;
+
+            buffer.push(label);
+            if (buffer.length === 4) {
+                rows.push({
+                    col1: buffer[0],
+                    col2: buffer[1],
+                    col3: buffer[2],
+                    col4: buffer[3]
+                });
+                buffer = [];
+            }
+        });
+
+        if (buffer.length > 0) {
+            rows.push({
+                col1: buffer[0] || '',
+                col2: buffer[1] || '',
+                col3: buffer[2] || '',
+                col4: buffer[3] || ''
+            });
+        }
+
+        await exportToPDF(
+            rows,
+            ['col1', 'col2', 'col3', 'col4'],
+            `family_fitrana_eid_${selectedYear}`,
+            '',
+            { fontSize: 11, showHeader: false, showTitle: false, showGeneratedOn: false }
+        );
+        message.success('Family Fitrana/Eid PDF generated');
+    };
+
+    const handleExportFamilySummaryPDF = async () => {
+        const rows = filteredFamilyData.map((family, index) => {
+            const totalPromise = family.totalPromise || 0;
+            const totalPaid = family.totalPaid || 0;
+            const balance = totalPromise - totalPaid;
             return {
                 no: index + 1,
-                familyDisplay: `${family.familyName} - ${memberCount}`,
-                fitrana: '',
-                eidFundTotal: ''
+                familyName: family.familyName,
+                promise: totalPromise,
+                paid: totalPaid,
+                balance
             };
         });
 
-        rows.push({
-            no: '',
-            familyDisplay: `Total Members: ${totalMembers}`,
-            fitrana: '',
-            eidFundTotal: ''
-        });
         await exportToPDF(
             rows,
-            ['no', 'familyDisplay', 'fitrana', 'eidFundTotal'],
-            `family_fitrana_eid_${selectedYear}`,
-            `Family Fitrana / Eid Fund - ${selectedYear}`
+            ['no', 'familyName', 'promise', 'paid', 'balance'],
+            `family_summary_${selectedYear}`,
+            `Waqf-e-Jadeed - Family Summary - ${selectedYear}`
         );
-        message.success('Family Fitrana/Eid PDF generated');
+        message.success('Family summary PDF generated');
     };
 
     // Group members by tanzeem for Tanzeem Wise view
@@ -2188,12 +2223,20 @@ const WaqfJadeed: React.FC = () => {
                                 ]}
                             />
                         </Space>
-                        <Button
-                            icon={<DownloadOutlined />}
-                            onClick={handleExportFamilyFitranaEid}
-                        >
-                            Family Fitrana/Eid Export
-                        </Button>
+                        <Space>
+                            <Button
+                                icon={<DownloadOutlined />}
+                                onClick={handleExportFamilySummaryPDF}
+                            >
+                                Families Summary PDF
+                            </Button>
+                            <Button
+                                icon={<DownloadOutlined />}
+                                onClick={handleExportFamilyFitranaEid}
+                            >
+                                Family Fitrana/Eid Export
+                            </Button>
+                        </Space>
                     </div>
                     {loading ? <p>Loading...</p> : (
                         <Collapse
@@ -2649,6 +2692,7 @@ const WaqfJadeed: React.FC = () => {
                     prevSpecialRecords={prevSpecialRecords}
                     selectedYear={selectedYear}
                     allRecords={records}
+                    families={families}
                 />
             ) : activeTab === 'dashboard' ? (
                 <div className="dashboard-view">

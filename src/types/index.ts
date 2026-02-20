@@ -192,7 +192,8 @@ export interface ReceiptBook {
 
 export interface Payment {
   id: string;
-  waqfJadeedId: string;
+  waqfJadeedId?: string;
+  tahreqJadeedId?: string;
   amount: number;
   date: string;
   notes?: string;
@@ -300,10 +301,22 @@ export interface TahreqJadeedSpecialRecord {
   isDeceased: boolean;
   promiseAmount: number;
   nagarparAmount?: number;
-  paidAmount: number;
+  paidAmount: number; // For consistency with WaqfJadeedSpecialRecord
   notes?: string;
   updatedAt: string;
   payments?: Payment[];
+}
+
+export interface TahreqJadeedMarkazPayment {
+  id: string;
+  amountTJ: number;
+  amountAtfal?: number;
+  amountNagarParkar?: number;
+  couponNo: string;
+  paymentDate: string; // ISO date
+  year: number;
+  notes?: string;
+  createdAt: string;
 }
 
 export interface AnsarullahRecord {
