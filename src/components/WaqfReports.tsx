@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import {
     Card,
     Table,
@@ -11,7 +11,10 @@ import {
     Tag,
     Button,
     Space,
-    Select
+    Select,
+    InputNumber,
+    Input,
+    App
 } from 'antd';
 import {
     FilterOutlined,
@@ -23,8 +26,9 @@ import {
     BookOutlined,
     DollarOutlined
 } from '@ant-design/icons';
-import type { Member, WaqfJadeedRecord, WaqfJadeedSpecialRecord, Payment, Family } from '../types';
-import { getTanzeemDisplayName, exportToCSV } from '../utils/helpers';
+import type { Member, WaqfJadeedRecord, WaqfJadeedSpecialRecord, Payment, Family, FitranaExtra } from '../types';
+import { getTanzeemDisplayName, exportToCSV, exportToPDF } from '../utils/helpers';
+import { ApiService } from '../services/apiService';
 import dayjs from 'dayjs';
 
 const { Title, Text } = Typography;
@@ -52,8 +56,53 @@ const WaqfReports: React.FC<WaqfReportsProps> = ({
     allRecords,
     families = []
 }) => {
+    const { message } = App.useApp();
     const [activeReport, setActiveReport] = useState('halqa');
     const [selectedBook, setSelectedBook] = useState<string | null>(null);
+    const [fitranaOverrides, setFitranaOverrides] = useState<Record<string, { fitrana: number; eidFund: number; sadqa: number }>>({});
+    const [fitranaExtraRows, setFitranaExtraRows] = useState<FitranaExtra[]>([]);
+    const [fitranaSort, setFitranaSort] = useState<{
+        field: 'fitrana' | 'eidFund' | 'sadqa' | 'no' | 'familyName' | null;
+        order: 'ascend' | 'descend' | null;
+    }>({
+        field: null,
+        order: null
+    });
+    const [fitranaTableKey, setFitranaTableKey] = useState(0);
+
+    const resetFitranaSort = () => {
+        setFitranaSort({ field: null, order: null });
+        setFitranaTableKey(prev => prev + 1);
+    };
+
+    useEffect(() => {
+        const loadExtras = async () => {
+            try {
+                const extras = await ApiService.getFitranaExtras(selectedYear);
+                setFitranaExtraRows(extras);
+            } catch (error) {
+                console.error('Failed to load Fitrana extra rows', error);
+                message.error('Failed to load extra rows');
+            }
+        };
+        loadExtras();
+    }, [selectedYear]);
+
+    useEffect(() => {
+        const style = document.createElement('style');
+        style.innerHTML = `
+      .fitrana-paid-row {
+        background-color: #f6ffed !important;
+      }
+      .fitrana-paid-row:hover {
+        background-color: #d9f7be !important;
+      }
+    `;
+        document.head.appendChild(style);
+        return () => {
+            document.head.removeChild(style);
+        };
+    }, []);
 
     // --- Data Calculations ---
 
@@ -389,16 +438,33 @@ const WaqfReports: React.FC<WaqfReportsProps> = ({
     ];
 
     const fitranaData = useMemo(() => {
-        const rows = families
+        const familyRows = families
             .filter(f => !f.isMoved)
-            .map((family, index) => ({
-                key: family.id,
-                no: index + 1,
-                familyName: family.familyName,
-                fitrana: family.fitrana || 0,
-                eidFund: family.eidFund || 0,
-                sadqa: family.sadqa || 0
-            }));
+            .map((family, index) => {
+                const override = fitranaOverrides[family.id];
+                const fitrana = override?.fitrana ?? family.fitrana ?? 0;
+                const eidFund = override?.eidFund ?? family.eidFund ?? 0;
+                const sadqa = override?.sadqa ?? family.sadqa ?? 0;
+                return {
+                    key: family.id,
+                    no: index + 1,
+                    familyName: family.familyName,
+                    fitrana,
+                    eidFund,
+                    sadqa
+                };
+            });
+
+        const extraRows = fitranaExtraRows.map((row, idx) => ({
+            key: row.id,
+            no: '',
+            familyName: row.familyName || `Extra ${idx + 1}`,
+            fitrana: row.fitrana || 0,
+            eidFund: row.eidFund || 0,
+            sadqa: row.sadqa || 0
+        }));
+
+        const rows = [...familyRows, ...extraRows];
 
         const totals = rows.reduce(
             (acc, row) => {
@@ -411,18 +477,169 @@ const WaqfReports: React.FC<WaqfReportsProps> = ({
         );
 
         return { rows, totals };
-    }, [families]);
+    }, [families, fitranaOverrides, fitranaExtraRows]);
+
+    const handleFitranaFieldChange = async (familyId: string, field: 'fitrana' | 'eidFund' | 'sadqa', value: number | null) => {
+        const amount = value ?? 0;
+
+        setFitranaOverrides(prev => {
+            const existing = prev[familyId] || {};
+            const family = families.find(f => f.id === familyId);
+            return {
+                ...prev,
+                [familyId]: {
+                    fitrana: field === 'fitrana' ? amount : existing.fitrana ?? family?.fitrana ?? 0,
+                    eidFund: field === 'eidFund' ? amount : existing.eidFund ?? family?.eidFund ?? 0,
+                    sadqa: field === 'sadqa' ? amount : existing.sadqa ?? family?.sadqa ?? 0
+                }
+            };
+        });
+
+        try {
+            await ApiService.updateFamily(familyId, {
+                [field]: amount,
+                updatedAt: new Date().toISOString()
+            });
+            message.success('Saved');
+        } catch (error) {
+            console.error('Failed to update family fitrana data', error);
+            message.error('Failed to save');
+        }
+    };
+
+    const handleExportFitranaPDF = async () => {
+        try {
+            let rows = [...fitranaData.rows];
+
+            if (fitranaSort.field && fitranaSort.order) {
+                const field = fitranaSort.field;
+                const order = fitranaSort.order;
+                rows.sort((a: any, b: any) => {
+                    const av = a[field];
+                    const bv = b[field];
+
+                    let cmp: number;
+                    if (typeof av === 'string' && typeof bv === 'string') {
+                        cmp = av.localeCompare(bv, undefined, { numeric: true });
+                    } else {
+                        cmp = (av || 0) - (bv || 0);
+                    }
+                    return order === 'ascend' ? cmp : -cmp;
+                });
+            }
+
+            rows = rows.map(r => ({
+                no: r.no,
+                familyName: r.familyName,
+                fitrana: r.fitrana || 0,
+                eidFund: r.eidFund || 0,
+                sadqa: r.sadqa || 0
+            }));
+
+            if (rows.length > 0) {
+                rows.push({
+                    no: '',
+                    familyName: 'Total',
+                    fitrana: fitranaData.totals.fitrana,
+                    eidFund: fitranaData.totals.eidFund,
+                    sadqa: fitranaData.totals.sadqa
+                } as any);
+            }
+
+            await exportToPDF(
+                rows,
+                ['no', 'familyName', 'fitrana', 'eidFund', 'sadqa'],
+                `fitrana_family_${selectedYear}`,
+                `Fitrana / Eid Fund / Sadqa - ${selectedYear}`,
+                { fontSize: 8 }
+            );
+            message.success('Fitrana PDF exported');
+        } catch (error) {
+            console.error('Failed to export fitrana PDF', error);
+            message.error('Failed to export PDF');
+        }
+    };
+
+    const handleExtraFieldChange = (
+        id: string,
+        field: 'familyName' | 'fitrana' | 'eidFund' | 'sadqa',
+        value: string | number | null
+    ) => {
+        setFitranaExtraRows(prev =>
+            prev.map(row =>
+                row.id === id
+                    ? {
+                          ...row,
+                          [field]:
+                              field === 'familyName'
+                                  ? String(value ?? '')
+                                  : Number(value) || 0
+                      }
+                    : row
+            )
+        );
+
+        const updateData: Partial<FitranaExtra> =
+            field === 'familyName'
+                ? { familyName: String(value ?? '') }
+                : { [field]: Number(value) || 0 } as any;
+
+        ApiService.updateFitranaExtra(id, updateData).catch(error => {
+            console.error('Failed to update Fitrana extra row', error);
+            message.error('Failed to save extra row');
+        });
+    };
+
+    const addExtraRow = async () => {
+        try {
+            const extra = await ApiService.createFitranaExtra({ year: selectedYear });
+            setFitranaExtraRows(prev => [...prev, extra]);
+            message.success('Extra row added');
+        } catch (error) {
+            console.error('Failed to add Fitrana extra row', error);
+            message.error('Failed to add extra row');
+        }
+    };
 
     const fitranaColumns = [
         { title: 'No', dataIndex: 'no', key: 'no', width: 70 },
-        { title: 'Family Name', dataIndex: 'familyName', key: 'familyName' },
+        {
+            title: 'Family Name',
+            dataIndex: 'familyName',
+            key: 'familyName',
+            sorter: (a: any, b: any) => (a.familyName || '').localeCompare(b.familyName || ''),
+            render: (text: string, record: any) => {
+                const isExtra = typeof record.key === 'string' && record.key.startsWith('extra-');
+                if (!isExtra) return text;
+                return (
+                    <Input
+                        value={text || ''}
+                        onChange={e => handleExtraFieldChange(record.key, 'familyName', e.target.value)}
+                    />
+                );
+            }
+        },
         {
             title: 'Fitrana',
             dataIndex: 'fitrana',
             key: 'fitrana',
             align: 'right' as const,
             sorter: (a: any, b: any) => (a.fitrana || 0) - (b.fitrana || 0),
-            render: (val: number) => (val || 0) > 0 ? val.toLocaleString() : '-'
+            render: (val: number, record: any) => (
+                <InputNumber
+                    min={0}
+                    value={val || undefined}
+                    onChange={v => {
+                        const isExtra = typeof record.key === 'string' && record.key.startsWith('extra-');
+                        if (isExtra) {
+                            handleExtraFieldChange(record.key, 'fitrana', v ?? 0);
+                        } else {
+                            handleFitranaFieldChange(record.key, 'fitrana', v);
+                        }
+                    }}
+                    style={{ width: '100%' }}
+                />
+            )
         },
         {
             title: 'Eid Fund',
@@ -430,7 +647,21 @@ const WaqfReports: React.FC<WaqfReportsProps> = ({
             key: 'eidFund',
             align: 'right' as const,
             sorter: (a: any, b: any) => (a.eidFund || 0) - (b.eidFund || 0),
-            render: (val: number) => (val || 0) > 0 ? val.toLocaleString() : '-'
+            render: (val: number, record: any) => (
+                <InputNumber
+                    min={0}
+                    value={val || undefined}
+                    onChange={v => {
+                        const isExtra = typeof record.key === 'string' && record.key.startsWith('extra-');
+                        if (isExtra) {
+                            handleExtraFieldChange(record.key, 'eidFund', v ?? 0);
+                        } else {
+                            handleFitranaFieldChange(record.key, 'eidFund', v);
+                        }
+                    }}
+                    style={{ width: '100%' }}
+                />
+            )
         },
         {
             title: 'Sadqa',
@@ -438,7 +669,21 @@ const WaqfReports: React.FC<WaqfReportsProps> = ({
             key: 'sadqa',
             align: 'right' as const,
             sorter: (a: any, b: any) => (a.sadqa || 0) - (b.sadqa || 0),
-            render: (val: number) => (val || 0) > 0 ? val.toLocaleString() : '-'
+            render: (val: number, record: any) => (
+                <InputNumber
+                    min={0}
+                    value={val || undefined}
+                    onChange={v => {
+                        const isExtra = typeof record.key === 'string' && record.key.startsWith('extra-');
+                        if (isExtra) {
+                            handleExtraFieldChange(record.key, 'sadqa', v ?? 0);
+                        } else {
+                            handleFitranaFieldChange(record.key, 'sadqa', v);
+                        }
+                    }}
+                    style={{ width: '100%' }}
+                />
+            )
         }
     ];
 
@@ -605,12 +850,78 @@ const WaqfReports: React.FC<WaqfReportsProps> = ({
                             <div>
                                 <Row justify="space-between" align="middle" style={{ marginBottom: 16 }}>
                                     <Title level={5} style={{ margin: 0 }}>Fitrana / Eid Fund / Sadqa (Family Wise)</Title>
+                                    <Space>
+                                        <Button onClick={resetFitranaSort}>Reset Sort</Button>
+                                        <Button onClick={addExtraRow}>Add Extra Row</Button>
+                                        <Button
+                                            icon={<DownloadOutlined />}
+                                            onClick={handleExportFitranaPDF}
+                                            disabled={fitranaData.rows.length === 0}
+                                        >
+                                            Export PDF
+                                        </Button>
+                                    </Space>
+                                </Row>
+                                <Row gutter={16} style={{ marginBottom: 16 }}>
+                                    <Col xs={24} sm={8}>
+                                        <Card size="small">
+                                            <Statistic
+                                                title="Total Fitrana"
+                                                value={fitranaData.totals.fitrana}
+                                                precision={0}
+                                            />
+                                        </Card>
+                                    </Col>
+                                    <Col xs={24} sm={8}>
+                                        <Card size="small">
+                                            <Statistic
+                                                title="Total Eid Fund"
+                                                value={fitranaData.totals.eidFund}
+                                                precision={0}
+                                            />
+                                        </Card>
+                                    </Col>
+                                    <Col xs={24} sm={8}>
+                                        <Card size="small">
+                                            <Statistic
+                                                title="Total Sadqa"
+                                                value={fitranaData.totals.sadqa}
+                                                precision={0}
+                                            />
+                                        </Card>
+                                    </Col>
                                 </Row>
                                 <Table
+                                    key={fitranaTableKey}
                                     dataSource={fitranaData.rows}
                                     columns={fitranaColumns}
                                     pagination={false}
                                     rowKey="key"
+                                    onChange={(_, __, sorter: any) => {
+                                        if (!sorter || Array.isArray(sorter)) {
+                                            setFitranaSort({ field: null, order: null });
+                                            return;
+                                        }
+                                        const field = sorter.field as any;
+                                        const order = sorter.order as any;
+                                        if (
+                                            (field === 'fitrana' ||
+                                                field === 'eidFund' ||
+                                                field === 'sadqa' ||
+                                                field === 'no' ||
+                                                field === 'familyName') &&
+                                            (order === 'ascend' || order === 'descend')
+                                        ) {
+                                            setFitranaSort({ field, order });
+                                        } else {
+                                            setFitranaSort({ field: null, order: null });
+                                        }
+                                    }}
+                                    rowClassName={(record: any) =>
+                                        record.fitrana > 0 || record.eidFund > 0 || record.sadqa > 0
+                                            ? 'fitrana-paid-row'
+                                            : ''
+                                    }
                                     summary={() => (
                                         <Table.Summary.Row>
                                             <Table.Summary.Cell index={0} colSpan={2}>

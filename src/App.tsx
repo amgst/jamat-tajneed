@@ -24,6 +24,7 @@ import Tools from './pages/Tools';
 import ZakatCalculator from './pages/ZakatCalculator';
 import WaqfeNau from './pages/Reports/WaqfeNau';
 import Mossi from './pages/Reports/Mossi';
+import FamilyFullReport from './pages/Reports/FamilyFullReport';
 
 // Protected Route component
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -94,6 +95,7 @@ function App() {
                 <Route path="financial-reports" element={<FinancialReportsPage />} />
                 <Route path="reports/waqfe-nau" element={<WaqfeNau />} />
                 <Route path="reports/mossi" element={<Mossi />} />
+                <Route path="reports/family-full" element={<FamilyFullReport />} />
                 <Route path="tools" element={<Tools />} />
                 <Route path="tools/zakat-calculator" element={<ZakatCalculator />} />
               </Route>

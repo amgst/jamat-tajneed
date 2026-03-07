@@ -111,6 +111,10 @@ const AppLayout: React.FC = () => {
         {
           key: '/reports/mossi',
           label: 'Mossi',
+        },
+        {
+          key: '/reports/family-full',
+          label: 'Family Full Report',
         }
       ]
     },

@@ -10,7 +10,7 @@ import {
   where,
   setDoc
 } from 'firebase/firestore';
-import type { Member, Family, WaqfJadeedRecord, WaqfJadeedSpecialRecord, TahreqJadeedRecord, TahreqJadeedSpecialRecord, AnsarullahRecord, Payment, MarkazPayment, WaqfJadeedMarkazPayment, TahreqJadeedMarkazPayment } from '../types';
+import type { Member, Family, FitranaExtra, WaqfJadeedRecord, WaqfJadeedSpecialRecord, TahreqJadeedRecord, TahreqJadeedSpecialRecord, AnsarullahRecord, Payment, MarkazPayment, WaqfJadeedMarkazPayment, TahreqJadeedMarkazPayment } from '../types';
 
 // Helper to determine Tanzeem
 const calculateAge = (dob: string) => {
@@ -95,6 +95,39 @@ export class ApiService {
   static async deleteFamily(id: string): Promise<{ success: boolean }> {
     await deleteDoc(doc(db, 'families', id));
     return { success: true };
+  }
+
+  // --- Fitrana Extras (for Fitrana report) ---
+
+  static async getFitranaExtras(year: number): Promise<FitranaExtra[]> {
+    const qExtras = query(collection(db, 'fitranaExtras'), where('year', '==', year));
+    const snapshot = await getDocs(qExtras);
+    return snapshot.docs.map(d => ({ ...d.data(), id: d.id } as FitranaExtra));
+  }
+
+  static async createFitranaExtra(data: { year: number; familyName?: string; fitrana?: number; eidFund?: number; sadqa?: number }): Promise<FitranaExtra> {
+    const id = crypto.randomUUID();
+    const now = new Date().toISOString();
+    const payload: FitranaExtra = {
+      id,
+      year: data.year,
+      familyName: data.familyName || '',
+      fitrana: data.fitrana || 0,
+      eidFund: data.eidFund || 0,
+      sadqa: data.sadqa || 0,
+      createdAt: now,
+      updatedAt: now
+    };
+    await setDoc(doc(db, 'fitranaExtras', id), payload);
+    return payload;
+  }
+
+  static async updateFitranaExtra(id: string, data: Partial<FitranaExtra>): Promise<FitranaExtra | null> {
+    const ref = doc(db, 'fitranaExtras', id);
+    await updateDoc(ref, { ...data, updatedAt: new Date().toISOString() });
+    const snap = await getDoc(ref);
+    if (!snap.exists()) return null;
+    return { ...snap.data(), id: snap.id } as FitranaExtra;
   }
 
   // --- Stats (Client-Side implementation) ---

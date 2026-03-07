@@ -316,6 +316,9 @@ export const sanitizeFamilyData = (data: any): any => {
   if (data.familyNumber !== undefined) sanitized.familyNumber = data.familyNumber;
   if (data.isMoved !== undefined) sanitized.isMoved = data.isMoved;
   if (data.isBList !== undefined) sanitized.isBList = data.isBList;
+  if (data.fitrana !== undefined) sanitized.fitrana = Number(data.fitrana) || 0;
+  if (data.eidFund !== undefined) sanitized.eidFund = Number(data.eidFund) || 0;
+  if (data.sadqa !== undefined) sanitized.sadqa = Number(data.sadqa) || 0;
 
   // Metadata
   if (data.createdAt) sanitized.createdAt = data.createdAt;

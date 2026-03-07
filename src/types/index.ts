@@ -98,11 +98,25 @@ export interface Family {
   familyNumber?: number; // Manual family number assignment
   memberIds: string[];
   totalMembers: number;
+  fitrana?: number;
+  eidFund?: number;
+  sadqa?: number;
   halqa?: string;
   familyHistory?: string; // Family history and background notes
   isMoved?: boolean;
   movedTo?: string;
   isBList?: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface FitranaExtra {
+  id: string;
+  year: number;
+  familyName: string;
+  fitrana?: number;
+  eidFund?: number;
+  sadqa?: number;
   createdAt: string;
   updatedAt: string;
 }
