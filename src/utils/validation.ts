@@ -205,7 +205,7 @@ export const validateMemberData = (data: any): { valid: boolean; errors: string[
   }
 
   // Validate phone if provided (making it non-compulsory)
-  if (data.phone && data.phone.trim() && !validatePhone(data.phone)) {
+  if (data.phone && String(data.phone).trim() && !validatePhone(String(data.phone))) {
     errors.push('Phone number is invalid');
   }
 

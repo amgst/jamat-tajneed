@@ -35,6 +35,7 @@ import ReligiousActivitiesModal from '../components/ReligiousActivitiesModal';
 import { getTanzeemDisplayName, formatDate, calculateAge, determineTanzeem, formatCNIC } from '../utils/helpers';
 import { generateAvatarFromName } from '../utils/imageUtils';
 import type { Family, Member } from '../types';
+import { validateMemberData, sanitizeMemberData } from '../utils/validation';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import MemberForm from '../components/MemberForm';
@@ -224,7 +225,7 @@ const FamilyDetails: React.FC = () => {
       const age = calculateAge(values.dateOfBirth.format('YYYY-MM-DD'));
       const tanzeem = determineTanzeem(age, values.gender);
 
-      const memberData: any = {
+      const memberDataRaw: any = {
         name: values.name,
         fatherName: values.fatherName || '',
         husbandName: values.husbandName || '',
@@ -232,7 +233,7 @@ const FamilyDetails: React.FC = () => {
         cnic: values.cnic ? formatCNIC(values.cnic) : '',
         dateOfBirth: values.dateOfBirth.format('YYYY-MM-DD'),
         age,
-        phone: values.phone || '',
+        phone: values.phone && String(values.phone).trim() ? String(values.phone).trim() : '',
         address: values.address,
         tanzeem,
         halqa: '',
@@ -252,12 +253,19 @@ const FamilyDetails: React.FC = () => {
       };
 
       // Preserve createdAt when updating
-      memberData.createdAt = selectedMember?.createdAt || new Date().toISOString();
+      memberDataRaw.createdAt = selectedMember?.createdAt || new Date().toISOString();
 
       if (values.dateOfDeath) {
-        memberData.dateOfDeath = values.dateOfDeath.format('YYYY-MM-DD');
+        memberDataRaw.dateOfDeath = values.dateOfDeath.format('YYYY-MM-DD');
       }
 
+      const validation = validateMemberData(memberDataRaw);
+      if (!validation.valid) {
+        message.error(`Validation failed: ${validation.errors.join(', ')}`);
+        return;
+      }
+
+      const memberData = sanitizeMemberData(memberDataRaw);
       await ApiService.updateMember(selectedMember.id, memberData);
       message.success('Member updated successfully');
       setMemberDetailModalVisible(false);

@@ -81,7 +81,7 @@ const MemberDetails: React.FC = () => {
         cnic: formData.cnic ? formatCNIC(formData.cnic) : '',
         dateOfBirth: formData.dateOfBirth.format('YYYY-MM-DD'),
         age,
-        phone: formData.phone || '',
+        phone: formData.phone && String(formData.phone).trim() ? String(formData.phone).trim() : '',
         address: formData.address,
         tanzeem,
         profilePhoto: formData.profilePhoto || generateAvatarFromName(formData.name),

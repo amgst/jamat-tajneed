@@ -11,7 +11,6 @@ import {
   message,
   Popconfirm,
   Tag,
-  Avatar,
   Typography,
   Row,
   Col,
@@ -24,7 +23,6 @@ import {
   ReloadOutlined,
   PlusOutlined,
   DownloadOutlined,
-  UserOutlined
 } from '@ant-design/icons';
 import ReligiousActivitiesModal from '../components/ReligiousActivitiesModal';
 import MemberForm from '../components/MemberForm';
@@ -57,6 +55,9 @@ const Members: React.FC = () => {
   const [religiousModalVisible, setReligiousModalVisible] = useState(false);
   const [selectedMemberForReligious, setSelectedMemberForReligious] = useState<Member | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [wasitDrafts, setWasitDrafts] = useState<Record<string, string>>({});
+  const [savingWasitIds, setSavingWasitIds] = useState<Record<string, boolean>>({});
+  const [savingMaritalIds, setSavingMaritalIds] = useState<Record<string, boolean>>({});
 
   // Add CSS for deceased member rows
   useEffect(() => {
@@ -87,6 +88,9 @@ const Members: React.FC = () => {
         ApiService.getAllFamilies()
       ]);
       setMembers(membersData);
+      setWasitDrafts(
+        Object.fromEntries(membersData.map(member => [member.id, member.wasitNo || '']))
+      );
       setFamilies(familiesData);
     } catch (error) {
       message.error('Failed to load data');
@@ -301,24 +305,89 @@ const Members: React.FC = () => {
     return filtered;
   };
 
+  const persistWasitNo = async (memberId: string, nextWasitNo: string) => {
+    const member = members.find(m => m.id === memberId);
+    if (!member) return;
+
+    const normalizedWasitNo = nextWasitNo.trim();
+    const currentWasitNo = (member.wasitNo || '').trim();
+
+    if (normalizedWasitNo === currentWasitNo) {
+      setSavingWasitIds(prev => ({ ...prev, [memberId]: false }));
+      return;
+    }
+
+    setSavingWasitIds(prev => ({ ...prev, [memberId]: true }));
+    try {
+      await ApiService.updateMember(memberId, { wasitNo: normalizedWasitNo });
+      setMembers(prev => prev.map(item => (
+        item.id === memberId
+          ? { ...item, wasitNo: normalizedWasitNo, updatedAt: new Date().toISOString() }
+          : item
+      )));
+      setWasitDrafts(prev => ({ ...prev, [memberId]: normalizedWasitNo }));
+    } catch (error) {
+      setWasitDrafts(prev => ({ ...prev, [memberId]: member.wasitNo || '' }));
+      message.error(`Failed to save Wasit No for ${member.name}`);
+      console.error(error);
+    } finally {
+      setSavingWasitIds(prev => ({ ...prev, [memberId]: false }));
+    }
+  };
+
+  const handleWasitChange = (memberId: string, value: string) => {
+    setWasitDrafts(prev => ({ ...prev, [memberId]: value }));
+  };
+
+  const handleWasitBlur = (memberId: string) => {
+    const member = members.find(item => item.id === memberId);
+    if (member) {
+      void persistWasitNo(memberId, wasitDrafts[memberId] ?? member.wasitNo ?? '');
+    }
+  };
+
+  const persistMaritalStatus = async (
+    memberId: string,
+    maritalStatus: 'married' | 'unmarried' | 'divorced' | 'widower' | 'widow'
+  ) => {
+    const member = members.find(m => m.id === memberId);
+    if (!member) return;
+
+    const currentStatus = member.maritalStatus || ((member as any).isMarried ? 'married' : 'unmarried');
+    if (maritalStatus === currentStatus) {
+      return;
+    }
+
+    setSavingMaritalIds(prev => ({ ...prev, [memberId]: true }));
+    try {
+      await ApiService.updateMember(memberId, {
+        maritalStatus,
+        isMarried: maritalStatus === 'married',
+      });
+      setMembers(prev => prev.map(item => (
+        item.id === memberId
+          ? {
+              ...item,
+              maritalStatus,
+              isMarried: maritalStatus === 'married',
+              updatedAt: new Date().toISOString()
+            }
+          : item
+      )));
+    } catch (error) {
+      message.error(`Failed to save marital status for ${member.name}`);
+      console.error(error);
+    } finally {
+      setSavingMaritalIds(prev => ({ ...prev, [memberId]: false }));
+    }
+  };
+
   const columns = [
     {
       title: 'S.No',
       key: 'serial',
       width: 80,
       render: (_: any, __: any, index: number) => index + 1,
-    },
-    {
-      title: 'Photo',
-      key: 'photo',
-      render: (record: Member) => (
-        <Avatar
-          size="small"
-          src={record.profilePhoto || undefined}
-          icon={<UserOutlined />}
-        />
-      ),
-      width: 60,
     },
     {
       title: 'Family',
@@ -401,7 +470,22 @@ const Members: React.FC = () => {
           widow: { text: 'بیوہ', color: 'purple' }
         };
         const meta = map[status] || map.unmarried;
-        return <Tag color={meta.color}>{meta.text}</Tag>;
+        return (
+          <Select
+            size="small"
+            style={{ width: 140 }}
+            value={status}
+            loading={savingMaritalIds[record.id]}
+            onChange={(value) => void persistMaritalStatus(record.id, value)}
+            options={[
+              { value: 'unmarried', label: 'Unmarried' },
+              { value: 'married', label: 'Married' },
+              { value: 'divorced', label: 'Divorced' },
+              { value: 'widower', label: 'Widower' },
+              { value: 'widow', label: 'Widow' }
+            ]}
+          />
+        );
       }
     },
     {
@@ -421,6 +505,22 @@ const Members: React.FC = () => {
       },
       render: (tanzeem: Tanzeem) => (
         <Tag color="green">{getTanzeemDisplayName(tanzeem)}</Tag>
+      ),
+    },
+    {
+      title: 'Wasit No',
+      key: 'wasitNo',
+      width: 160,
+      render: (record: Member) => (
+        <Input
+          value={wasitDrafts[record.id] ?? record.wasitNo ?? ''}
+          placeholder="Enter Wasit No"
+          allowClear
+          size="small"
+          onChange={(event) => handleWasitChange(record.id, event.target.value)}
+          onBlur={() => handleWasitBlur(record.id)}
+          status={savingWasitIds[record.id] ? 'warning' : undefined}
+        />
       ),
     },
     {
