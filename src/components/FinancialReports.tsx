@@ -25,10 +25,22 @@ const FinancialReports: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [reportType, setReportType] = useState<'monthly' | 'annual' | 'comparison'>('annual');
   const [selectedYear, setSelectedYear] = useState<number>(dayjs().year());
+  const [pageSize, setPageSize] = useState(10);
 
   useEffect(() => {
     loadReports();
   }, [reportType, selectedYear]);
+
+  const tablePagination = React.useMemo(
+    () => ({
+      pageSize,
+      showSizeChanger: true,
+      pageSizeOptions: [10, 20, 50, 100],
+      onShowSizeChange: (_current: number, size: number) => setPageSize(size),
+      showTotal: (total: number, range: [number, number]) => `${range[0]}-${range[1]} of ${total} records`,
+    }),
+    [pageSize]
+  );
 
   const loadReports = async () => {
     setLoading(true);
@@ -286,7 +298,7 @@ const FinancialReports: React.FC = () => {
         dataSource={reports}
         columns={columns}
         rowKey="id"
-        pagination={{ pageSize: 10 }}
+        pagination={tablePagination as any}
       />
     </Card>
   );

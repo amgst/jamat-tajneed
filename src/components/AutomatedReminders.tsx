@@ -28,10 +28,22 @@ const AutomatedReminders: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
   const [form] = Form.useForm();
+  const [pageSize, setPageSize] = useState(10);
 
   useEffect(() => {
     loadReminders();
   }, []);
+
+  const tablePagination = React.useMemo(
+    () => ({
+      pageSize,
+      showSizeChanger: true,
+      pageSizeOptions: [10, 20, 50, 100],
+      onShowSizeChange: (_current: number, size: number) => setPageSize(size),
+      showTotal: (total: number, range: [number, number]) => `${range[0]}-${range[1]} of ${total} records`,
+    }),
+    [pageSize]
+  );
 
   const loadReminders = async () => {
     setLoading(true);
@@ -220,7 +232,7 @@ const AutomatedReminders: React.FC = () => {
         dataSource={reminders}
         columns={columns}
         rowKey="id"
-        pagination={{ pageSize: 10 }}
+        pagination={tablePagination as any}
       />
 
       <Modal

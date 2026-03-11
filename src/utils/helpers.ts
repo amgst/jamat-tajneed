@@ -140,11 +140,168 @@ export const formatDate = (date: string): string => {
 
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import html2canvas from 'html2canvas';
+
+const containsArabicScript = (value: unknown): boolean => {
+  if (typeof value !== 'string') return false;
+  return /[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF]/.test(value);
+};
+
+const titleCaseFromKey = (key: string): string => {
+  const withSpaces = key
+    .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
+    .replace(/[_-]+/g, ' ')
+    .trim();
+  return withSpaces.length ? withSpaces[0].toUpperCase() + withSpaces.slice(1) : key;
+};
+
+const formatCellValue = (value: unknown): string => {
+  if (value === null || value === undefined) return '';
+  if (typeof value === 'number') return new Intl.NumberFormat().format(value);
+  return String(value);
+};
+
+const exportToPDFViaCanvas = async (
+  data: Array<Record<string, unknown>>,
+  headers: string[],
+  filename: string,
+  title: string,
+  options?: {
+    showHeader?: boolean;
+    showTitle?: boolean;
+    showGeneratedOn?: boolean;
+    rtl?: boolean;
+    headerLabels?: Record<string, string>;
+  }
+): Promise<void> => {
+  const showHeader = options?.showHeader ?? true;
+  const showTitle = options?.showTitle ?? true;
+  const showGeneratedOn = options?.showGeneratedOn ?? true;
+  const rtl = options?.rtl ?? false;
+  const headerLabels = options?.headerLabels;
+
+  const container = document.createElement('div');
+  container.setAttribute('dir', rtl ? 'rtl' : 'ltr');
+  container.style.position = 'fixed';
+  container.style.left = '-10000px';
+  container.style.top = '0';
+  container.style.width = '794px'; // ~A4 at 96dpi
+  container.style.background = '#fff';
+  container.style.padding = '20px';
+  container.style.color = '#111';
+  container.style.fontFamily =
+    "Noto Nastaliq Urdu, Noto Naskh Arabic, Amiri, 'Segoe UI', Arial, sans-serif";
+
+  const headerBlock = document.createElement('div');
+  headerBlock.style.display = 'flex';
+  headerBlock.style.flexDirection = 'column';
+  headerBlock.style.gap = '6px';
+  headerBlock.style.marginBottom = '12px';
+
+  if (showTitle && title) {
+    const titleEl = document.createElement('div');
+    titleEl.textContent = title;
+    titleEl.style.fontSize = '18px';
+    titleEl.style.fontWeight = '700';
+    titleEl.style.textAlign = rtl ? 'right' : 'left';
+    headerBlock.appendChild(titleEl);
+  }
+
+  if (showGeneratedOn) {
+    const genEl = document.createElement('div');
+    genEl.textContent = `Generated on: ${dayjs().format('DD/MM/YYYY')}`;
+    genEl.style.fontSize = '12px';
+    genEl.style.opacity = '0.75';
+    genEl.style.textAlign = rtl ? 'right' : 'left';
+    headerBlock.appendChild(genEl);
+  }
+
+  container.appendChild(headerBlock);
+
+  const table = document.createElement('table');
+  table.style.width = '100%';
+  table.style.borderCollapse = 'collapse';
+  table.style.tableLayout = 'fixed';
+  table.style.fontSize = '12px';
+
+  if (showHeader) {
+    const thead = document.createElement('thead');
+    const tr = document.createElement('tr');
+    headers.forEach(h => {
+      const th = document.createElement('th');
+      th.textContent = headerLabels?.[h] ?? titleCaseFromKey(h);
+      th.style.border = '1px solid #e5e7eb';
+      th.style.background = '#16a085';
+      th.style.color = '#fff';
+      th.style.padding = '8px 6px';
+      th.style.textAlign = rtl ? 'right' : 'left';
+      th.style.fontWeight = '700';
+      th.style.wordBreak = 'break-word';
+      tr.appendChild(th);
+    });
+    thead.appendChild(tr);
+    table.appendChild(thead);
+  }
+
+  const tbody = document.createElement('tbody');
+  data.forEach((item, rowIndex) => {
+    const tr = document.createElement('tr');
+    if (rowIndex % 2 === 1) tr.style.background = '#fafafa';
+    headers.forEach(h => {
+      const td = document.createElement('td');
+      td.textContent = formatCellValue(item?.[h]);
+      td.style.border = '1px solid #e5e7eb';
+      td.style.padding = '7px 6px';
+      td.style.verticalAlign = 'top';
+      td.style.textAlign = rtl ? 'right' : 'left';
+      td.style.wordBreak = 'break-word';
+      tr.appendChild(td);
+    });
+    tbody.appendChild(tr);
+  });
+  table.appendChild(tbody);
+  container.appendChild(table);
+
+  document.body.appendChild(container);
+  try {
+    const canvas = await html2canvas(container, {
+      scale: Math.max(2, window.devicePixelRatio || 1),
+      backgroundColor: '#ffffff'
+    });
+
+    const imgData = canvas.toDataURL('image/png');
+    const pdf = new jsPDF('p', 'mm', 'a4');
+    const pageWidth = pdf.internal.pageSize.getWidth();
+    const pageHeight = pdf.internal.pageSize.getHeight();
+
+    const margin = 10;
+    const usableWidth = pageWidth - margin * 2;
+    const usableHeight = pageHeight - margin * 2;
+
+    const imgHeight = (canvas.height * usableWidth) / canvas.width;
+    let heightLeft = imgHeight;
+    let position = margin;
+
+    pdf.addImage(imgData, 'PNG', margin, position, usableWidth, imgHeight);
+    heightLeft -= usableHeight;
+
+    while (heightLeft > 0) {
+      pdf.addPage();
+      position = margin - (imgHeight - heightLeft);
+      pdf.addImage(imgData, 'PNG', margin, position, usableWidth, imgHeight);
+      heightLeft -= usableHeight;
+    }
+
+    pdf.save(`${filename}.pdf`);
+  } finally {
+    document.body.removeChild(container);
+  }
+};
 
 /**
  * Export data to CSV
  */
-export const exportToCSV = (data: any[], filename: string): void => {
+export const exportToCSV = (data: Array<Record<string, unknown>>, filename: string): void => {
   const csvContent = convertToCSV(data);
   const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
   const link = document.createElement('a');
@@ -164,7 +321,7 @@ export const exportToCSV = (data: any[], filename: string): void => {
  * Export data to PDF
  */
 export const exportToPDF = async (
-  data: any[],
+  data: Array<Record<string, unknown>>,
   headers: string[],
   filename: string,
   title: string,
@@ -173,25 +330,49 @@ export const exportToPDF = async (
     showHeader?: boolean;
     showTitle?: boolean;
     showGeneratedOn?: boolean;
+    rtl?: boolean;
+    renderMode?: 'autoTable' | 'canvas';
+    headerLabels?: Record<string, string>;
   }
 ): Promise<void> => {
   const doc = new jsPDF();
   
   try {
-    // Load Amiri font for Urdu support
-    const response = await fetch('https://raw.githubusercontent.com/google/fonts/main/ofl/amiri/Amiri-Regular.ttf');
-    if (response.ok) {
+    const rtl = options?.rtl ?? false;
+    const headerLabels = options?.headerLabels;
+
+    const needsArabicSupport =
+      containsArabicScript(title) ||
+      data.some(row => headers.some(h => containsArabicScript(row?.[h])));
+
+    const renderMode = options?.renderMode ?? (needsArabicSupport ? 'canvas' : 'autoTable');
+    if (renderMode === 'canvas') {
+      await exportToPDFViaCanvas(data, headers, filename, title, {
+        showHeader: options?.showHeader,
+        showTitle: options?.showTitle,
+        showGeneratedOn: options?.showGeneratedOn,
+        rtl,
+        headerLabels
+      });
+      return;
+    }
+
+    // Load Amiri font (best-effort) for Urdu support in vector mode
+    const localResponse = await fetch('/fonts/Amiri-Regular.ttf').catch(() => null);
+    const response =
+      localResponse && (localResponse as Response).ok
+        ? (localResponse as Response)
+        : await fetch('https://raw.githubusercontent.com/google/fonts/main/ofl/amiri/Amiri-Regular.ttf').catch(() => null);
+
+    if (response && response.ok) {
       const buffer = await response.arrayBuffer();
-      // Convert array buffer to base64 string
       const base64Font = btoa(
-        new Uint8Array(buffer).reduce((data, byte) => data + String.fromCharCode(byte), '')
+        new Uint8Array(buffer).reduce((acc, byte) => acc + String.fromCharCode(byte), '')
       );
-      
+
       doc.addFileToVFS('Amiri-Regular.ttf', base64Font);
       doc.addFont('Amiri-Regular.ttf', 'Amiri', 'normal');
       doc.setFont('Amiri');
-    } else {
-      console.error('Failed to load Amiri font');
     }
   } catch (error) {
     console.error('Error loading font:', error);
@@ -199,31 +380,31 @@ export const exportToPDF = async (
   
   const showTitle = options?.showTitle ?? true;
   const showGeneratedOn = options?.showGeneratedOn ?? true;
+  const rtl = options?.rtl ?? false;
+  const headerLabels = options?.headerLabels;
 
   const pageWidth = doc.internal.pageSize.getWidth();
   let currentY = 20;
 
   if (showTitle && title) {
     doc.setFontSize(18);
-    doc.text(title, pageWidth - 14, currentY + 2, { align: 'right' });
+    doc.text(title, rtl ? pageWidth - 14 : 14, currentY + 2, { align: rtl ? 'right' : 'left' });
     currentY = 28;
   }
 
   if (showGeneratedOn) {
     doc.setFontSize(11);
-    doc.text(`Generated on: ${dayjs().format('DD/MM/YYYY')}`, pageWidth - 14, currentY + 2, { align: 'right' });
+    doc.text(`Generated on: ${dayjs().format('DD/MM/YYYY')}`, rtl ? pageWidth - 14 : 14, currentY + 2, { align: rtl ? 'right' : 'left' });
     currentY += 8;
   }
   
   if (data.length === 0) return;
   
-  // Reverse columns for RTL
-  const tableColumn = [...headers].reverse();
-  const tableRows = [];
+  const tableColumn = headers.map(h => headerLabels?.[h] ?? titleCaseFromKey(h));
+  const tableRows: (string | number)[][] = [];
 
   data.forEach(item => {
-    // Map data to headers then reverse for RTL
-    const rowData = headers.map(header => item[header]).reverse();
+    const rowData = headers.map(header => item?.[header]);
     tableRows.push(rowData);
   });
 
@@ -239,12 +420,12 @@ export const exportToPDF = async (
       fontSize: bodyFontSize,
       font: 'Amiri', // Use the Urdu font
       fontStyle: 'normal',
-      halign: 'right' // Right align text
+      halign: rtl ? 'right' : 'left'
     },
     headStyles: { 
       fillColor: [22, 160, 133],
       font: 'Amiri',
-      halign: 'right'
+      halign: rtl ? 'right' : 'left'
     },
   });
 
@@ -254,7 +435,7 @@ export const exportToPDF = async (
 /**
  * Convert array of objects to CSV string
  */
-const convertToCSV = (data: any[]): string => {
+const convertToCSV = (data: Array<Record<string, unknown>>): string => {
   if (data.length === 0) return '';
 
   const headers = Object.keys(data[0]);

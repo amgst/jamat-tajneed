@@ -12,6 +12,31 @@ import {
 } from 'firebase/firestore';
 import type { Member, Family, FitranaExtra, WaqfJadeedRecord, WaqfJadeedSpecialRecord, TahreqJadeedRecord, TahreqJadeedSpecialRecord, AnsarullahRecord, Payment, MarkazPayment, WaqfJadeedMarkazPayment, TahreqJadeedMarkazPayment } from '../types';
 
+const isPlainObject = (value: unknown): value is Record<string, unknown> => {
+  if (typeof value !== 'object' || value === null) return false;
+  const prototype = Object.getPrototypeOf(value);
+  return prototype === Object.prototype || prototype === null;
+};
+
+const stripUndefinedDeep = <T,>(value: T): T => {
+  if (value === undefined) return value;
+
+  if (Array.isArray(value)) {
+    return value
+      .filter(v => v !== undefined)
+      .map(v => stripUndefinedDeep(v)) as unknown as T;
+  }
+
+  if (!isPlainObject(value)) return value;
+
+  const out: Record<string, unknown> = {};
+  for (const [key, val] of Object.entries(value)) {
+    if (val === undefined) continue;
+    out[key] = stripUndefinedDeep(val);
+  }
+  return out as T;
+};
+
 // Helper to determine Tanzeem
 const calculateAge = (dob: string) => {
   if (!dob) return 0;
@@ -43,7 +68,7 @@ export class ApiService {
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     };
-    await setDoc(doc(db, 'members', id), memberWithTimestamps);
+    await setDoc(doc(db, 'members', id), stripUndefinedDeep(memberWithTimestamps));
     return { ...memberWithTimestamps } as Member;
   }
 
@@ -56,7 +81,7 @@ export class ApiService {
       ...memberData,
       updatedAt: new Date().toISOString()
     };
-    await updateDoc(ref, updateData);
+    await updateDoc(ref, stripUndefinedDeep(updateData));
     const snap = await getDoc(ref);
     return { ...snap.data(), id: snap.id } as Member;
   }
@@ -81,13 +106,13 @@ export class ApiService {
 
   static async createFamily(family: any): Promise<Family> {
     const id = family.id || crypto.randomUUID();
-    await setDoc(doc(db, 'families', id), { ...family, id });
+    await setDoc(doc(db, 'families', id), stripUndefinedDeep({ ...family, id }));
     return { ...family, id } as Family;
   }
 
   static async updateFamily(id: string, family: any): Promise<Family> {
     const ref = doc(db, 'families', id);
-    await updateDoc(ref, family);
+    await updateDoc(ref, stripUndefinedDeep(family));
     const snap = await getDoc(ref);
     return { ...snap.data(), id: snap.id } as Family;
   }
@@ -118,13 +143,13 @@ export class ApiService {
       createdAt: now,
       updatedAt: now
     };
-    await setDoc(doc(db, 'fitranaExtras', id), payload);
+    await setDoc(doc(db, 'fitranaExtras', id), stripUndefinedDeep(payload));
     return payload;
   }
 
   static async updateFitranaExtra(id: string, data: Partial<FitranaExtra>): Promise<FitranaExtra | null> {
     const ref = doc(db, 'fitranaExtras', id);
-    await updateDoc(ref, { ...data, updatedAt: new Date().toISOString() });
+    await updateDoc(ref, stripUndefinedDeep({ ...data, updatedAt: new Date().toISOString() }));
     const snap = await getDoc(ref);
     if (!snap.exists()) return null;
     return { ...snap.data(), id: snap.id } as FitranaExtra;
@@ -237,10 +262,10 @@ export class ApiService {
     }
 
     let id = data.id || (records.length > 0 ? records[0].id : crypto.randomUUID());
-
+ 
     const payload = { ...data, id, updatedAt: new Date().toISOString() };
-    await setDoc(doc(db, 'waqfJadeed', id), payload, { merge: true });
-
+    await setDoc(doc(db, 'waqfJadeed', id), stripUndefinedDeep(payload), { merge: true });
+ 
     return this.getWaqfJadeedRecordById(id);
   }
 
@@ -259,9 +284,9 @@ export class ApiService {
     const record = await this.saveWaqfJadeedRecord({ memberId: data.memberId, year: data.year });
 
     if (!record) throw new Error('Failed to create/fetch record');
-
+ 
     const paymentId = crypto.randomUUID();
-    await setDoc(doc(db, 'waqfJadeedPayments', paymentId), {
+    await setDoc(doc(db, 'waqfJadeedPayments', paymentId), stripUndefinedDeep({
       id: paymentId,
       waqfJadeedId: record.id,
       amount: data.amount,
@@ -270,21 +295,21 @@ export class ApiService {
       bookId: data.bookId || null,
       bookNo: data.bookNo || null,
       receiptNo: data.receiptNo || null
-    });
+    }));
 
     await this.recalculatePaidAmount(record.id);
     return this.getWaqfJadeedRecordById(record.id);
   }
 
   static async updateWaqfJadeedPayment(data: { id: string; waqfJadeedId: string; amount: number; date: string; notes?: string; bookId?: string; bookNo?: string; receiptNo?: number }): Promise<WaqfJadeedRecord | null> {
-    await updateDoc(doc(db, 'waqfJadeedPayments', data.id), {
+    await updateDoc(doc(db, 'waqfJadeedPayments', data.id), stripUndefinedDeep({
       amount: data.amount,
       date: data.date,
       notes: data.notes || '',
       bookId: data.bookId || null,
       bookNo: data.bookNo || null,
       receiptNo: data.receiptNo || null
-    });
+    }));
     await this.recalculatePaidAmount(data.waqfJadeedId);
     return this.getWaqfJadeedRecordById(data.waqfJadeedId);
   }
@@ -306,10 +331,10 @@ export class ApiService {
     const snap = await getDocs(q);
     const total = snap.docs.reduce((sum, d) => sum + (d.data().amount || 0), 0);
 
-    await updateDoc(doc(db, 'waqfJadeed', waqfJadeedId), {
+    await updateDoc(doc(db, 'waqfJadeed', waqfJadeedId), stripUndefinedDeep({
       paidAmount: total,
       updatedAt: new Date().toISOString()
-    });
+    }));
     return total;
   }
 
@@ -324,7 +349,7 @@ export class ApiService {
       id,
       createdAt: data.createdAt || new Date().toISOString()
     };
-    await setDoc(doc(db, 'waqfJadeedMarkazPayments', id), payload, { merge: true });
+    await setDoc(doc(db, 'waqfJadeedMarkazPayments', id), stripUndefinedDeep(payload), { merge: true });
     return payload as WaqfJadeedMarkazPayment;
   }
 
@@ -361,11 +386,11 @@ export class ApiService {
 
   static async saveWaqfJadeedSpecialRecord(data: any): Promise<WaqfJadeedSpecialRecord> {
     const id = data.id || crypto.randomUUID();
-    await setDoc(doc(db, 'waqfJadeedSpecial', id), {
+    await setDoc(doc(db, 'waqfJadeedSpecial', id), stripUndefinedDeep({
       ...data,
       id,
       updatedAt: new Date().toISOString()
-    });
+    }));
     const snap = await getDoc(doc(db, 'waqfJadeedSpecial', id));
     return { ...snap.data(), id: snap.id } as WaqfJadeedSpecialRecord;
   }
@@ -388,7 +413,7 @@ export class ApiService {
 
   static async addWaqfJadeedSpecialPayment(data: { specialId: string; amount: number; date: string; notes?: string; bookId?: string; bookNo?: string; receiptNo?: number }): Promise<WaqfJadeedSpecialRecord | null> {
     const paymentId = crypto.randomUUID();
-    await setDoc(doc(db, 'waqfJadeedPayments', paymentId), {
+    await setDoc(doc(db, 'waqfJadeedPayments', paymentId), stripUndefinedDeep({
       id: paymentId,
       waqfJadeedId: data.specialId,
       amount: data.amount,
@@ -397,21 +422,21 @@ export class ApiService {
       bookId: data.bookId || null,
       bookNo: data.bookNo || null,
       receiptNo: data.receiptNo || null
-    });
+    }));
 
     await this.recalculateSpecialPaidAmount(data.specialId);
     return this.getWaqfJadeedSpecialRecordById(data.specialId);
   }
 
   static async updateWaqfJadeedSpecialPayment(data: { id: string; specialId: string; amount: number; date: string; notes?: string; bookId?: string; bookNo?: string; receiptNo?: number }): Promise<WaqfJadeedSpecialRecord | null> {
-    await updateDoc(doc(db, 'waqfJadeedPayments', data.id), {
+    await updateDoc(doc(db, 'waqfJadeedPayments', data.id), stripUndefinedDeep({
       amount: data.amount,
       date: data.date,
       notes: data.notes || '',
       bookId: data.bookId || null,
       bookNo: data.bookNo || null,
       receiptNo: data.receiptNo || null
-    });
+    }));
     await this.recalculateSpecialPaidAmount(data.specialId);
     return this.getWaqfJadeedSpecialRecordById(data.specialId);
   }
@@ -421,10 +446,10 @@ export class ApiService {
     const snap = await getDocs(q);
     const total = snap.docs.reduce((sum, d) => sum + (d.data().amount || 0), 0);
 
-    await updateDoc(doc(db, 'waqfJadeedSpecial', specialId), {
+    await updateDoc(doc(db, 'waqfJadeedSpecial', specialId), stripUndefinedDeep({
       paidAmount: total,
       updatedAt: new Date().toISOString()
-    });
+    }));
     return total;
   }
 
@@ -486,10 +511,10 @@ export class ApiService {
     }
 
     let id = data.id || (records.length > 0 ? records[0].id : crypto.randomUUID());
-
+ 
     const payload = { ...data, id, updatedAt: new Date().toISOString() };
-    await setDoc(doc(db, 'tahreqJadeed', id), payload, { merge: true });
-
+    await setDoc(doc(db, 'tahreqJadeed', id), stripUndefinedDeep(payload), { merge: true });
+ 
     return this.getTahreqJadeedRecordById(id);
   }
 
@@ -508,9 +533,9 @@ export class ApiService {
     const record = await this.saveTahreqJadeedRecord({ memberId: data.memberId, year: data.year });
 
     if (!record) throw new Error('Failed to create/fetch record');
-
+ 
     const paymentId = crypto.randomUUID();
-    await setDoc(doc(db, 'tahreqJadeedPayments', paymentId), {
+    await setDoc(doc(db, 'tahreqJadeedPayments', paymentId), stripUndefinedDeep({
       id: paymentId,
       tahreqJadeedId: record.id,
       amount: data.amount,
@@ -519,21 +544,21 @@ export class ApiService {
       bookId: data.bookId || null,
       bookNo: data.bookNo || null,
       receiptNo: data.receiptNo || null
-    });
+    }));
 
     await this.recalculateTahreqPaidAmount(record.id);
     return this.getTahreqJadeedRecordById(record.id);
   }
 
   static async updateTahreqJadeedPayment(data: { id: string; tahreqJadeedId: string; amount: number; date: string; notes?: string; bookId?: string; bookNo?: string; receiptNo?: number }): Promise<TahreqJadeedRecord | null> {
-    await updateDoc(doc(db, 'tahreqJadeedPayments', data.id), {
+    await updateDoc(doc(db, 'tahreqJadeedPayments', data.id), stripUndefinedDeep({
       amount: data.amount,
       date: data.date,
       notes: data.notes || '',
       bookId: data.bookId || null,
       bookNo: data.bookNo || null,
       receiptNo: data.receiptNo || null
-    });
+    }));
     await this.recalculateTahreqPaidAmount(data.tahreqJadeedId);
     return this.getTahreqJadeedRecordById(data.tahreqJadeedId);
   }
@@ -555,10 +580,10 @@ export class ApiService {
     const snap = await getDocs(q);
     const total = snap.docs.reduce((sum, d) => sum + (d.data().amount || 0), 0);
 
-    await updateDoc(doc(db, 'tahreqJadeed', tahreqJadeedId), {
+    await updateDoc(doc(db, 'tahreqJadeed', tahreqJadeedId), stripUndefinedDeep({
       paidAmount: total,
       updatedAt: new Date().toISOString()
-    });
+    }));
     return total;
   }
 
@@ -582,11 +607,11 @@ export class ApiService {
 
   static async saveTahreqJadeedSpecialRecord(data: any): Promise<TahreqJadeedSpecialRecord> {
     const id = data.id || crypto.randomUUID();
-    await setDoc(doc(db, 'tahreqJadeedSpecial', id), {
+    await setDoc(doc(db, 'tahreqJadeedSpecial', id), stripUndefinedDeep({
       ...data,
       id,
       updatedAt: new Date().toISOString()
-    });
+    }));
     const snap = await getDoc(doc(db, 'tahreqJadeedSpecial', id));
     return { ...snap.data(), id: snap.id } as TahreqJadeedSpecialRecord;
   }
@@ -609,7 +634,7 @@ export class ApiService {
 
   static async addTahreqJadeedSpecialPayment(data: { specialId: string; amount: number; date: string; notes?: string; bookId?: string; bookNo?: string; receiptNo?: number }): Promise<TahreqJadeedSpecialRecord | null> {
     const paymentId = crypto.randomUUID();
-    await setDoc(doc(db, 'tahreqJadeedPayments', paymentId), {
+    await setDoc(doc(db, 'tahreqJadeedPayments', paymentId), stripUndefinedDeep({
       id: paymentId,
       tahreqJadeedId: data.specialId,
       amount: data.amount,
@@ -618,21 +643,21 @@ export class ApiService {
       bookId: data.bookId || null,
       bookNo: data.bookNo || null,
       receiptNo: data.receiptNo || null
-    });
+    }));
 
     await this.recalculateTahreqSpecialPaidAmount(data.specialId);
     return this.getTahreqJadeedSpecialRecordById(data.specialId);
   }
 
   static async updateTahreqJadeedSpecialPayment(data: { id: string; specialId: string; amount: number; date: string; notes?: string; bookId?: string; bookNo?: string; receiptNo?: number }): Promise<TahreqJadeedSpecialRecord | null> {
-    await updateDoc(doc(db, 'tahreqJadeedPayments', data.id), {
+    await updateDoc(doc(db, 'tahreqJadeedPayments', data.id), stripUndefinedDeep({
       amount: data.amount,
       date: data.date,
       notes: data.notes || '',
       bookId: data.bookId || null,
       bookNo: data.bookNo || null,
       receiptNo: data.receiptNo || null
-    });
+    }));
     await this.recalculateTahreqSpecialPaidAmount(data.specialId);
     return this.getTahreqJadeedSpecialRecordById(data.specialId);
   }
@@ -642,10 +667,10 @@ export class ApiService {
     const snap = await getDocs(q);
     const total = snap.docs.reduce((sum, d) => sum + (d.data().amount || 0), 0);
 
-    await updateDoc(doc(db, 'tahreqJadeedSpecial', specialId), {
+    await updateDoc(doc(db, 'tahreqJadeedSpecial', specialId), stripUndefinedDeep({
       paidAmount: total,
       updatedAt: new Date().toISOString()
-    });
+    }));
     return total;
   }
 
@@ -674,7 +699,7 @@ export class ApiService {
       id,
       createdAt: data.createdAt || new Date().toISOString()
     };
-    await setDoc(doc(db, 'tahreqJadeedMarkazPayments', id), payload, { merge: true });
+    await setDoc(doc(db, 'tahreqJadeedMarkazPayments', id), stripUndefinedDeep(payload), { merge: true });
     return payload as TahreqJadeedMarkazPayment;
   }
 
@@ -700,11 +725,11 @@ export class ApiService {
 
   static async saveTahreqTargetAmount(year: number, amount: number): Promise<void> {
     const docId = `tahreq_target_${year}`;
-    await setDoc(doc(db, 'settings', docId), {
+    await setDoc(doc(db, 'settings', docId), stripUndefinedDeep({
       amount,
       year,
       updatedAt: new Date().toISOString()
-    });
+    }));
   }
 
   // --- Payment Plans ---
@@ -717,7 +742,7 @@ export class ApiService {
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     };
-    await setDoc(doc(db, 'paymentPlans', id), plan);
+    await setDoc(doc(db, 'paymentPlans', id), stripUndefinedDeep(plan));
     return plan;
   }
 
@@ -735,7 +760,7 @@ export class ApiService {
       ...data,
       updatedAt: new Date().toISOString()
     };
-    await updateDoc(doc(db, 'paymentPlans', id), updatedData);
+    await updateDoc(doc(db, 'paymentPlans', id), stripUndefinedDeep(updatedData));
     const snap = await getDoc(doc(db, 'paymentPlans', id));
     return { ...snap.data(), id: snap.id };
   }
@@ -753,7 +778,7 @@ export class ApiService {
       id,
       createdAt: new Date().toISOString()
     };
-    await setDoc(doc(db, 'paymentReminders', id), reminder);
+    await setDoc(doc(db, 'paymentReminders', id), stripUndefinedDeep(reminder));
     return reminder;
   }
 
@@ -777,7 +802,7 @@ export class ApiService {
   }
 
   static async updatePaymentReminder(id: string, data: any): Promise<any> {
-    await updateDoc(doc(db, 'paymentReminders', id), data);
+    await updateDoc(doc(db, 'paymentReminders', id), stripUndefinedDeep(data));
     const snap = await getDoc(doc(db, 'paymentReminders', id));
     return { ...snap.data(), id: snap.id };
   }
@@ -795,7 +820,7 @@ export class ApiService {
       id,
       createdAt: new Date().toISOString()
     };
-    await setDoc(doc(db, 'financialReports', id), report);
+    await setDoc(doc(db, 'financialReports', id), stripUndefinedDeep(report));
     return report;
   }
 
@@ -831,11 +856,11 @@ export class ApiService {
 
   static async saveTargetAmount(year: number, amount: number): Promise<void> {
     const docId = `waqf_target_${year}`;
-    await setDoc(doc(db, 'settings', docId), {
+    await setDoc(doc(db, 'settings', docId), stripUndefinedDeep({
       amount,
       year,
       updatedAt: new Date().toISOString()
-    });
+    }));
   }
 
   // --- Multi-year Comparison Data ---
@@ -893,7 +918,7 @@ export class ApiService {
       status: 'active',
       createdAt: new Date().toISOString()
     };
-    await setDoc(doc(db, 'receiptBooks', id), book);
+    await setDoc(doc(db, 'receiptBooks', id), stripUndefinedDeep(book));
     return book;
   }
 
@@ -904,10 +929,10 @@ export class ApiService {
   }
 
   static async updateReceiptBook(id: string, data: any): Promise<void> {
-    await updateDoc(doc(db, 'receiptBooks', id), {
+    await updateDoc(doc(db, 'receiptBooks', id), stripUndefinedDeep({
       ...data,
       updatedAt: new Date().toISOString()
-    });
+    }));
   }
 
   static async deleteReceiptBook(id: string): Promise<void> {
@@ -962,8 +987,8 @@ export class ApiService {
       promiseAmount,
       updatedAt: new Date().toISOString()
     };
-    await setDoc(doc(db, 'ansarullah', id), payload, { merge: true });
-
+    await setDoc(doc(db, 'ansarullah', id), stripUndefinedDeep(payload), { merge: true });
+ 
     return this.getAnsarullahRecordById(id);
   }
 
@@ -982,9 +1007,9 @@ export class ApiService {
     const record = await this.saveAnsarullahRecord({ memberId: data.memberId, year: data.year });
 
     if (!record) throw new Error('Failed to create/fetch record');
-
+ 
     const paymentId = crypto.randomUUID();
-    await setDoc(doc(db, 'waqfJadeedPayments', paymentId), {
+    await setDoc(doc(db, 'waqfJadeedPayments', paymentId), stripUndefinedDeep({
       id: paymentId,
       waqfJadeedId: record.id,
       amount: data.amount,
@@ -993,21 +1018,21 @@ export class ApiService {
       bookId: data.bookId || null,
       bookNo: data.bookNo || null,
       receiptNo: data.receiptNo || null
-    });
+    }));
 
     await this.recalculateAnsarullahPaidAmount(record.id);
     return this.getAnsarullahRecordById(record.id);
   }
 
   static async updateAnsarullahPayment(data: { id: string; waqfJadeedId: string; amount: number; date: string; notes?: string; bookId?: string; bookNo?: string; receiptNo?: number }): Promise<AnsarullahRecord | null> {
-    await updateDoc(doc(db, 'waqfJadeedPayments', data.id), {
+    await updateDoc(doc(db, 'waqfJadeedPayments', data.id), stripUndefinedDeep({
       amount: data.amount,
       date: data.date,
       notes: data.notes || '',
       bookId: data.bookId || null,
       bookNo: data.bookNo || null,
       receiptNo: data.receiptNo || null
-    });
+    }));
     await this.recalculateAnsarullahPaidAmount(data.waqfJadeedId);
     return this.getAnsarullahRecordById(data.waqfJadeedId);
   }
@@ -1029,10 +1054,10 @@ export class ApiService {
     const snap = await getDocs(q);
     const total = snap.docs.reduce((sum, d) => sum + (d.data().amount || 0), 0);
 
-    await updateDoc(doc(db, 'ansarullah', ansarullahId), {
+    await updateDoc(doc(db, 'ansarullah', ansarullahId), stripUndefinedDeep({
       paidAmount: total,
       updatedAt: new Date().toISOString()
-    });
+    }));
     return total;
   }
 
@@ -1045,7 +1070,7 @@ export class ApiService {
       id,
       createdAt: data.createdAt || new Date().toISOString()
     };
-    await setDoc(doc(db, 'markazPayments', id), payload, { merge: true });
+    await setDoc(doc(db, 'markazPayments', id), stripUndefinedDeep(payload), { merge: true });
     return payload as MarkazPayment;
   }
 

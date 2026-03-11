@@ -69,7 +69,6 @@ const TanzeemView: React.FC = () => {
       CNIC: member.cnic,
       Address: member.address,
       Halqa: member.halqa || '',
-      'Created At': formatDate(member.createdAt),
     }));
 
     exportToCSV(exportData, `${getTanzeemDisplayName(tanzeem).toLowerCase()}_members.csv`);
@@ -96,13 +95,12 @@ const TanzeemView: React.FC = () => {
       member.fatherName || '',
       member.age.toString(),
       member.phone || '',
-      member.halqa || '',
-      formatDate(member.createdAt)
+      member.halqa || ''
     ]);
 
     // Add table
     autoTable(doc, {
-      head: [['S.No', 'Name', 'Father Name', 'Age', 'Phone', 'Halqa', 'Joined']],
+      head: [['S.No', 'Name', 'Father Name', 'Age', 'Phone', 'Halqa']],
       body: tableData,
       startY: 40,
       styles: { fontSize: 8 },
@@ -201,14 +199,6 @@ const TanzeemView: React.FC = () => {
         dataIndex: 'halqa',
         key: 'halqa',
         render: (halqa: string) => halqa || '-',
-      },
-      {
-        title: 'Joined',
-        dataIndex: 'createdAt',
-        key: 'createdAt',
-        render: (createdAt: string) => formatDate(createdAt),
-        sorter: (a: Member, b: Member) =>
-          new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
       },
       {
         title: 'Actions',

@@ -35,10 +35,23 @@ const WaqfeNau: React.FC = () => {
   const [families, setFamilies] = useState<Family[]>([]);
   const [loading, setLoading] = useState(false);
   const [searchText, setSearchText] = useState('');
+  const [pageSize, setPageSize] = useState(10);
 
   useEffect(() => {
     loadMembers();
   }, []);
+
+  const getGuardianName = (m: Member) => {
+    if (m.tanzeem === 'lajna') return m.husbandName || m.fatherName || '';
+    return m.fatherName || m.husbandName || '';
+  };
+
+  const getGuardianPrefix = (m: Member) => {
+    if (m.tanzeem === 'lajna' && m.husbandName) return 'w/o';
+    if (m.fatherName) return 's/o';
+    if (m.husbandName) return 'w/o';
+    return '';
+  };
 
   const loadMembers = async () => {
     setLoading(true);
@@ -65,7 +78,8 @@ const WaqfeNau: React.FC = () => {
     return (
       member.name.toLowerCase().includes(searchLower) ||
       member.waqfeNauNumber?.toLowerCase().includes(searchLower) ||
-      member.fatherName?.toLowerCase().includes(searchLower)
+      member.fatherName?.toLowerCase().includes(searchLower) ||
+      member.husbandName?.toLowerCase().includes(searchLower)
     );
   });
 
@@ -93,11 +107,22 @@ const WaqfeNau: React.FC = () => {
     return arr;
   }, [filteredMembers, familyNameById]);
 
+  const tablePagination = React.useMemo(
+    () => ({
+      pageSize,
+      showSizeChanger: true,
+      pageSizeOptions: [10, 20, 50, 100],
+      onShowSizeChange: (_current: number, size: number) => setPageSize(size),
+      showTotal: (total: number, range: [number, number]) => `${range[0]}-${range[1]} of ${total} records`,
+    }),
+    [pageSize]
+  );
+
   const getExportData = () => {
     return sortedMembers.map(m => ({
       'Waqf-e-Nau No': m.waqfeNauNumber,
       'Name': m.name,
-      'Father Name': m.fatherName || '',
+      'Father/Husband Name': getGuardianName(m),
       'Family': familyNameById[m.familyId || ''] || '',
       'Tanzeem': getTanzeemDisplayName(m.tanzeem),
       'Age': m.age,
@@ -137,7 +162,7 @@ const WaqfeNau: React.FC = () => {
     doc.text(`Total: ${sortedMembers.length}`, 14, currentY);
     currentY += 6;
 
-    const headers = ['S.No', 'Tajneed No', 'Name', 'Father Name', 'Age', 'Tanzeem'];
+    const headers = ['S.No', 'Tajneed No', 'Name', 'Father/Husband Name', 'Age', 'Tanzeem'];
 
     const renderSection = (title: string, data: Member[]) => {
       doc.setFontSize(12);
@@ -148,7 +173,7 @@ const WaqfeNau: React.FC = () => {
         String(idx + 1),
         m.tajneedCode || m.waqfeNauNumber || '',
         m.name,
-        m.fatherName || '',
+        getGuardianName(m),
         String(m.age ?? ''),
         getTanzeemDisplayName(m.tanzeem)
       ]);
@@ -216,7 +241,11 @@ const WaqfeNau: React.FC = () => {
           </Avatar>
           <Space direction="vertical" size={0}>
             <Text strong>{record.name}</Text>
-            {record.fatherName && <Text type="secondary" style={{ fontSize: '12px' }}>s/o {record.fatherName}</Text>}
+            {getGuardianName(record) && (
+              <Text type="secondary" style={{ fontSize: '12px' }}>
+                {getGuardianPrefix(record)} {getGuardianName(record)}
+              </Text>
+            )}
           </Space>
         </Space>
       ),
@@ -296,7 +325,7 @@ const WaqfeNau: React.FC = () => {
         <div style={{ marginBottom: 16 }}>
           <Input
             prefix={<SearchOutlined />}
-            placeholder="Search by name, Waqf-e-Nau No, or father's name"
+            placeholder="Search by name, Waqf-e-Nau No, or father/husband name"
             value={searchText}
             onChange={e => setSearchText(e.target.value)}
             style={{ width: 300 }}
@@ -313,7 +342,7 @@ const WaqfeNau: React.FC = () => {
             dataSource={sortedMembers.filter(m => m.age < 15)}
             rowKey="id"
             loading={loading}
-            pagination={{ pageSize: 10 }}
+            pagination={tablePagination as any}
           />
         </div>
 
@@ -326,7 +355,7 @@ const WaqfeNau: React.FC = () => {
             dataSource={sortedMembers.filter(m => m.age >= 15 && m.age <= 21)}
             rowKey="id"
             loading={loading}
-            pagination={{ pageSize: 10 }}
+            pagination={tablePagination as any}
           />
         </div>
 
@@ -339,7 +368,7 @@ const WaqfeNau: React.FC = () => {
             dataSource={sortedMembers.filter(m => m.age > 21)}
             rowKey="id"
             loading={loading}
-            pagination={{ pageSize: 10 }}
+            pagination={tablePagination as any}
           />
         </div>
       </Card>

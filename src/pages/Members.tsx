@@ -24,7 +24,6 @@ import {
   PlusOutlined,
   DownloadOutlined,
 } from '@ant-design/icons';
-import ReligiousActivitiesModal from '../components/ReligiousActivitiesModal';
 import MemberForm from '../components/MemberForm';
 import { ApiService } from '../services/apiService';
 import type { Member, Tanzeem, Family } from '../types';
@@ -52,12 +51,15 @@ const Members: React.FC = () => {
   const [searchText, setSearchText] = useState('');
   const [selectedFamilyId, setSelectedFamilyId] = useState<string>('');
   const [activeTab, setActiveTab] = useState<string>('active');
-  const [religiousModalVisible, setReligiousModalVisible] = useState(false);
-  const [selectedMemberForReligious, setSelectedMemberForReligious] = useState<Member | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [wasitDrafts, setWasitDrafts] = useState<Record<string, string>>({});
   const [savingWasitIds, setSavingWasitIds] = useState<Record<string, boolean>>({});
   const [savingMaritalIds, setSavingMaritalIds] = useState<Record<string, boolean>>({});
+  const [fatherDrafts, setFatherDrafts] = useState<Record<string, string>>({});
+  const [husbandDrafts, setHusbandDrafts] = useState<Record<string, string>>({});
+  const [savingFatherIds, setSavingFatherIds] = useState<Record<string, boolean>>({});
+  const [savingHusbandIds, setSavingHusbandIds] = useState<Record<string, boolean>>({});
+  const [pageSize, setPageSize] = useState(10);
 
   // Add CSS for deceased member rows
   useEffect(() => {
@@ -90,6 +92,12 @@ const Members: React.FC = () => {
       setMembers(membersData);
       setWasitDrafts(
         Object.fromEntries(membersData.map(member => [member.id, member.wasitNo || '']))
+      );
+      setFatherDrafts(
+        Object.fromEntries(membersData.map(member => [member.id, member.fatherName || '']))
+      );
+      setHusbandDrafts(
+        Object.fromEntries(membersData.map(member => [member.id, member.husbandName || '']))
       );
       setFamilies(familiesData);
     } catch (error) {
@@ -346,6 +354,88 @@ const Members: React.FC = () => {
     }
   };
 
+  const persistFatherName = async (memberId: string, nextFatherName: string) => {
+    const member = members.find(m => m.id === memberId);
+    if (!member) return;
+
+    const normalizedFatherName = nextFatherName.trim();
+    const currentFatherName = (member.fatherName || '').trim();
+
+    if (normalizedFatherName === currentFatherName) {
+      setSavingFatherIds(prev => ({ ...prev, [memberId]: false }));
+      return;
+    }
+
+    setSavingFatherIds(prev => ({ ...prev, [memberId]: true }));
+    try {
+      await ApiService.updateMember(memberId, { fatherName: normalizedFatherName });
+      setMembers(prev => prev.map(item => (
+        item.id === memberId
+          ? { ...item, fatherName: normalizedFatherName, updatedAt: new Date().toISOString() }
+          : item
+      )));
+      setFatherDrafts(prev => ({ ...prev, [memberId]: normalizedFatherName }));
+    } catch (error) {
+      setFatherDrafts(prev => ({ ...prev, [memberId]: member.fatherName || '' }));
+      message.error(`Failed to save father name for ${member.name}`);
+      console.error(error);
+    } finally {
+      setSavingFatherIds(prev => ({ ...prev, [memberId]: false }));
+    }
+  };
+
+  const handleFatherChange = (memberId: string, value: string) => {
+    setFatherDrafts(prev => ({ ...prev, [memberId]: value }));
+  };
+
+  const handleFatherBlur = (memberId: string) => {
+    const member = members.find(item => item.id === memberId);
+    if (member) {
+      void persistFatherName(memberId, fatherDrafts[memberId] ?? member.fatherName ?? '');
+    }
+  };
+
+  const persistHusbandName = async (memberId: string, nextHusbandName: string) => {
+    const member = members.find(m => m.id === memberId);
+    if (!member) return;
+
+    const normalizedHusbandName = nextHusbandName.trim();
+    const currentHusbandName = (member.husbandName || '').trim();
+
+    if (normalizedHusbandName === currentHusbandName) {
+      setSavingHusbandIds(prev => ({ ...prev, [memberId]: false }));
+      return;
+    }
+
+    setSavingHusbandIds(prev => ({ ...prev, [memberId]: true }));
+    try {
+      await ApiService.updateMember(memberId, { husbandName: normalizedHusbandName });
+      setMembers(prev => prev.map(item => (
+        item.id === memberId
+          ? { ...item, husbandName: normalizedHusbandName, updatedAt: new Date().toISOString() }
+          : item
+      )));
+      setHusbandDrafts(prev => ({ ...prev, [memberId]: normalizedHusbandName }));
+    } catch (error) {
+      setHusbandDrafts(prev => ({ ...prev, [memberId]: member.husbandName || '' }));
+      message.error(`Failed to save husband name for ${member.name}`);
+      console.error(error);
+    } finally {
+      setSavingHusbandIds(prev => ({ ...prev, [memberId]: false }));
+    }
+  };
+
+  const handleHusbandChange = (memberId: string, value: string) => {
+    setHusbandDrafts(prev => ({ ...prev, [memberId]: value }));
+  };
+
+  const handleHusbandBlur = (memberId: string) => {
+    const member = members.find(item => item.id === memberId);
+    if (member) {
+      void persistHusbandName(memberId, husbandDrafts[memberId] ?? member.husbandName ?? '');
+    }
+  };
+
   const persistMaritalStatus = async (
     memberId: string,
     maritalStatus: 'married' | 'unmarried' | 'divorced' | 'widower' | 'widow'
@@ -381,6 +471,27 @@ const Members: React.FC = () => {
       setSavingMaritalIds(prev => ({ ...prev, [memberId]: false }));
     }
   };
+
+  const getComputedMaritalStatus = (record: Member) =>
+    (record.maritalStatus
+      ? record.maritalStatus
+      : ((record as any).isMarried ? 'married' : 'unmarried')) as
+      | 'married'
+      | 'unmarried'
+      | 'divorced'
+      | 'widower'
+      | 'widow';
+
+  const tablePagination = React.useMemo(
+    () => ({
+      pageSize,
+      showSizeChanger: true,
+      pageSizeOptions: [10, 20, 50, 100],
+      onShowSizeChange: (_current: number, size: number) => setPageSize(size),
+      showTotal: (total: number, range: [number, number]) => `${range[0]}-${range[1]} of ${total} records`,
+    }),
+    [pageSize]
+  );
 
   const columns = [
     {
@@ -438,7 +549,9 @@ const Members: React.FC = () => {
               )}
             </div>
             <Text type="secondary" style={{ fontSize: '12px' }}>
-              {record.husbandName ? `Husband: ${record.husbandName}` : record.fatherName}
+              {(record.fatherName || record.husbandName)
+                ? `${record.fatherName ? `Father: ${record.fatherName}` : ''}${record.fatherName && record.husbandName ? ' • ' : ''}${record.husbandName ? `Husband: ${record.husbandName}` : ''}`
+                : '-'}
             </Text>
             {record.isMoved && (
               <Tag color="orange" style={{ marginTop: 4, display: 'block' }}>
@@ -448,6 +561,38 @@ const Members: React.FC = () => {
           </div>
         );
       },
+    },
+    {
+      title: 'Father Name',
+      key: 'fatherName',
+      width: 180,
+      render: (record: Member) => (
+        <Input
+          value={fatherDrafts[record.id] ?? record.fatherName ?? ''}
+          placeholder="Enter father name"
+          allowClear
+          size="small"
+          onChange={(event) => handleFatherChange(record.id, event.target.value)}
+          onBlur={() => handleFatherBlur(record.id)}
+          status={savingFatherIds[record.id] ? 'warning' : undefined}
+        />
+      ),
+    },
+    {
+      title: 'Husband Name',
+      key: 'husbandName',
+      width: 180,
+      render: (record: Member) => (
+        <Input
+          value={husbandDrafts[record.id] ?? record.husbandName ?? ''}
+          placeholder="Enter husband name"
+          allowClear
+          size="small"
+          onChange={(event) => handleHusbandChange(record.id, event.target.value)}
+          onBlur={() => handleHusbandBlur(record.id)}
+          status={savingHusbandIds[record.id] ? 'warning' : undefined}
+        />
+      ),
     },
     {
       title: 'Gender',
@@ -460,8 +605,16 @@ const Members: React.FC = () => {
     {
       title: 'Marital Status',
       key: 'maritalStatus',
+      filters: [
+        { text: 'Unmarried', value: 'unmarried' },
+        { text: 'Married', value: 'married' },
+        { text: 'Divorced', value: 'divorced' },
+        { text: 'Widower', value: 'widower' },
+        { text: 'Widow', value: 'widow' }
+      ],
+      onFilter: (value: any, record: Member) => getComputedMaritalStatus(record) === value,
       render: (record: Member) => {
-        const status = record.maritalStatus ? record.maritalStatus : ((record as any).isMarried ? 'married' : 'unmarried');
+        const status = getComputedMaritalStatus(record);
         const map: Record<string, { text: string; color: string }> = {
           married: { text: 'شادی شدہ', color: 'green' },
           unmarried: { text: 'غیر شادی شدہ', color: 'default' },
@@ -471,20 +624,23 @@ const Members: React.FC = () => {
         };
         const meta = map[status] || map.unmarried;
         return (
-          <Select
-            size="small"
-            style={{ width: 140 }}
-            value={status}
-            loading={savingMaritalIds[record.id]}
-            onChange={(value) => void persistMaritalStatus(record.id, value)}
-            options={[
-              { value: 'unmarried', label: 'Unmarried' },
-              { value: 'married', label: 'Married' },
-              { value: 'divorced', label: 'Divorced' },
-              { value: 'widower', label: 'Widower' },
-              { value: 'widow', label: 'Widow' }
-            ]}
-          />
+          <Space direction="vertical" size={4}>
+            <Tag color={meta.color}>{meta.text}</Tag>
+            <Select
+              size="small"
+              style={{ width: 140 }}
+              value={status}
+              loading={savingMaritalIds[record.id]}
+              onChange={(value) => void persistMaritalStatus(record.id, value)}
+              options={[
+                { value: 'unmarried', label: 'Unmarried' },
+                { value: 'married', label: 'Married' },
+                { value: 'divorced', label: 'Divorced' },
+                { value: 'widower', label: 'Widower' },
+                { value: 'widow', label: 'Widow' }
+              ]}
+            />
+          </Space>
         );
       }
     },
@@ -527,50 +683,6 @@ const Members: React.FC = () => {
       title: 'Phone',
       dataIndex: 'phone',
       key: 'phone',
-    },
-    {
-      title: 'Halqa',
-      key: 'halqa',
-      render: (record: Member) => {
-        const family = families.find(f => f.memberIds.includes(record.id));
-        return family?.halqa || '-';
-      },
-    },
-    {
-      title: 'Status',
-      key: 'status',
-      render: (record: Member) => {
-        if (record.isDeceased) return <Tag color="red">Deceased</Tag>;
-        if (record.isMoved) return <Tag color="orange">Moved</Tag>;
-        if (record.isBList) return <Tag color="blue">B List</Tag>;
-        return <Tag color="green">Active</Tag>;
-      },
-      width: 100,
-    },
-    {
-      title: 'Religious Data',
-      key: 'religious',
-      render: (record: Member) => {
-        const hasData = !!record.religiousActivities;
-        return (
-          <Button
-            type={hasData ? 'primary' : 'default'}
-            size="small"
-            icon={<EditOutlined />}
-            onClick={() => {
-              setSelectedMemberForReligious(record);
-              setReligiousModalVisible(true);
-            }}
-            style={{
-              backgroundColor: hasData ? '#52c41a' : undefined,
-              borderColor: hasData ? '#52c41a' : undefined
-            }}
-          >
-            Edit
-          </Button>
-        );
-      },
-      width: 100,
     },
     {
       title: 'Actions',
@@ -661,7 +773,7 @@ const Members: React.FC = () => {
                     dataSource={getFilteredAndSortedMembers()}
                     rowKey="id"
                     loading={loading}
-                    pagination={{ pageSize: 10 }}
+                    pagination={tablePagination as any}
                     scroll={{ x: 1000 }}
                   />
                 </>
@@ -676,7 +788,7 @@ const Members: React.FC = () => {
                   dataSource={getFilteredAndSortedMembers()}
                   rowKey="id"
                   loading={loading}
-                  pagination={{ pageSize: 10 }}
+                  pagination={tablePagination as any}
                   scroll={{ x: 1000 }}
                   rowClassName={() => 'deceased-member'}
                 />
@@ -691,7 +803,7 @@ const Members: React.FC = () => {
                   dataSource={getFilteredAndSortedMembers()}
                   rowKey="id"
                   loading={loading}
-                  pagination={{ pageSize: 10 }}
+                  pagination={tablePagination as any}
                   scroll={{ x: 1000 }}
                 />
               )
@@ -705,7 +817,7 @@ const Members: React.FC = () => {
                   dataSource={getFilteredAndSortedMembers()}
                   rowKey="id"
                   loading={loading}
-                  pagination={{ pageSize: 10 }}
+                  pagination={tablePagination as any}
                   scroll={{ x: 1000 }}
                 />
               )
@@ -735,13 +847,6 @@ const Members: React.FC = () => {
           existingMembers={members}
         />
       </Modal>
-
-      <ReligiousActivitiesModal
-        visible={religiousModalVisible}
-        member={selectedMemberForReligious}
-        onClose={() => setReligiousModalVisible(false)}
-        onSuccess={loadMembers}
-      />
     </div>
   );
 };
