@@ -66,7 +66,6 @@ const TanzeemView: React.FC = () => {
       'Father Name': member.fatherName,
       Age: member.age,
       Phone: member.phone,
-      CNIC: member.cnic,
       Address: member.address,
       Halqa: member.halqa || '',
     }));

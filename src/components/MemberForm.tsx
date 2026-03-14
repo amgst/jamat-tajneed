@@ -282,27 +282,6 @@ const MemberForm: React.FC<MemberFormProps> = ({
                     <Row gutter={16}>
                         <Col xs={24} md={12}>
                             <Form.Item
-                                name="cnic"
-                                label="ID Card No"
-                                rules={[
-                                    {
-                                        validator: (_, value) => {
-                                            if (!value || validateCNIC(value)) {
-                                                return Promise.resolve();
-                                            }
-                                            return Promise.reject(new Error('Please enter a valid CNIC (13 digits)'));
-                                        }
-                                    }
-                                ]}
-                            >
-                                <Input
-                                    placeholder="Enter CNIC"
-                                    maxLength={15}
-                                />
-                            </Form.Item>
-                        </Col>
-                        <Col xs={24} md={12}>
-                            <Form.Item
                                 name="education"
                                 label="Education"
                             >
@@ -319,9 +298,6 @@ const MemberForm: React.FC<MemberFormProps> = ({
                                 </Select>
                             </Form.Item>
                         </Col>
-                    </Row>
-
-                    <Row gutter={16}>
                         <Col xs={24} md={12}>
                             <Form.Item
                                 name="bloodGroup"
@@ -339,12 +315,23 @@ const MemberForm: React.FC<MemberFormProps> = ({
                                 </Select>
                             </Form.Item>
                         </Col>
+                    </Row>
+
+                    <Row gutter={16}>
                         <Col xs={24} md={12}>
                             <Form.Item
                                 name="waqfeNauNumber"
                                 label="Waqfe-Neu No"
                             >
                                 <Input placeholder="Enter Waqfe-Neu No" />
+                            </Form.Item>
+                        </Col>
+                        <Col xs={24} md={12}>
+                            <Form.Item
+                                name="wasitNo"
+                                label="Wasit No"
+                            >
+                                <Input placeholder="Enter wasit no" />
                             </Form.Item>
                         </Col>
                     </Row>
@@ -398,17 +385,6 @@ const MemberForm: React.FC<MemberFormProps> = ({
                         </Col>
                         <Col xs={24} md={12}>
                             <Form.Item
-                                name="wasitNo"
-                                label="Wasit No"
-                            >
-                                <Input placeholder="Enter wasit no" />
-                            </Form.Item>
-                        </Col>
-                    </Row>
-
-                    <Row gutter={16}>
-                        <Col xs={24} md={12}>
-                            <Form.Item
                                 label="Halqa"
                             >
                                 <Input
@@ -418,7 +394,6 @@ const MemberForm: React.FC<MemberFormProps> = ({
                                 />
                             </Form.Item>
                         </Col>
-
                     </Row>
 
                     <Row gutter={16}>

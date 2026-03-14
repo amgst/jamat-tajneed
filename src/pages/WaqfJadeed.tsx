@@ -56,7 +56,7 @@ import { ApiService } from '../services/apiService';
 import type { Member, WaqfJadeedRecord, Family, Payment, WaqfJadeedSpecialRecord, ReceiptBook, WaqfJadeedMarkazPayment } from '../types';
 import { ReceiptTemplate } from '../components/ReceiptTemplate';
 import PaymentPlanManager from '../components/PaymentPlanManager';
-import { getTanzeemDisplayName, calculateAge, determineTanzeem, getTanzeemUrduName, formatCNIC, exportToPDF } from '../utils/helpers';
+import { getTanzeemDisplayName, calculateAge, determineTanzeem, getTanzeemUrduName, exportToPDF } from '../utils/helpers';
 import MemberForm from '../components/MemberForm';
 import { generateAvatarFromName } from '../utils/imageUtils';
 import { validateMemberData, sanitizeMemberData } from '../utils/validation';
@@ -453,11 +453,25 @@ const WaqfJadeed: React.FC = () => {
                                 `;
                 }).join('')}
                             <tr style="background-color: #f6ffed; font-weight: bold; border-top: 2px solid #52c41a;">
-                                <td style="padding: 8px;">Total Atfal</td>
-                                <td style="padding: 8px; text-align: center;">${dafarAtfalStats.count}</td>
-                                <td style="padding: 8px; text-align: right;">${formatCurrency(dafarAtfalStats.promise)}</td>
-                                <td style="padding: 8px; text-align: right;">${formatCurrency(dafarAtfalStats.paid)}</td>
-                                <td style="padding: 8px; text-align: center;">${formatPercent(dafarAtfalStats.promise > 0 ? (dafarAtfalStats.paid / dafarAtfalStats.promise) * 100 : 0)}</td>
+                                <td style="padding: 8px;">Total Atfal (Male)</td>
+                                <td style="padding: 8px; text-align: center;">${dafarAtfalStats.male.count}</td>
+                                <td style="padding: 8px; text-align: right;">${formatCurrency(dafarAtfalStats.male.promise)}</td>
+                                <td style="padding: 8px; text-align: right;">${formatCurrency(dafarAtfalStats.male.paid)}</td>
+                                <td style="padding: 8px; text-align: center;">${formatPercent(dafarAtfalStats.male.promise > 0 ? (dafarAtfalStats.male.paid / dafarAtfalStats.male.promise) * 100 : 0)}</td>
+                            </tr>
+                            <tr style="background-color: #fff0f6; font-weight: bold; border-top: 1px solid #eb2f96;">
+                                <td style="padding: 8px;">Total Atfal (Female)</td>
+                                <td style="padding: 8px; text-align: center;">${dafarAtfalStats.female.count}</td>
+                                <td style="padding: 8px; text-align: right;">${formatCurrency(dafarAtfalStats.female.promise)}</td>
+                                <td style="padding: 8px; text-align: right;">${formatCurrency(dafarAtfalStats.female.paid)}</td>
+                                <td style="padding: 8px; text-align: center;">${formatPercent(dafarAtfalStats.female.promise > 0 ? (dafarAtfalStats.female.paid / dafarAtfalStats.female.promise) * 100 : 0)}</td>
+                            </tr>
+                            <tr style="background-color: #f9f9f9; font-weight: bold; border-top: 2px solid #333;">
+                                <td style="padding: 8px;">Grand Total Atfal</td>
+                                <td style="padding: 8px; text-align: center;">${dafarAtfalStats.total.count}</td>
+                                <td style="padding: 8px; text-align: right;">${formatCurrency(dafarAtfalStats.total.promise)}</td>
+                                <td style="padding: 8px; text-align: right;">${formatCurrency(dafarAtfalStats.total.paid)}</td>
+                                <td style="padding: 8px; text-align: center;">${formatPercent(dafarAtfalStats.total.promise > 0 ? (dafarAtfalStats.total.paid / dafarAtfalStats.total.promise) * 100 : 0)}</td>
                             </tr>
                         </tbody>
                     </table>
@@ -802,7 +816,6 @@ const WaqfJadeed: React.FC = () => {
                 fatherName: formData.fatherName || '',
                 husbandName: formData.husbandName || '',
                 gender: formData.gender,
-                cnic: formData.cnic ? formatCNIC(formData.cnic) : '',
                 dateOfBirth: formData.dateOfBirth.format('YYYY-MM-DD'),
                 age,
                 phone: formData.phone && String(formData.phone).trim() ? String(formData.phone).trim() : '',
@@ -1130,16 +1143,73 @@ const WaqfJadeed: React.FC = () => {
         message.success('Family summary PDF generated');
     };
 
+    const handleExportMembersPDF = async () => {
+        const rows = filteredMemberData.map((item, index) => ({
+            no: index + 1,
+            name: item.member.name,
+            fatherName: item.member.fatherName || '-',
+            halqa: item.member.halqa || '-',
+            tanzeem: getTanzeemDisplayName(item.member.tanzeem),
+            promise: item.promise,
+            paid: item.paid,
+            balance: item.promise - item.paid
+        }));
+
+        await exportToPDF(
+            rows,
+            ['no', 'name', 'fatherName', 'halqa', 'tanzeem', 'promise', 'paid', 'balance'],
+            `members_waqf_jadeed_${selectedYear}`,
+            `Waqf-e-Jadeed - Members Report - ${selectedYear}`
+        );
+        message.success('Members PDF generated');
+    };
+
+    const handleExportTanzeemWisePDF = async () => {
+        const rows: any[] = [];
+        tanzeemGroupedData.forEach(group => {
+            // Group header
+            rows.push({
+                name: `--- ${getTanzeemDisplayName(group.tanzeem).toUpperCase()} ---`,
+                halqa: `${group.count} Members`,
+                promise: group.totalPromise,
+                paid: group.totalPaid,
+                progress: `${group.percent}%`
+            });
+
+            // Member rows for this group
+            group.members.forEach((item, idx) => {
+                rows.push({
+                    name: `  ${idx + 1}. ${item.member.name}`,
+                    halqa: item.member.halqa || '-',
+                    promise: item.promise,
+                    paid: item.paid,
+                    progress: item.promise > 0 ? `${Math.round((item.paid / item.promise) * 100)}%` : '0%'
+                });
+            });
+            // Empty row for spacing
+            rows.push({ name: '', halqa: '', promise: '', paid: '', progress: '' });
+        });
+
+        await exportToPDF(
+            rows,
+            ['name', 'halqa', 'promise', 'paid', 'progress'],
+            `tanzeem_wise_waqf_jadeed_${selectedYear}`,
+            `Waqf-e-Jadeed - Tanzeem Wise Report - ${selectedYear}`
+        );
+        message.success('Tanzeem Wise PDF generated');
+    };
+
     // Group members by tanzeem for Tanzeem Wise view
     const tanzeemGroupedData = useMemo(() => {
-        const tanzeemOrder = ['ansar', 'lajna', 'khuddam', 'dafar-atfal'];
+        const tanzeemOrder = ['ansar', 'lajna', 'khuddam', 'dafar-atfal-male', 'dafar-atfal-female'];
         const grouped: Record<string, typeof filteredMemberData> = {};
 
         filteredMemberData.forEach(item => {
             let tanzeem = item.member.tanzeem || 'Unknown';
-            // Group Atfal, Nasirat, Saf-e-Awal into Daftar Atfal
+            // Group Atfal, Nasirat, Saf-e-Awal into Daftar Atfal (Male/Female)
             if (['atfal', 'nasirat', 'saf-e-awal', 'saf-e-awal-girls'].includes(tanzeem)) {
-                tanzeem = 'dafar-atfal';
+                const gender = item.member.gender?.toLowerCase() || 'male';
+                tanzeem = gender === 'female' ? 'dafar-atfal-female' : 'dafar-atfal-male';
             }
 
             if (!grouped[tanzeem]) {
@@ -1243,26 +1313,29 @@ const WaqfJadeed: React.FC = () => {
             }
             statsMap[tanzeem].count += 1;
 
-            // Also aggregate into Daftar Atfal if applicable
+            // Also aggregate into Daftar Atfal (Male/Female) if applicable
             if (['atfal', 'saf-e-awal', 'saf-e-awal-girls', 'nasirat'].includes(tanzeem)) {
-                if (!statsMap['dafar-atfal']) {
-                    statsMap['dafar-atfal'] = { promise: 0, promiseBase: 0, nagarpar: 0, paid: 0, count: 0 };
+                const gender = member.gender?.toLowerCase() || 'male';
+                const groupKey = gender === 'female' ? 'dafar-atfal-female' : 'dafar-atfal-male';
+
+                if (!statsMap[groupKey]) {
+                    statsMap[groupKey] = { promise: 0, promiseBase: 0, nagarpar: 0, paid: 0, count: 0 };
                 }
                 const record = records.find(r => r.memberId === member.id);
                 if (record) {
                     const base = record.promiseAmount || 0;
                     const nagar = record.nagarparAmount || 0;
-                    statsMap['dafar-atfal'].promiseBase += base;
-                    statsMap['dafar-atfal'].nagarpar += nagar;
-                    statsMap['dafar-atfal'].promise += base + nagar;
-                    statsMap['dafar-atfal'].paid += record.paidAmount || 0;
+                    statsMap[groupKey].promiseBase += base;
+                    statsMap[groupKey].nagarpar += nagar;
+                    statsMap[groupKey].promise += base + nagar;
+                    statsMap[groupKey].paid += record.paidAmount || 0;
                 }
-                statsMap['dafar-atfal'].count += 1;
+                statsMap[groupKey].count += 1;
             }
         });
 
         return Object.entries(statsMap)
-            .filter(([name]) => name !== 'dafar-atfal') // Exclude grouping from the list itself
+            .filter(([name]) => !['dafar-atfal-male', 'dafar-atfal-female'].includes(name)) // Exclude grouping from the list itself
             .map(([name, data]) => ({
                 name,
                 ...data,
@@ -1272,9 +1345,14 @@ const WaqfJadeed: React.FC = () => {
 
     // Export grouping specifically for targetSection
     const dafarAtfalStats = useMemo(() => {
-        const stats = { promise: 0, promiseBase: 0, nagarpar: 0, paid: 0, count: 0 };
+        const maleStats = { promise: 0, promiseBase: 0, nagarpar: 0, paid: 0, count: 0 };
+        const femaleStats = { promise: 0, promiseBase: 0, nagarpar: 0, paid: 0, count: 0 };
+
         members.forEach(member => {
             if (['atfal', 'saf-e-awal', 'saf-e-awal-girls', 'nasirat'].includes(member.tanzeem || '')) {
+                const gender = member.gender?.toLowerCase() || 'male';
+                const stats = gender === 'female' ? femaleStats : maleStats;
+
                 const record = records.find(r => r.memberId === member.id);
                 if (record) {
                     stats.promiseBase += record.promiseAmount || 0;
@@ -1285,7 +1363,11 @@ const WaqfJadeed: React.FC = () => {
                 stats.count += 1;
             }
         });
-        return stats;
+        return { male: maleStats, female: femaleStats, total: {
+            promise: maleStats.promise + femaleStats.promise,
+            paid: maleStats.paid + femaleStats.paid,
+            count: maleStats.count + femaleStats.count
+        }};
     }, [members, records]);
 
     // Deceased Stats
@@ -1770,21 +1852,26 @@ const WaqfJadeed: React.FC = () => {
 
             document.body.appendChild(cardDiv);
             const canvas = await html2canvas(cardDiv, {
-                scale: 2,
+                scale: 3,
                 backgroundColor: null,
                 useCORS: true
             });
             document.body.removeChild(cardDiv);
 
-            const link = document.createElement('a');
-            link.download = `${name.replace(/\s+/g, '_')}_WJ_${selectedYear}.png`;
-            link.href = canvas.toDataURL('image/png');
-            link.click();
+            const imgData = canvas.toDataURL('image/png');
+            const pdf = new jsPDF({
+                orientation: 'portrait',
+                unit: 'px',
+                format: [canvas.width / 2, canvas.height / 2]
+            });
 
-            message.success({ content: 'Card generated successfully!', key: 'card-export' });
+            pdf.addImage(imgData, 'PNG', 0, 0, canvas.width / 2, canvas.height / 2);
+            pdf.save(`${name.replace(/\s+/g, '_')}_WJ_${selectedYear}.pdf`);
+
+            message.success({ content: 'PDF Card generated successfully!', key: 'card-export' });
         } catch (error) {
             console.error('Error generating card:', error);
-            message.error({ content: 'Failed to generate card', key: 'card-export' });
+            message.error({ content: 'Failed to generate PDF card', key: 'card-export' });
         }
     };
     const handleExportFamilyCard = async (family: Family, totalPromised: number, totalPaid: number) => {
@@ -1986,9 +2073,17 @@ const WaqfJadeed: React.FC = () => {
 
 
 
-            {/* Content */}
             {activeTab === 'members' ? (
                 <Card>
+                    <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <Text strong>Member Records ({filteredMemberData.length})</Text>
+                        <Button
+                            icon={<DownloadOutlined />}
+                            onClick={handleExportMembersPDF}
+                        >
+                            Export Members PDF
+                        </Button>
+                    </div>
                     <Table
                         dataSource={filteredMemberData}
                         loading={loading}
@@ -2173,7 +2268,7 @@ const WaqfJadeed: React.FC = () => {
                 </Card>
             ) : activeTab === 'families' ? (
                 <div className="family-list">
-                    <Card style={{ marginBottom: 16, background: '#fafafa', border: '1px solid #d9d9d9' }} bodyStyle={{ padding: '12px 24px' }}>
+                    <Card style={{ marginBottom: 16, background: '#fafafa', border: '1px solid #d9d9d9' }} styles={{ body: { padding: '12px 24px' } }}>
                         <Row gutter={[48, 16]} align="middle">
                             <Col>
                                 <Statistic
@@ -2553,6 +2648,15 @@ const WaqfJadeed: React.FC = () => {
                 </div >
             ) : activeTab === 'tanzeem' ? (
                 <div className="tanzeem-list">
+                    <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <Text strong>Tanzeem Wise Breakdown ({tanzeemGroupedData.length} Groups)</Text>
+                        <Button
+                            icon={<DownloadOutlined />}
+                            onClick={handleExportTanzeemWisePDF}
+                        >
+                            Export Tanzeem PDF
+                        </Button>
+                    </div>
                     {loading ? <p>Loading...</p> : (
                         <Collapse defaultActiveKey={[]} ghost>
                             {tanzeemGroupedData.map(group => {
@@ -2700,7 +2804,7 @@ const WaqfJadeed: React.FC = () => {
                     <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
                         <Col xs={24} sm={12} md={8}>
                             <Tooltip title="Total promising amount including all members, special records, and Nagar Parkar">
-                                <Card bodyStyle={{ padding: 16 }}>
+                                <Card styles={{ body: { padding: 16 } }}>
                                     <Statistic
                                         title="Overall Promise"
                                         value={stats.totalPromise}
@@ -2713,7 +2817,7 @@ const WaqfJadeed: React.FC = () => {
                         </Col>
                         <Col xs={24} sm={12} md={8}>
                             <Tooltip title="Total collection received so far from all categories">
-                                <Card bodyStyle={{ padding: 16 }}>
+                                <Card styles={{ body: { padding: 16 } }}>
                                     <Statistic
                                         title="Overall Paid"
                                         value={stats.totalPaid}
@@ -2727,7 +2831,7 @@ const WaqfJadeed: React.FC = () => {
                         </Col>
                         <Col xs={24} sm={24} md={8}>
                             <Tooltip title="Overall collection status against total promise">
-                                <Card bodyStyle={{ padding: 16 }}>
+                                <Card styles={{ body: { padding: 16 } }}>
                                     <Text type="secondary" style={{ fontSize: '12px' }}>Collection Progress</Text>
                                     <Progress percent={Math.round(stats.percent)} status="active" />
                                 </Card>
@@ -2766,7 +2870,7 @@ const WaqfJadeed: React.FC = () => {
                                 </div>
                             </Col>
                             <Col xs={24} sm={12} md={6}>
-                                <Card bodyStyle={{ padding: 16 }} hoverable>
+                                <Card styles={{ body: { padding: 16 } }} hoverable>
                                     <Tooltip title="Total promise from Daftar Baligan (Ansar, Khuddam, Lajna, Special, Deceased, Additional)">
                                         <Statistic
                                             title={<span style={{ fontSize: '12px' }}>Total Promised (Baligan)</span>}
@@ -2784,7 +2888,7 @@ const WaqfJadeed: React.FC = () => {
                                 </Card>
                             </Col>
                             <Col xs={24} sm={12} md={6}>
-                                <Card bodyStyle={{ padding: 16 }} hoverable>
+                                <Card styles={{ body: { padding: 16 } }} hoverable>
                                     <Tooltip title="Remaining collection needed reach the Target Amount from Baligan promises">
                                         <Statistic
                                             title={<span style={{ fontSize: '12px' }}>Remaining Gap</span>}
@@ -2870,7 +2974,7 @@ const WaqfJadeed: React.FC = () => {
                             ].map((card, idx) => (
                                 <Col xs={24} sm={12} md={8} lg={4} key={idx}>
                                     <Tooltip title={card.tooltip}>
-                                        <Card hoverable bodyStyle={{ padding: 12 }}>
+                                        <Card hoverable styles={{ body: { padding: 12 } }}>
                                             <Statistic
                                                 title={
                                                     <span style={{ fontSize: '11px', fontWeight: 600 }}>
@@ -2902,29 +3006,57 @@ const WaqfJadeed: React.FC = () => {
                     <div style={{ marginBottom: '24px' }}>
                         <Divider orientation="left">Daftar Atfal Section</Divider>
                         <Row gutter={[16, 16]}>
-                            <Col xs={24} md={8}>
-                                <Tooltip title="Combined total for all children's tanzeems">
-                                    <Card hoverable bodyStyle={{ padding: 16, background: '#f6ffed' }}>
-                                        <Statistic
-                                            title={<span style={{ fontWeight: 600, color: '#389e0d' }}>Daftar Atfal (Total)</span>}
-                                            value={dafarAtfalStats.paid}
-                                            prefix="Rs."
-                                            precision={0}
-                                            valueStyle={{ fontSize: '24px', color: '#389e0d' }}
-                                        />
-                                        <div style={{ marginTop: 8 }}>
-                                            <Text type="secondary" style={{ fontSize: '12px' }}>
-                                                Total Promise: Rs. {dafarAtfalStats.promise.toLocaleString()}
-                                            </Text>
-                                        </div>
-                                        <Progress
-                                            percent={dafarAtfalStats.promise > 0 ? Math.round((dafarAtfalStats.paid / dafarAtfalStats.promise) * 100) : 0}
-                                            strokeColor="#52c41a"
-                                        />
-                                    </Card>
-                                </Tooltip>
+                            <Col xs={24} md={12}>
+                                <Row gutter={[16, 16]}>
+                                    <Col span={12}>
+                                        <Tooltip title="Total for Atfal and Saf-e-Awal (Boys)">
+                                            <Card hoverable styles={{ body: { padding: 16, background: '#f6ffed' } }}>
+                                                <Statistic
+                                                    title={<span style={{ fontWeight: 600, color: '#389e0d' }}>Daftar Atfal (Male)</span>}
+                                                    value={dafarAtfalStats.male.paid}
+                                                    prefix="Rs."
+                                                    precision={0}
+                                                    valueStyle={{ fontSize: '18px', color: '#389e0d' }}
+                                                />
+                                                <div style={{ marginTop: 8 }}>
+                                                    <Text type="secondary" style={{ fontSize: '12px' }}>
+                                                        Promise: Rs. {dafarAtfalStats.male.promise.toLocaleString()}
+                                                    </Text>
+                                                </div>
+                                                <Progress
+                                                    percent={dafarAtfalStats.male.promise > 0 ? Math.round((dafarAtfalStats.male.paid / dafarAtfalStats.male.promise) * 100) : 0}
+                                                    strokeColor="#52c41a"
+                                                    size="small"
+                                                />
+                                            </Card>
+                                        </Tooltip>
+                                    </Col>
+                                    <Col span={12}>
+                                        <Tooltip title="Total for Nasirat and Saf-e-Awal Girls">
+                                            <Card hoverable styles={{ body: { padding: 16, background: '#fff0f6' } }}>
+                                                <Statistic
+                                                    title={<span style={{ fontWeight: 600, color: '#c41d7f' }}>Daftar Atfal (Female)</span>}
+                                                    value={dafarAtfalStats.female.paid}
+                                                    prefix="Rs."
+                                                    precision={0}
+                                                    valueStyle={{ fontSize: '18px', color: '#c41d7f' }}
+                                                />
+                                                <div style={{ marginTop: 8 }}>
+                                                    <Text type="secondary" style={{ fontSize: '12px' }}>
+                                                        Promise: Rs. {dafarAtfalStats.female.promise.toLocaleString()}
+                                                    </Text>
+                                                </div>
+                                                <Progress
+                                                    percent={dafarAtfalStats.female.promise > 0 ? Math.round((dafarAtfalStats.female.paid / dafarAtfalStats.female.promise) * 100) : 0}
+                                                    strokeColor="#eb2f96"
+                                                    size="small"
+                                                />
+                                            </Card>
+                                        </Tooltip>
+                                    </Col>
+                                </Row>
                             </Col>
-                            <Col xs={24} md={16}>
+                            <Col xs={24} md={12}>
                                 <Row gutter={[8, 8]}>
                                     {[
                                         { name: 'atfal', label: 'Atfal' },
@@ -2946,7 +3078,7 @@ const WaqfJadeed: React.FC = () => {
 
                                         return (
                                             <Col span={6} key={t.name}>
-                                                <Card bodyStyle={{ padding: 12 }}>
+                                                <Card styles={{ body: { padding: 12 } }}>
                                                     <Statistic
                                                         title={<span style={{ fontSize: '10px' }}>{t.label} ({s.count})</span>}
                                                         value={s.paid}
@@ -2971,7 +3103,7 @@ const WaqfJadeed: React.FC = () => {
                         <Row gutter={[16, 16]}>
                             <Col xs={24} sm={12} md={8}>
                                 <Tooltip title="Total promises and collections for Nagar Parkar fund">
-                                    <Card hoverable bodyStyle={{ padding: 16, borderLeft: '4px solid #fa8c16' }}>
+                                    <Card hoverable styles={{ body: { padding: 16, borderLeft: '4px solid #fa8c16' } }}>
                                         <Statistic
                                             title={<span style={{ fontWeight: 600 }}>Total Nagar Parkar</span>}
                                             value={stats.totalNagarParkar}
@@ -2992,7 +3124,7 @@ const WaqfJadeed: React.FC = () => {
                     <Row gutter={[16, 16]}>
                         <Col xs={24} sm={12} md={6}>
                             <Tooltip title="Year-on-year growth in collections compared to the previous year's actual receipts">
-                                <Card hoverable bodyStyle={{ padding: 16 }}>
+                                <Card hoverable styles={{ body: { padding: 16 } }}>
                                     <Statistic
                                         title={<span style={{ fontWeight: 600 }}>YoY Growth</span>}
                                         value={dashboardMetrics.yoyGrowth}
@@ -3011,7 +3143,7 @@ const WaqfJadeed: React.FC = () => {
                         </Col>
                         <Col xs={24} sm={12} md={6}>
                             <Tooltip title="Percentage of active members who have registered a promise for the current year">
-                                <Card hoverable bodyStyle={{ padding: 16 }}>
+                                <Card hoverable styles={{ body: { padding: 16 } }}>
                                     <Statistic
                                         title={<span style={{ fontWeight: 600 }}>Participation Rate</span>}
                                         value={dashboardMetrics.participationRate}
@@ -3035,7 +3167,7 @@ const WaqfJadeed: React.FC = () => {
                         </Col>
                         <Col xs={24} sm={12} md={6}>
                             <Tooltip title="Breakdown of member cards by their payment completion status">
-                                <Card hoverable bodyStyle={{ padding: 16 }}>
+                                <Card hoverable styles={{ body: { padding: 16 } }}>
                                     <Text type="secondary" style={{ fontSize: '12px', fontWeight: 600, display: 'block', marginBottom: 8 }}>Member Status</Text>
                                     <Space direction="vertical" style={{ width: '100%' }} size={4}>
                                         <div style={{ display: 'flex', justifyContent: 'space-between' }}>
@@ -3056,7 +3188,7 @@ const WaqfJadeed: React.FC = () => {
                         </Col>
                         <Col xs={24} sm={12} md={6}>
                             <Tooltip title="Average promise and payment calculated across all active cards">
-                                <Card hoverable bodyStyle={{ padding: 16 }}>
+                                <Card hoverable styles={{ body: { padding: 16 } }}>
                                     <Statistic
                                         title={<span style={{ fontWeight: 600 }}>Avg. Contribution</span>}
                                         value={dashboardMetrics.avgPaid}
@@ -3368,6 +3500,20 @@ const WaqfJadeed: React.FC = () => {
                 open={drawerVisible}
                 extra={
                     <Space>
+                        <Button
+                            icon={<FilePdfOutlined />}
+                            onClick={() => {
+                                if (editingMember) {
+                                    const data = filteredMemberData.find(m => m.member.id === editingMember.id);
+                                    if (data) handleExportMemberCard(data);
+                                } else if (editingSpecial) {
+                                    handleExportMemberCard(editingSpecial, true);
+                                }
+                            }}
+                            size="small"
+                        >
+                            Export Card
+                        </Button>
                         <Button type="primary" onClick={handleSave} loading={submitting} size="small">
                             Save Financial
                         </Button>

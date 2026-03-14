@@ -24,7 +24,8 @@ import {
     LineChartOutlined,
     PieChartOutlined,
     BookOutlined,
-    DollarOutlined
+    DollarOutlined,
+    FilePdfOutlined
 } from '@ant-design/icons';
 import type { Member, WaqfJadeedRecord, WaqfJadeedSpecialRecord, Payment, Family, FitranaExtra } from '../types';
 import { getTanzeemDisplayName, exportToCSV, exportToPDF } from '../utils/helpers';
@@ -145,9 +146,10 @@ const WaqfReports: React.FC<WaqfReportsProps> = ({
 
         records.forEach(r => {
             let display = getTanzeemDisplayName(r.member.tanzeem);
-            // Group child tanzeems into Daftar Atfal
+            // Group child tanzeems into Daftar Atfal (Male/Female)
             if (['atfal', 'nasirat', 'saf-e-awal', 'saf-e-awal-girls'].includes(r.member.tanzeem || '')) {
-                display = 'Daftar Atfal';
+                const gender = r.member.gender?.toLowerCase() || 'male';
+                display = gender === 'female' ? getTanzeemDisplayName('dafar-atfal-female') : getTanzeemDisplayName('dafar-atfal-male');
             }
             if (!stats[display]) stats[display] = { promised: 0, paid: 0, count: 0 };
             stats[display].promised += r.promise;
@@ -346,6 +348,110 @@ const WaqfReports: React.FC<WaqfReportsProps> = ({
 
     const exportReport = (data: any[], filename: string) => {
         exportToCSV(data, `${filename}_${selectedYear}.csv`);
+    };
+
+    const handleExportHalqaPDF = async () => {
+        const rows = halqaStats.map(r => ({
+            halqa: r.name,
+            members: r.count,
+            promised: r.promised,
+            paid: r.paid,
+            progress: `${r.percent}%`
+        }));
+        await exportToPDF(
+            rows,
+            ['halqa', 'members', 'promised', 'paid', 'progress'],
+            `halqa_performance_${selectedYear}`,
+            `Waqf-e-Jadeed - Halqa Performance - ${selectedYear}`
+        );
+        message.success('Halqa PDF exported');
+    };
+
+    const handleExportTanzeemSummaryPDF = async () => {
+        const rows = tanzeemStats.map(r => ({
+            tanzeem: r.name,
+            members: r.count,
+            promised: r.promised,
+            paid: r.paid,
+            progress: `${r.percent}%`
+        }));
+        await exportToPDF(
+            rows,
+            ['tanzeem', 'members', 'promised', 'paid', 'progress'],
+            `tanzeem_summary_${selectedYear}`,
+            `Waqf-e-Jadeed - Tanzeem Summary - ${selectedYear}`
+        );
+        message.success('Tanzeem PDF exported');
+    };
+
+    const handleExportDefaultersPDF = async () => {
+        const rows = defaulters.map(r => ({
+            name: r.name,
+            halqa: r.halqa,
+            tanzeem: getTanzeemDisplayName(r.tanzeem),
+            promised: r.promised,
+            paid: r.paid,
+            balance: r.balance
+        }));
+        await exportToPDF(
+            rows,
+            ['name', 'halqa', 'tanzeem', 'promised', 'paid', 'balance'],
+            `defaulters_list_${selectedYear}`,
+            `Waqf-e-Jadeed - Defaulters List - ${selectedYear}`
+        );
+        message.success('Defaulters PDF exported');
+    };
+
+    const handleExportComparisonPDF = async () => {
+        const rows = comparisonStats.map(r => ({
+            halqa: r.name,
+            [`paid_${selectedYear - 1}`]: r.prevPaid,
+            [`paid_${selectedYear}`]: r.currentPaid,
+            diff: r.diff,
+            growth: `${r.percentChange.toFixed(1)}%`
+        }));
+        await exportToPDF(
+            rows,
+            ['halqa', `paid_${selectedYear - 1}`, `paid_${selectedYear}`, 'diff', 'growth'],
+            `year_comparison_${selectedYear}`,
+            `Waqf-e-Jadeed - Year Comparison - ${selectedYear}`
+        );
+        message.success('Comparison PDF exported');
+    };
+
+    const handleExportTransactionsPDF = async () => {
+        const rows = transactionLogs.map(r => ({
+            date: r.Date,
+            member: r.Member,
+            book: r['Book #'],
+            receipt: r['Receipt #'],
+            amount: r.Amount
+        }));
+        await exportToPDF(
+            rows,
+            ['date', 'member', 'book', 'receipt', 'amount'],
+            `transaction_log_${selectedYear}`,
+            `Waqf-e-Jadeed - Transaction Log - ${selectedYear}`
+        );
+        message.success('Transactions PDF exported');
+    };
+
+    const handleExportReceiptBookPDF = async () => {
+        if (!selectedBook) return;
+        const rows = bookDetails.map(r => ({
+            receipt: r.receiptNo,
+            status: r.status,
+            name: r.name,
+            amount: r.amount,
+            date: r.date
+        }));
+        await exportToPDF(
+            rows,
+            ['receipt', 'status', 'name', 'amount', 'date'],
+            `receipt_book_${selectedBook}_${selectedYear}`,
+            `Waqf-e-Jadeed - Receipt Book ${selectedBook} - ${selectedYear}`
+        );
+        message.success('Receipt Book PDF exported');
     };
 
     // --- Columns Definitions ---
@@ -710,13 +816,22 @@ const WaqfReports: React.FC<WaqfReportsProps> = ({
                                             options={uniqueBooks.map(b => ({ label: `Book ${b}`, value: b }))}
                                         />
                                     </Space>
-                                    <Button
-                                        icon={<DownloadOutlined />}
-                                        disabled={!selectedBook}
-                                        onClick={() => exportReport(bookDetails, `receipt_book_${selectedBook}`)}
-                                    >
-                                        Export CSV
-                                    </Button>
+                                    <Space>
+                                        <Button
+                                            icon={<DownloadOutlined />}
+                                            disabled={!selectedBook}
+                                            onClick={() => exportReport(bookDetails, `receipt_book_${selectedBook}`)}
+                                        >
+                                            Export CSV
+                                        </Button>
+                                        <Button
+                                            icon={<FilePdfOutlined />}
+                                            disabled={!selectedBook}
+                                            onClick={handleExportReceiptBookPDF}
+                                        >
+                                            Export PDF
+                                        </Button>
+                                    </Space>
                                 </Row>
                                 <Row gutter={16} style={{ marginBottom: 16 }}>
                                     <Col xs={24} sm={12}>
@@ -757,7 +872,10 @@ const WaqfReports: React.FC<WaqfReportsProps> = ({
                             <div>
                                 <Row justify="space-between" align="middle" style={{ marginBottom: 16 }}>
                                     <Title level={5} style={{ margin: 0 }}>Halqa Collection Summary</Title>
-                                    <Button icon={<DownloadOutlined />} onClick={() => exportReport(halqaStats, 'halqa_report')}>Export CSV</Button>
+                                    <Space>
+                                        <Button icon={<DownloadOutlined />} onClick={() => exportReport(halqaStats, 'halqa_report')}>Export CSV</Button>
+                                        <Button icon={<FilePdfOutlined />} onClick={handleExportHalqaPDF}>Export PDF</Button>
+                                    </Space>
                                 </Row>
                                 <Table
                                     dataSource={halqaStats}
@@ -776,7 +894,10 @@ const WaqfReports: React.FC<WaqfReportsProps> = ({
                             <div>
                                 <Row justify="space-between" align="middle" style={{ marginBottom: 16 }}>
                                     <Title level={5} style={{ margin: 0 }}>Tanzeem Wise Breakdown</Title>
-                                    <Button icon={<DownloadOutlined />} onClick={() => exportReport(tanzeemStats, 'tanzeem_report')}>Export CSV</Button>
+                                    <Space>
+                                        <Button icon={<DownloadOutlined />} onClick={() => exportReport(tanzeemStats, 'tanzeem_report')}>Export CSV</Button>
+                                        <Button icon={<FilePdfOutlined />} onClick={handleExportTanzeemSummaryPDF}>Export PDF</Button>
+                                    </Space>
                                 </Row>
                                 <Table
                                     dataSource={tanzeemStats}
@@ -795,7 +916,10 @@ const WaqfReports: React.FC<WaqfReportsProps> = ({
                             <div>
                                 <Row justify="space-between" align="middle" style={{ marginBottom: 16 }}>
                                     <Title level={5} style={{ margin: 0 }}>Pending Collections (Defaulters)</Title>
-                                    <Button icon={<DownloadOutlined />} onClick={() => exportReport(defaulters, 'defaulters_list')}>Export CSV</Button>
+                                    <Space>
+                                        <Button icon={<DownloadOutlined />} onClick={() => exportReport(defaulters, 'defaulters_list')}>Export CSV</Button>
+                                        <Button icon={<FilePdfOutlined />} onClick={handleExportDefaultersPDF}>Export PDF</Button>
+                                    </Space>
                                 </Row>
                                 <Table
                                     dataSource={defaulters}
@@ -813,7 +937,10 @@ const WaqfReports: React.FC<WaqfReportsProps> = ({
                             <div>
                                 <Row justify="space-between" align="middle" style={{ marginBottom: 16 }}>
                                     <Title level={5} style={{ margin: 0 }}>Recent Payments Log</Title>
-                                    <Button icon={<DownloadOutlined />} onClick={() => exportReport(transactionLogs, 'transaction_log')}>Export CSV</Button>
+                                    <Space>
+                                        <Button icon={<DownloadOutlined />} onClick={() => exportReport(transactionLogs, 'transaction_log')}>Export CSV</Button>
+                                        <Button icon={<FilePdfOutlined />} onClick={handleExportTransactionsPDF}>Export PDF</Button>
+                                    </Space>
                                 </Row>
                                 <Table
                                     dataSource={transactionLogs}
@@ -831,7 +958,10 @@ const WaqfReports: React.FC<WaqfReportsProps> = ({
                             <div>
                                 <Row justify="space-between" align="middle" style={{ marginBottom: 16 }}>
                                     <Title level={5} style={{ margin: 0 }}>Year over Year {selectedYear - 1} vs {selectedYear}</Title>
-                                    <Button icon={<DownloadOutlined />} onClick={() => exportReport(comparisonStats, 'year_comparison')}>Export CSV</Button>
+                                    <Space>
+                                        <Button icon={<DownloadOutlined />} onClick={() => exportReport(comparisonStats, 'year_comparison')}>Export CSV</Button>
+                                        <Button icon={<FilePdfOutlined />} onClick={handleExportComparisonPDF}>Export PDF</Button>
+                                    </Space>
                                 </Row>
                                 <Table
                                     dataSource={comparisonStats}

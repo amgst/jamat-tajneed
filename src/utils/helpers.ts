@@ -38,7 +38,9 @@ export const getTanzeemDisplayName = (tanzeem: Tanzeem | string): string => {
     'khuddam': 'Khuddam',
     'lajna': 'Lajna',
     'ansar': 'Ansar',
-    'dafar-atfal': 'Daftar Atfal'
+    'dafar-atfal': 'Daftar Atfal',
+    'dafar-atfal-male': 'Daftar Atfal (Male)',
+    'dafar-atfal-female': 'Daftar Atfal (Female)'
   };
   return names[tanzeem] || tanzeem;
 };
@@ -55,7 +57,9 @@ export const getTanzeemUrduName = (tanzeem: Tanzeem | string): string => {
     'khuddam': 'خدام',
     'lajna': 'لجنہ',
     'ansar': 'انصار',
-    'dafar-atfal': 'دفتر اطفال'
+    'dafar-atfal': 'دفتر اطفال',
+    'dafar-atfal-male': 'دفتر اطفال (لڑکے)',
+    'dafar-atfal-female': 'دفتر اطفال (لڑکیاں)'
   };
   return names[tanzeem] || tanzeem;
 };
@@ -356,28 +360,10 @@ export const exportToPDF = async (
       });
       return;
     }
-
-    // Load Amiri font (best-effort) for Urdu support in vector mode
-    const localResponse = await fetch('/fonts/Amiri-Regular.ttf').catch(() => null);
-    const response =
-      localResponse && (localResponse as Response).ok
-        ? (localResponse as Response)
-        : await fetch('https://raw.githubusercontent.com/google/fonts/main/ofl/amiri/Amiri-Regular.ttf').catch(() => null);
-
-    if (response && response.ok) {
-      const buffer = await response.arrayBuffer();
-      const base64Font = btoa(
-        new Uint8Array(buffer).reduce((acc, byte) => acc + String.fromCharCode(byte), '')
-      );
-
-      doc.addFileToVFS('Amiri-Regular.ttf', base64Font);
-      doc.addFont('Amiri-Regular.ttf', 'Amiri', 'normal');
-      doc.setFont('Amiri');
-    }
   } catch (error) {
-    console.error('Error loading font:', error);
+    console.error('Error in PDF export check:', error);
   }
-  
+
   const showTitle = options?.showTitle ?? true;
   const showGeneratedOn = options?.showGeneratedOn ?? true;
   const rtl = options?.rtl ?? false;
@@ -418,13 +404,10 @@ export const exportToPDF = async (
     theme: 'grid',
     styles: { 
       fontSize: bodyFontSize,
-      font: 'Amiri', // Use the Urdu font
-      fontStyle: 'normal',
       halign: rtl ? 'right' : 'left'
     },
     headStyles: { 
       fillColor: [22, 160, 133],
-      font: 'Amiri',
       halign: rtl ? 'right' : 'left'
     },
   });

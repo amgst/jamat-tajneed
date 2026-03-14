@@ -11,9 +11,13 @@ import {
   Col,
   Statistic,
   Descriptions,
-  message
+  message,
+  Avatar,
+  Modal
 } from 'antd';
-import { DownloadOutlined, ReloadOutlined } from '@ant-design/icons';
+import { DownloadOutlined, ReloadOutlined, UserOutlined, EditOutlined } from '@ant-design/icons';
+import MemberForm from '../../components/MemberForm';
+import dayjs from 'dayjs';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { ApiService } from '../../services/apiService';
@@ -30,7 +34,6 @@ interface MemberReportRow {
   age: number;
   tanzeem: string;
   phone: string;
-  cnic: string;
   maritalStatus: string;
   profession: string;
   education: string;
@@ -54,6 +57,10 @@ const FamilyFullReport: React.FC = () => {
   const [waqfRecords, setWaqfRecords] = useState<WaqfJadeedRecord[]>([]);
   const [tahreqRecords, setTahreqRecords] = useState<TahreqJadeedRecord[]>([]);
   const [ansarRecords, setAnsarRecords] = useState<AnsarullahRecord[]>([]);
+
+  const [modalVisible, setModalVisible] = useState(false);
+  const [editingMember, setEditingMember] = useState<Member | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
 
   const loadData = async (year: number) => {
     setLoading(true);
@@ -135,7 +142,6 @@ const FamilyFullReport: React.FC = () => {
         age: member.age || 0,
         tanzeem: getTanzeemDisplayName(member.tanzeem),
         phone: member.phone || '-',
-        cnic: member.cnic || '-',
         maritalStatus: member.maritalStatus || '-',
         profession: member.profession || '-',
         education: member.education || '-',
@@ -235,7 +241,6 @@ const FamilyFullReport: React.FC = () => {
         'Age',
         'Tanzeem',
         'Phone',
-        'CNIC',
         'Marital',
         'Profession',
         'Education',
@@ -250,7 +255,6 @@ const FamilyFullReport: React.FC = () => {
         row.age,
         row.tanzeem,
         row.phone,
-        row.cnic,
         row.maritalStatus,
         row.profession,
         row.education,
@@ -267,8 +271,57 @@ const FamilyFullReport: React.FC = () => {
     doc.save(`${selectedFamily.familyName.replace(/\s+/g, '_')}_full_report_${selectedYear}.pdf`);
   };
 
+  const handleEdit = (recordId: string) => {
+    const member = members.find(m => m.id === recordId);
+    if (member) {
+      setEditingMember(member);
+      setModalVisible(true);
+    }
+  };
+
+  const handleModalOk = async (values: any) => {
+    try {
+      setIsSaving(true);
+      if (editingMember) {
+        const age = dayjs().diff(dayjs(values.dateOfBirth), 'year');
+        const updatedMember = {
+          ...editingMember,
+          ...values,
+          age,
+          dateOfBirth: values.dateOfBirth.format('YYYY-MM-DD'),
+          dateOfDeath: values.dateOfDeath ? values.dateOfDeath.format('YYYY-MM-DD') : undefined,
+          updatedAt: new Date().toISOString(),
+        };
+        await ApiService.updateMember(editingMember.id, updatedMember);
+        message.success('Member updated successfully');
+        setModalVisible(false);
+        setEditingMember(null);
+        loadData(selectedYear);
+      }
+    } catch (error) {
+      message.error('Failed to update member');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   const columns = [
-    { title: 'Name', dataIndex: 'name', key: 'name', fixed: 'left' as const, width: 180 },
+    { 
+      title: 'Name', 
+      dataIndex: 'name', 
+      key: 'name', 
+      fixed: 'left' as const, 
+      width: 180,
+      render: (name: string, record: MemberReportRow) => (
+        <Text 
+          strong 
+          style={{ color: '#1890ff', cursor: 'pointer' }}
+          onClick={() => handleEdit(record.id)}
+        >
+          {name}
+        </Text>
+      )
+    },
     { title: 'Relation', dataIndex: 'relation', key: 'relation', width: 160 },
     { title: 'Gender', dataIndex: 'gender', key: 'gender', width: 90 },
     { title: 'Age', dataIndex: 'age', key: 'age', width: 80 },
@@ -280,7 +333,6 @@ const FamilyFullReport: React.FC = () => {
       render: (value: string) => <Tag color="blue">{value}</Tag>
     },
     { title: 'Phone', dataIndex: 'phone', key: 'phone', width: 140 },
-    { title: 'CNIC', dataIndex: 'cnic', key: 'cnic', width: 170 },
     { title: 'Marital', dataIndex: 'maritalStatus', key: 'maritalStatus', width: 120 },
     { title: 'Profession', dataIndex: 'profession', key: 'profession', width: 140 },
     { title: 'Education', dataIndex: 'education', key: 'education', width: 140 },
@@ -301,6 +353,21 @@ const FamilyFullReport: React.FC = () => {
       key: 'ansar',
       width: 120,
       render: (_: unknown, row: MemberReportRow) => `${row.ansarPromise}/${row.ansarPaid}`
+    },
+    {
+      title: 'Action',
+      key: 'action',
+      fixed: 'right' as const,
+      width: 100,
+      render: (_: any, record: MemberReportRow) => (
+        <Button 
+          type="link" 
+          icon={<EditOutlined />} 
+          onClick={() => handleEdit(record.id)}
+        >
+          Edit
+        </Button>
+      )
     }
   ];
 
@@ -382,6 +449,27 @@ const FamilyFullReport: React.FC = () => {
           </Card>
         </Space>
       )}
+
+      <Modal
+        title="Edit Member"
+        open={modalVisible}
+        onCancel={() => {
+          setModalVisible(false);
+          setEditingMember(null);
+        }}
+        width={700}
+        destroyOnHidden
+        footer={null}
+      >
+        <MemberForm
+          initialValues={editingMember || undefined}
+          onFinish={handleModalOk}
+          isSaving={isSaving}
+          showCancel
+          onCancel={() => setModalVisible(false)}
+          existingMembers={members}
+        />
+      </Modal>
     </div>
   );
 };

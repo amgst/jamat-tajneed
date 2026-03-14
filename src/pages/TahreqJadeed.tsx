@@ -51,7 +51,7 @@ import {
 import type { Member, TahreqJadeedRecord, Family, Payment, TahreqJadeedSpecialRecord, ReceiptBook, TahreqJadeedMarkazPayment } from '../types';
 import { ReceiptTemplate } from '../components/ReceiptTemplate';
 import PaymentPlanManager from '../components/PaymentPlanManager';
-import { getTanzeemDisplayName, calculateAge, determineTanzeem, getTanzeemUrduName, formatCNIC, exportToPDF } from '../utils/helpers';
+import { getTanzeemDisplayName, calculateAge, determineTanzeem, getTanzeemUrduName, exportToPDF } from '../utils/helpers';
 import MemberForm from '../components/MemberForm';
 import { generateAvatarFromName } from '../utils/imageUtils';
 import { validateMemberData, sanitizeMemberData } from '../utils/validation';
@@ -802,7 +802,6 @@ const TahreqJadeed: React.FC = () => {
                 fatherName: formData.fatherName || '',
                 husbandName: formData.husbandName || '',
                 gender: formData.gender,
-                cnic: formData.cnic ? formatCNIC(formData.cnic) : '',
                 dateOfBirth: formData.dateOfBirth.format('YYYY-MM-DD'),
                 age,
                 phone: formData.phone && String(formData.phone).trim() ? String(formData.phone).trim() : '',

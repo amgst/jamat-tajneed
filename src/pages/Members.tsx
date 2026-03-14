@@ -31,7 +31,6 @@ import {
   calculateAge,
   determineTanzeem,
   getTanzeemDisplayName,
-  formatCNIC,
   formatDate,
   exportToCSV
 } from '../utils/helpers';
@@ -132,7 +131,6 @@ const Members: React.FC = () => {
         fatherName: formData.fatherName || '',
         husbandName: formData.husbandName || '',
         gender: formData.gender,
-        cnic: formData.cnic ? formatCNIC(formData.cnic) : '',
         dateOfBirth: formData.dateOfBirth.format('YYYY-MM-DD'),
         age,
         phone: formData.phone && String(formData.phone).trim() ? String(formData.phone).trim() : '',
@@ -209,7 +207,6 @@ const Members: React.FC = () => {
       'Father Name': member.fatherName,
       Gender: member.gender,
       'Marital Status': member.maritalStatus || ((member as any).isMarried ? 'married' : 'unmarried'),
-      CNIC: member.cnic || '',
       'Date of Birth': member.dateOfBirth,
       Age: member.age,
       Phone: member.phone,
@@ -541,12 +538,31 @@ const Members: React.FC = () => {
           <div>
             <div
               style={{ fontWeight: 500, color: '#1890ff', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8 }}
-              onClick={() => navigate(`/members/${slugId}`)}
+              onClick={() => handleEditMember(record)}
             >
               {name}
               {record.isDeceased && (
                 <Tag color="red" style={{ fontSize: '10px', padding: '0 4px' }}>Deceased</Tag>
               )}
+            </div>
+            <div style={{ fontSize: '11px', marginTop: '2px' }}>
+              <Button 
+                type="link" 
+                size="small" 
+                style={{ padding: 0, height: 'auto', fontSize: '11px' }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  const slug = name
+                    .toLowerCase()
+                    .replace(/[^a-z0-9\s-]/g, '')
+                    .trim()
+                    .replace(/\s+/g, '-');
+                  const slugId = `${slug}-${record.id}`;
+                  navigate(`/members/${slugId}`);
+                }}
+              >
+                View Full Details
+              </Button>
             </div>
             <Text type="secondary" style={{ fontSize: '12px' }}>
               {(record.fatherName || record.husbandName)

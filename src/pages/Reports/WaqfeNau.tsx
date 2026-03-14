@@ -27,6 +27,8 @@ import { generateAvatarFromName } from '../../utils/imageUtils';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
+import MemberForm from '../../components/MemberForm';
+
 const { Text, Title } = Typography;
 
 const WaqfeNau: React.FC = () => {
@@ -36,6 +38,9 @@ const WaqfeNau: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [searchText, setSearchText] = useState('');
   const [pageSize, setPageSize] = useState(10);
+  const [modalVisible, setModalVisible] = useState(false);
+  const [editingMember, setEditingMember] = useState<Member | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
     loadMembers();
@@ -204,6 +209,37 @@ const WaqfeNau: React.FC = () => {
     doc.save('waqf-e-nau-members.pdf');
   };
 
+  const handleEdit = (record: Member) => {
+    setEditingMember(record);
+    setModalVisible(true);
+  };
+
+  const handleModalOk = async (values: any) => {
+    try {
+      setIsSaving(true);
+      if (editingMember) {
+        const age = dayjs().diff(dayjs(values.dateOfBirth), 'year');
+        const updatedMember = {
+          ...editingMember,
+          ...values,
+          age,
+          dateOfBirth: values.dateOfBirth.format('YYYY-MM-DD'),
+          dateOfDeath: values.dateOfDeath ? values.dateOfDeath.format('YYYY-MM-DD') : undefined,
+          updatedAt: new Date().toISOString(),
+        };
+        await ApiService.updateMember(editingMember.id, updatedMember);
+        message.success('Member updated successfully');
+        setModalVisible(false);
+        setEditingMember(null);
+        loadMembers();
+      }
+    } catch (error) {
+      message.error('Failed to update member');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   const columns = [
     {
       title: 'S.No',
@@ -240,7 +276,13 @@ const WaqfeNau: React.FC = () => {
             {!record.profilePhoto && generateAvatarFromName(record.name)}
           </Avatar>
           <Space direction="vertical" size={0}>
-            <Text strong>{record.name}</Text>
+            <Text 
+              strong 
+              style={{ color: '#1890ff', cursor: 'pointer' }}
+              onClick={() => handleEdit(record)}
+            >
+              {record.name}
+            </Text>
             {getGuardianName(record) && (
               <Text type="secondary" style={{ fontSize: '12px' }}>
                 {getGuardianPrefix(record)} {getGuardianName(record)}
@@ -283,8 +325,11 @@ const WaqfeNau: React.FC = () => {
       key: 'action',
       render: (_: any, record: Member) => (
         <Space size="middle">
+          <Button type="link" onClick={() => handleEdit(record)}>
+            Edit
+          </Button>
           <Button type="link" onClick={() => navigate(`/members/${record.id}`)}>
-            View Details
+            Details
           </Button>
         </Space>
       ),
@@ -372,6 +417,27 @@ const WaqfeNau: React.FC = () => {
           />
         </div>
       </Card>
+
+      <Modal
+        title="Edit Member"
+        open={modalVisible}
+        onCancel={() => {
+          setModalVisible(false);
+          setEditingMember(null);
+        }}
+        width={700}
+        destroyOnHidden
+        footer={null}
+      >
+        <MemberForm
+          initialValues={editingMember || undefined}
+          onFinish={handleModalOk}
+          isSaving={isSaving}
+          showCancel
+          onCancel={() => setModalVisible(false)}
+          existingMembers={members}
+        />
+      </Modal>
     </div>
   );
 };

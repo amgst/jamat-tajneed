@@ -199,11 +199,6 @@ export const validateMemberData = (data: any): { valid: boolean; errors: string[
     errors.push('Gender must be either male or female');
   }
 
-  // Validate CNIC if provided
-  if (data.cnic && data.cnic.trim() && !validateCNIC(data.cnic)) {
-    errors.push('CNIC must be 13 digits');
-  }
-
   // Validate phone if provided (making it non-compulsory)
   if (data.phone && String(data.phone).trim() && !validatePhone(String(data.phone))) {
     errors.push('Phone number is invalid');
@@ -266,7 +261,6 @@ export const sanitizeMemberData = (data: any): any => {
   if (data.address) sanitized.address = sanitizeInput(data.address, { maxLength: 500 });
   if (data.phone) sanitized.phone = sanitizeInput(data.phone, { maxLength: 20 });
   if (data.halqa) sanitized.halqa = sanitizeInput(data.halqa, { maxLength: 100 });
-  if (data.cnic) sanitized.cnic = sanitizeInput(data.cnic, { maxLength: 20 });
   if (data.profilePhoto) sanitized.profilePhoto = data.profilePhoto; // Preserving URL/Base64
 
   // Preserve non-string fields

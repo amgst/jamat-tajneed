@@ -32,7 +32,7 @@ import {
 } from '@ant-design/icons';
 import { ApiService } from '../services/apiService';
 import ReligiousActivitiesModal from '../components/ReligiousActivitiesModal';
-import { getTanzeemDisplayName, formatDate, calculateAge, determineTanzeem, formatCNIC } from '../utils/helpers';
+import { getTanzeemDisplayName, formatDate, calculateAge, determineTanzeem } from '../utils/helpers';
 import { generateAvatarFromName } from '../utils/imageUtils';
 import type { Family, Member } from '../types';
 import { validateMemberData, sanitizeMemberData } from '../utils/validation';
@@ -230,7 +230,6 @@ const FamilyDetails: React.FC = () => {
         fatherName: values.fatherName || '',
         husbandName: values.husbandName || '',
         gender: values.gender,
-        cnic: values.cnic ? formatCNIC(values.cnic) : '',
         dateOfBirth: values.dateOfBirth.format('YYYY-MM-DD'),
         age,
         phone: values.phone && String(values.phone).trim() ? String(values.phone).trim() : '',
@@ -442,12 +441,9 @@ const FamilyDetails: React.FC = () => {
       title: 'Contact',
       dataIndex: 'phone',
       key: 'contact',
-      render: (phone: string, record: Member) => (
+      render: (phone: string) => (
         <div>
-          <div>{phone}</div>
-          <Text type="secondary" style={{ fontSize: '12px' }}>
-            {record.cnic}
-          </Text>
+          <div>{phone || '-'}</div>
         </div>
       ),
     },
@@ -456,6 +452,13 @@ const FamilyDetails: React.FC = () => {
       key: 'actions',
       render: (record: Member) => (
         <Space>
+          <Button
+            type="link"
+            size="small"
+            onClick={() => navigate(`/members/${record.id}`)}
+          >
+            Details
+          </Button>
           <Button
             type={record.religiousActivities ? 'primary' : 'default'}
             size="small"

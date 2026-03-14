@@ -13,7 +13,8 @@ import {
   Row,
   Col,
   Statistic,
-  message
+  message,
+  Modal
 } from 'antd';
 import {
   SearchOutlined,
@@ -33,6 +34,8 @@ import jsPDF from 'jspdf';
 import dayjs from 'dayjs';
 import html2canvas from 'html2canvas';
 
+import MemberForm from '../../components/MemberForm';
+
 const { Text, Title } = Typography;
 
 const Mossi: React.FC = () => {
@@ -41,6 +44,9 @@ const Mossi: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [searchText, setSearchText] = useState('');
   const [pageSize, setPageSize] = useState(10);
+  const [modalVisible, setModalVisible] = useState(false);
+  const [editingMember, setEditingMember] = useState<Member | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
     loadMembers();
@@ -350,6 +356,37 @@ const Mossi: React.FC = () => {
     }
   };
 
+  const handleEdit = (record: Member) => {
+    setEditingMember(record);
+    setModalVisible(true);
+  };
+
+  const handleModalOk = async (values: any) => {
+    try {
+      setIsSaving(true);
+      if (editingMember) {
+        const age = dayjs().diff(dayjs(values.dateOfBirth), 'year');
+        const updatedMember = {
+          ...editingMember,
+          ...values,
+          age,
+          dateOfBirth: values.dateOfBirth.format('YYYY-MM-DD'),
+          dateOfDeath: values.dateOfDeath ? values.dateOfDeath.format('YYYY-MM-DD') : undefined,
+          updatedAt: new Date().toISOString(),
+        };
+        await ApiService.updateMember(editingMember.id, updatedMember);
+        message.success('Member updated successfully');
+        setModalVisible(false);
+        setEditingMember(null);
+        loadMembers();
+      }
+    } catch (error) {
+      message.error('Failed to update member');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   const columnsAll = useMemo(() => {
     return [
       {
@@ -373,7 +410,13 @@ const Mossi: React.FC = () => {
               {!record.profilePhoto && generateAvatarFromName(record.name)}
             </Avatar>
             <Space direction="vertical" size={0}>
-              <Text strong>{record.name}</Text>
+              <Text 
+                strong 
+                style={{ color: '#1890ff', cursor: 'pointer' }}
+                onClick={() => handleEdit(record)}
+              >
+                {record.name}
+              </Text>
               {getGuardianName(record) && (
                 <Text type="secondary" style={{ fontSize: '12px' }}>
                   {getGuardianPrefix(record)} {getGuardianName(record)}
@@ -418,8 +461,11 @@ const Mossi: React.FC = () => {
         key: 'action',
         render: (_: any, record: Member) => (
           <Space size="middle">
+            <Button type="link" onClick={() => handleEdit(record)}>
+              Edit
+            </Button>
             <Button type="link" onClick={() => navigate(`/members/${record.id}`)}>
-              View Details
+              Details
             </Button>
           </Space>
         ),
@@ -514,6 +560,27 @@ const Mossi: React.FC = () => {
           ]}
         />
       </Card>
+
+      <Modal
+        title="Edit Member"
+        open={modalVisible}
+        onCancel={() => {
+          setModalVisible(false);
+          setEditingMember(null);
+        }}
+        width={700}
+        destroyOnHidden
+        footer={null}
+      >
+        <MemberForm
+          initialValues={editingMember || undefined}
+          onFinish={handleModalOk}
+          isSaving={isSaving}
+          showCancel
+          onCancel={() => setModalVisible(false)}
+          existingMembers={members}
+        />
+      </Modal>
     </div>
   );
 };
