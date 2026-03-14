@@ -60,10 +60,12 @@ import { getTanzeemDisplayName, calculateAge, determineTanzeem, getTanzeemUrduNa
 import MemberForm from '../components/MemberForm';
 import { generateAvatarFromName } from '../utils/imageUtils';
 import { validateMemberData, sanitizeMemberData } from '../utils/validation';
+import { printFamilyReceiptBluetooth } from '../utils/bluetoothPrinter';
 
 const WaqfJadeed: React.FC = () => {
     const { message } = App.useApp();
     const [loading, setLoading] = useState(false);
+    const [allMembers, setAllMembers] = useState<Member[]>([]);
     const [members, setMembers] = useState<Member[]>([]);
     const [families, setFamilies] = useState<Family[]>([]);
     const [records, setRecords] = useState<WaqfJadeedRecord[]>([]);
@@ -193,6 +195,8 @@ const WaqfJadeed: React.FC = () => {
                 ApiService.getWaqfJadeedSpecialRecords(selectedYear - 1),
                 ApiService.getWaqfJadeedMarkazPayments(selectedYear)
             ]);
+
+            setAllMembers(membersData);
 
             const memberIdsWithRecords = Array.isArray(recordsData)
                 ? new Set(recordsData.map((r: any) => r.memberId))
@@ -1790,6 +1794,36 @@ const WaqfJadeed: React.FC = () => {
         }
     };
 
+    const handlePrintFamilyBluetooth = async (
+        family: Family,
+        familyTotalPromise: number,
+        familyTotalPaid: number
+    ) => {
+        try {
+            const headMember = allMembers.find(m => m.id === family.headId);
+            const familyCandidates = allMembers.filter(m => m.familyId === family.id || family.memberIds?.includes(m.id));
+            const fallbackHead = familyCandidates.sort((a, b) => (b.age || 0) - (a.age || 0))[0];
+            const familyHead = headMember
+                ? { member: headMember }
+                : fallbackHead
+                    ? { member: fallbackHead }
+                    : getMemberData(family.headId);
+
+            await printFamilyReceiptBluetooth({
+                familyName: family.familyName || 'Unknown',
+                familyNumber: family.familyNumber,
+                headName: familyHead?.member.name,
+                headPhone: familyHead?.member.phone,
+                totalPromise: familyTotalPromise,
+                totalPaid: familyTotalPaid,
+                totalBalance: familyTotalPromise - familyTotalPaid
+            });
+        } catch (error) {
+            console.error('Bluetooth print failed', error);
+            message.error('Bluetooth print failed. Please pair printer and try again.');
+        }
+    };
+
     const handleExportMemberCard = async (memberData: any, isSpecial: boolean = false) => {
         try {
             message.loading({ content: 'Generating shareable card...', key: 'card-export' });
@@ -2406,6 +2440,20 @@ const WaqfJadeed: React.FC = () => {
                                                             handleExportFamilyCard(family, familyTotalPromise, familyTotalPaid);
                                                         }}
                                                         title="Share Family Card"
+                                                    />
+                                                    <Button
+                                                        type="text"
+                                                        icon={<PrinterOutlined />}
+                                                        size="small"
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            handlePrintFamilyBluetooth(
+                                                                family,
+                                                                familyTotalPromise,
+                                                                familyTotalPaid
+                                                            );
+                                                        }}
+                                                        title="Print via Bluetooth"
                                                     />
                                                     <Button
                                                         type="text"
@@ -3796,10 +3844,12 @@ const WaqfJadeed: React.FC = () => {
                 title="Print Receipt"
                 open={!!printingPayment}
                 onCancel={() => setPrintingPayment(null)}
-                footer={[
-                    <Button key="close" onClick={() => setPrintingPayment(null)}>Close</Button>,
-                    <Button key="print" type="primary" icon={<PrinterOutlined />} onClick={() => window.print()}>Print</Button>
-                ]}
+                footer={
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, justifyContent: 'flex-end' }}>
+                        <Button onClick={() => setPrintingPayment(null)}>Close</Button>
+                        <Button icon={<PrinterOutlined />} onClick={() => window.print()}>Print A4</Button>
+                    </div>
+                }
                 width="90%"
                 style={{ maxWidth: 800 }}
                 styles={{ body: { padding: 0 } }}

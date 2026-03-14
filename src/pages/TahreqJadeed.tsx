@@ -3605,10 +3605,12 @@ const TahreqJadeed: React.FC = () => {
                 title="Print Receipt"
                 open={!!printingPayment}
                 onCancel={() => setPrintingPayment(null)}
-                footer={[
-                    <Button key="close" onClick={() => setPrintingPayment(null)}>Close</Button>,
-                    <Button key="print" type="primary" icon={<PrinterOutlined />} onClick={() => window.print()}>Print</Button>
-                ]}
+                footer={
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, justifyContent: 'flex-end' }}>
+                        <Button onClick={() => setPrintingPayment(null)}>Close</Button>
+                        <Button icon={<PrinterOutlined />} onClick={() => window.print()}>Print A4</Button>
+                    </div>
+                }
                 width="90%"
                 style={{ maxWidth: 800 }}
                 styles={{ body: { padding: 0 } }}
@@ -3626,7 +3628,7 @@ const TahreqJadeed: React.FC = () => {
                                 memberCode: printingPayment.memberCode || '',
                                 amount: printingPayment.payment.amount,
                                 year: selectedYear,
-                                type: printingPayment.memberCode ? 'Waqf-e-Jadeed' : 'Waqf-e-Jadeed (Special)',
+                                type: printingPayment.memberCode ? 'Tahreq Jadeed' : 'Tahreq Jadeed (Special)',
                                 tanzeem: printingPayment.memberCode && editingMember ? getTanzeemUrduName(determineTanzeem(calculateAge(editingMember.dateOfBirth), editingMember.gender)) : undefined,
                                 gender: editingMember ? editingMember.gender : editingSpecial?.gender
                             }}
