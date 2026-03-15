@@ -1367,11 +1367,13 @@ const WaqfJadeed: React.FC = () => {
                 stats.count += 1;
             }
         });
-        return { male: maleStats, female: femaleStats, total: {
-            promise: maleStats.promise + femaleStats.promise,
-            paid: maleStats.paid + femaleStats.paid,
-            count: maleStats.count + femaleStats.count
-        }};
+        return {
+            male: maleStats, female: femaleStats, total: {
+                promise: maleStats.promise + femaleStats.promise,
+                paid: maleStats.paid + femaleStats.paid,
+                count: maleStats.count + femaleStats.count
+            }
+        };
     }, [members, records]);
 
     // Deceased Stats
@@ -1688,54 +1690,86 @@ const WaqfJadeed: React.FC = () => {
 
             // Add footer notes with color legend in Urdu
             htmlContent += `
-<div style="margin-top: 30px; padding: 15px; background-color: #fafafa; border: 1px solid #ddd; border-radius: 5px; font-size: 10px; direction: rtl; text-align: right;">
-    <h4 style="margin: 0 0 10px 0; font-size: 12px; font-weight: bold; text-align: center; direction: rtl;">
-        وعدہ کی ہدایات اور رنگوں کی وضاحت
-    </h4>
-
-    <div style="margin-bottom: 10px; direction: rtl;">
-        <p style="margin: 5px 0; direction: rtl;">
-            <strong>اطفال اور ناصرات کے لیے:</strong>
-        </p>
-
-        <div style="display: inline-block; width: 20px; height: 15px; background-color: #e6f7ff; border: 1px solid #91d5ff; margin-left: 8px; vertical-align: middle;"></div>
-        <span style="margin-left: 20px; direction: rtl;">
-            اچھا وعدہ: کم از کم 1,000 روپے یا اس سے زیادہ
-        </span>
-
-        <br style="margin-top: 5px;">
-
-        <div style="display: inline-block; width: 20px; height: 15px; background-color: #fff7e6; border: 1px solid #ffd591; margin-left: 8px; vertical-align: middle; margin-top: 5px;"></div>
-        <span style="margin-left: 20px; direction: rtl;">
-            کم از کم سے کم: 1,000 روپے سے کم
-        </span>
-    </div>
-
-    <div style="margin-top: 10px; direction: rtl;">
-        <p style="margin: 5px 0; direction: rtl;">
-            <strong>دیگر افراد کے لیے (خدام، لجنہ، انصار وغیرہ):</strong>
-        </p>
-
-        <div style="display: inline-block; width: 20px; height: 15px; background-color: #f6ffed; border: 1px solid #b7eb8f; margin-left: 8px; vertical-align: middle;"></div>
-        <span style="margin-left: 20px; direction: rtl;">
-            پہلا معیار: 5,000 روپے یا اس سے زیادہ
-        </span>
-
-        <br style="margin-top: 5px;">
-
-        <div style="display: inline-block; width: 20px; height: 15px; background-color: #fff1f0; border: 1px solid #ffccc7; margin-left: 8px; vertical-align: middle; margin-top: 5px;"></div>
-        <span style="margin-left: 20px; direction: rtl;">
-            دوسرا معیار: 2,500 روپے یا اس سے زیادہ (لیکن 5,000 روپے سے کم)
-        </span>
-
-        <br style="margin-top: 5px;">
-
-        <div style="display: inline-block; width: 20px; height: 15px; background-color: #ffffff; border: 1px solid #d9d9d9; margin-left: 8px; vertical-align: middle; margin-top: 5px;"></div>
-        <span style="margin-left: 20px; direction: rtl;">
-            دوسرے معیار سے کم: 2,500 روپے سے کم
-        </span>
+<div style="margin-top: 15px; padding: 10px; background-color: #fafafa; border: 1px solid #ddd; border-radius: 5px; font-size: 10px; direction: rtl; text-align: right;">
+    <div style="display: flex; flex-wrap: wrap; justify-content: flex-start; gap: 10px; align-items: center; direction: rtl;">
+        <strong>اطفال/ناصرات:</strong>
+        <span style="display: inline-flex; align-items: center; gap: 4px;"><div style="width: 12px; height: 12px; background-color: #e6f7ff; border: 1px solid #91d5ff;"></div> ≥ 1,000</span>
+        <span style="display: inline-flex; align-items: center; gap: 4px;"><div style="width: 12px; height: 12px; background-color: #fff7e6; border: 1px solid #ffd591;"></div> < 1,000</span>
+                                
+        <strong style="margin-right: 15px;">دیگر:</strong>
+        <span style="display: inline-flex; align-items: center; gap: 4px;"><div style="width: 12px; height: 12px; background-color: #f6ffed; border: 1px solid #b7eb8f;"></div> ≥ 5,000</span>
+        <span style="display: inline-flex; align-items: center; gap: 4px;"><div style="width: 12px; height: 12px; background-color: #fff1f0; border: 1px solid #ffccc7;"></div> ≥ 2,500</span>
+        <span style="display: inline-flex; align-items: center; gap: 4px;"><div style="width: 12px; height: 12px; background-color: #ffffff; border: 1px solid #d9d9d9;"></div> < 2,500</span>
     </div>
 </div>
+
+<h3 style="font-size: 14px; margin-top: 20px; margin-bottom: 10px; direction: rtl; text-align: right;">تفصیلاتِ ادائیگی</h3>
+<table style="width: 100%; border-collapse: collapse; margin-bottom: 5px; font-size: 10px;" dir="rtl">
+    <thead>
+        <tr style="background-color: #3f8600; color: white;">
+            <th style="border: 1px solid #ddd; padding: 6px; text-align: right; direction: rtl;">نام</th>
+            <th style="border: 1px solid #ddd; padding: 6px; text-align: right; direction: rtl;">تاریخ</th>
+            <th style="border: 1px solid #ddd; padding: 6px; text-align: center; direction: rtl;">رسید نمبر</th>
+            <th style="border: 1px solid #ddd; padding: 6px; text-align: center; direction: rtl;">رقم</th>
+            <th style="border: 1px solid #ddd; padding: 6px; text-align: right; direction: rtl;">نوٹ</th>
+        </tr>
+    </thead>
+    <tbody>
+        `;
+
+            // Extract all payments for the family
+            const allFamilyPayments: any[] = [];
+            familyMembersCtx.forEach(item => {
+                if (item.record && item.record.payments) {
+                    item.record.payments.forEach(p => {
+                        allFamilyPayments.push({
+                            ...p,
+                            memberName: item.member.name,
+                            isSpecial: false
+                        });
+                    });
+                }
+            });
+
+            familySpecialRecords.forEach(record => {
+                if (record.payments) {
+                    record.payments.forEach(p => {
+                        allFamilyPayments.push({
+                            ...p,
+                            memberName: getUrduName(record.name) + (record.isDeceased ? (record.gender === 'female' ? ' (مرحومہ)' : ' (مرحوم)') : ''),
+                            isSpecial: true
+                        });
+                    });
+                }
+            });
+
+            // Sort payments by date descending
+            allFamilyPayments.sort((a, b) => new Date(b.date || '').getTime() - new Date(a.date || '').getTime());
+
+            if (allFamilyPayments.length > 0) {
+                allFamilyPayments.forEach((payment, index) => {
+                    const rowColor = index % 2 === 0 ? '#ffffff' : '#f9f9f9';
+                    htmlContent += `
+                    <tr style="background-color: ${rowColor};">
+                        <td style="border: 1px solid #ddd; padding: 6px; text-align: right; direction: rtl; unicode-bidi: embed;">${payment.memberName}</td>
+                        <td style="border: 1px solid #ddd; padding: 6px; text-align: right; direction: rtl;">${payment.date ? new Date(payment.date).toLocaleDateString() : 'N/A'}</td>
+                        <td style="border: 1px solid #ddd; padding: 6px; text-align: center;">${payment.receiptNo || '-'}</td>
+                        <td style="border: 1px solid #ddd; padding: 6px; text-align: center;">Rs. ${(payment.amount || 0).toLocaleString()}</td>
+                        <td style="border: 1px solid #ddd; padding: 6px; text-align: right; direction: rtl; unicode-bidi: embed; font-size: 9px;">${payment.notes || ''}</td>
+                    </tr>
+                `;
+                });
+            } else {
+                htmlContent += `
+                <tr>
+                    <td colspan="5" style="border: 1px solid #ddd; padding: 10px; text-align: center; direction: rtl;">کوئی رسید موجود نہیں</td>
+                </tr>
+            `;
+            }
+
+            htmlContent += `
+    </tbody>
+</table>
 
                 </div>
 

@@ -1,7 +1,9 @@
 const DEFAULT_CHUNK_SIZE = 20;
 const LINE_WIDTH = 32;
+const PRINTER_DOTS = 384;
 
 type PrintableLine = string;
+const FAMILY_IMAGE_MARKER = '__FAMILY_IMAGE__';
 
 export interface FamilyReceiptData {
     familyName: string;
@@ -44,9 +46,8 @@ function buildFamilyReceiptLines(data: FamilyReceiptData): PrintableLine[] {
     lines.push(center('Jamat Tajneed'));
     lines.push(center('Waqf-e-Jadeed Family'));
     lines.push(line());
-    lines.push(pair('Family', data.familyName));
     lines.push(pair('Family No', familyNo));
-    if (data.headName) lines.push(pair('Head', data.headName));
+    lines.push(FAMILY_IMAGE_MARKER);
     if (data.headPhone) lines.push(pair('Phone', data.headPhone));
     lines.push(line());
     lines.push(pair('Total Promise', `Rs ${formatAmount(data.totalPromise)}`));
@@ -110,6 +111,116 @@ function encodeEscPos(lines: PrintableLine[]): Uint8Array {
     return output;
 }
 
+function renderUrduToCanvas(text: string): HTMLCanvasElement {
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    if (!ctx) {
+        canvas.width = PRINTER_DOTS;
+        canvas.height = 48;
+        return canvas;
+    }
+
+    let fontSize = 28;
+    const fontFamily = '"Noto Nastaliq Urdu", "Noto Sans Arabic", serif';
+    ctx.font = `${fontSize}px ${fontFamily}`;
+    const padding = 8;
+    let measured = ctx.measureText(text);
+    if (measured.width > PRINTER_DOTS - padding * 2) {
+        const scale = (PRINTER_DOTS - padding * 2) / measured.width;
+        fontSize = Math.max(14, Math.floor(fontSize * scale));
+        ctx.font = `${fontSize}px ${fontFamily}`;
+        measured = ctx.measureText(text);
+    }
+
+    const height = Math.max(36, Math.ceil(fontSize * 1.6));
+    canvas.width = PRINTER_DOTS;
+    canvas.height = height;
+
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = '#000000';
+    ctx.textBaseline = 'middle';
+    ctx.textAlign = 'center';
+    ctx.font = `${fontSize}px ${fontFamily}`;
+    ctx.fillText(text, canvas.width / 2, canvas.height / 2);
+
+    return canvas;
+}
+
+function encodeRasterImage(canvas: HTMLCanvasElement): Uint8Array {
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return new Uint8Array();
+
+    const width = canvas.width;
+    const height = canvas.height;
+    const widthBytes = Math.ceil(width / 8);
+    const imageData = ctx.getImageData(0, 0, width, height).data;
+    const bytes = new Uint8Array(widthBytes * height);
+
+    for (let y = 0; y < height; y += 1) {
+        for (let xByte = 0; xByte < widthBytes; xByte += 1) {
+            let byte = 0;
+            for (let bit = 0; bit < 8; bit += 1) {
+                const x = xByte * 8 + bit;
+                if (x >= width) continue;
+                const idx = (y * width + x) * 4;
+                const r = imageData[idx];
+                const g = imageData[idx + 1];
+                const b = imageData[idx + 2];
+                const a = imageData[idx + 3];
+                const luminance = (0.299 * r + 0.587 * g + 0.114 * b);
+                const isBlack = a > 0 && luminance < 160;
+                if (isBlack) {
+                    byte |= 0x80 >> bit;
+                }
+            }
+            bytes[y * widthBytes + xByte] = byte;
+        }
+    }
+
+    const header = new Uint8Array([
+        0x1d, 0x76, 0x30, 0x00,
+        widthBytes & 0xff,
+        (widthBytes >> 8) & 0xff,
+        height & 0xff,
+        (height >> 8) & 0xff
+    ]);
+
+    const output = new Uint8Array(header.length + bytes.length);
+    output.set(header, 0);
+    output.set(bytes, header.length);
+    return output;
+}
+
+async function buildFamilyReceiptPayload(data: FamilyReceiptData): Promise<Uint8Array[]> {
+    const encoder = new TextEncoder();
+    const chunks: Uint8Array[] = [];
+    const lines = buildFamilyReceiptLines(data);
+
+    chunks.push(new Uint8Array([0x1b, 0x40])); // init
+    chunks.push(new Uint8Array([0x1b, 0x61, 0x00])); // align left
+    chunks.push(new Uint8Array([0x1b, 0x45, 0x01])); // bold on
+    chunks.push(encoder.encode(`${lines[0] || ''}\n`));
+    chunks.push(new Uint8Array([0x1b, 0x45, 0x00])); // bold off
+
+    for (let i = 1; i < lines.length; i += 1) {
+        if (lines[i] === FAMILY_IMAGE_MARKER) {
+            if (data.familyName) {
+                chunks.push(encoder.encode('Family:\n'));
+                const familyCanvas = renderUrduToCanvas(data.familyName);
+                chunks.push(encodeRasterImage(familyCanvas));
+                chunks.push(encoder.encode('\n'));
+            }
+            continue;
+        }
+        chunks.push(encoder.encode(`${lines[i]}\n`));
+    }
+
+    chunks.push(new Uint8Array([0x0a, 0x0a]));
+    chunks.push(new Uint8Array([0x1d, 0x56, 0x01]));
+    return chunks;
+}
+
 async function pickWritableCharacteristic(device: BluetoothDevice): Promise<BluetoothRemoteGATTCharacteristic> {
     const server = await device.gatt?.connect();
     if (!server) {
@@ -165,8 +276,10 @@ async function writeInChunks(characteristic: BluetoothRemoteGATTCharacteristic, 
 }
 
 export async function printFamilyReceiptBluetooth(data: FamilyReceiptData): Promise<void> {
-    const lines = buildFamilyReceiptLines(data);
-    const payload = encodeEscPos(lines);
     const { characteristic } = await getConnection();
-    await writeInChunks(characteristic, payload);
+    const chunks = await buildFamilyReceiptPayload(data);
+    for (const chunk of chunks) {
+        if (chunk.length === 0) continue;
+        await writeInChunks(characteristic, chunk);
+    }
 }
