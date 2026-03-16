@@ -390,12 +390,27 @@ export const exportToPDF = async (
   const tableRows: (string | number)[][] = [];
 
   data.forEach(item => {
-    const rowData = headers.map(header => item?.[header]);
+    const rowData = headers.map(header => formatCellValue(item?.[header]) as string | number);
     tableRows.push(rowData);
   });
 
   const bodyFontSize = options?.fontSize ?? 8;
   const showHeader = options?.showHeader ?? true;
+
+  try {
+    const fontRes = await fetch('https://raw.githubusercontent.com/google/fonts/main/ofl/amiri/Amiri-Regular.ttf');
+    if (fontRes.ok) {
+      const buffer = await fontRes.arrayBuffer();
+      const base64Font = btoa(
+        new Uint8Array(buffer).reduce((data, byte) => data + String.fromCharCode(byte), '')
+      );
+      doc.addFileToVFS('Amiri-Regular.ttf', base64Font);
+      doc.addFont('Amiri-Regular.ttf', 'Amiri', 'normal');
+      doc.setFont('Amiri');
+    }
+  } catch (e) {
+    console.error('Failed to load Amiri font', e);
+  }
 
   autoTable(doc, {
     head: showHeader ? [tableColumn] : [],
@@ -404,11 +419,13 @@ export const exportToPDF = async (
     theme: 'grid',
     styles: { 
       fontSize: bodyFontSize,
-      halign: rtl ? 'right' : 'left'
+      halign: rtl ? 'right' : 'left',
+      font: 'Amiri'
     },
     headStyles: { 
       fillColor: [22, 160, 133],
-      halign: rtl ? 'right' : 'left'
+      halign: rtl ? 'right' : 'left',
+      font: 'Amiri'
     },
   });
 

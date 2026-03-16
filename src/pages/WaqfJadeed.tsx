@@ -1203,6 +1203,59 @@ const WaqfJadeed: React.FC = () => {
         message.success('Tanzeem Wise PDF generated');
     };
 
+    const handleExport100PercentPaidPDF = async () => {
+        const fullyPaidGroups = tanzeemGroupedData.map(group => {
+            return {
+                ...group,
+                members: group.members.filter(m => m.promise > 0 && m.paid >= m.promise)
+            };
+        }).filter(group => group.members.length > 0);
+
+        const rows: any[] = [];
+        fullyPaidGroups.forEach(group => {
+            const tanzeemName = getTanzeemDisplayName(group.tanzeem).toUpperCase();
+            rows.push({
+                col1: `--- ${tanzeemName} (${group.members.length}) ---`,
+                col2: '',
+                col3: ''
+            });
+
+            let buffer: string[] = [];
+            group.members.forEach((item) => {
+                buffer.push(item.member.name);
+                if (buffer.length === 3) {
+                    rows.push({
+                        col1: buffer[0],
+                        col2: buffer[1],
+                        col3: buffer[2]
+                    });
+                    buffer = [];
+                }
+            });
+            if (buffer.length > 0) {
+                rows.push({
+                    col1: buffer[0] || '',
+                    col2: buffer[1] || '',
+                    col3: buffer[2] || ''
+                });
+            }
+            rows.push({ col1: '', col2: '', col3: '' }); // spacing
+        });
+
+        await exportToPDF(
+            rows,
+            ['col1', 'col2', 'col3'],
+            `100_percent_paid_members_${selectedYear}`,
+            `Waqf-e-Jadeed - 100% Paid Members - ${selectedYear}`,
+            {
+                showHeader: false,
+                renderMode: 'autoTable',
+                fontSize: 10
+            }
+        );
+        message.success('100% Paid Members PDF generated');
+    };
+
     // Group members by tanzeem for Tanzeem Wise view
     const tanzeemGroupedData = useMemo(() => {
         const tanzeemOrder = ['ansar', 'lajna', 'khuddam', 'dafar-atfal-male', 'dafar-atfal-female'];
@@ -2733,12 +2786,20 @@ const WaqfJadeed: React.FC = () => {
                 <div className="tanzeem-list">
                     <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                         <Text strong>Tanzeem Wise Breakdown ({tanzeemGroupedData.length} Groups)</Text>
-                        <Button
-                            icon={<DownloadOutlined />}
-                            onClick={handleExportTanzeemWisePDF}
-                        >
-                            Export Tanzeem PDF
-                        </Button>
+                        <Space>
+                            <Button
+                                icon={<DownloadOutlined />}
+                                onClick={handleExport100PercentPaidPDF}
+                            >
+                                Export 100% Paid
+                            </Button>
+                            <Button
+                                icon={<DownloadOutlined />}
+                                onClick={handleExportTanzeemWisePDF}
+                            >
+                                Export Tanzeem PDF
+                            </Button>
+                        </Space>
                     </div>
                     {loading ? <p>Loading...</p> : (
                         <Collapse defaultActiveKey={[]} ghost>
