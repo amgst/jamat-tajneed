@@ -408,7 +408,7 @@ const WaqfJadeed: React.FC = () => {
                                 <td style="padding: 8px; text-align: center;">-</td>
                                 <td style="padding: 8px; text-align: right;">${formatCurrency(targetSectionStats.totalPromised)}</td>
                                 <td style="padding: 8px; text-align: right;">${formatCurrency(targetSectionStats.totalReceived)}</td>
-                                <td style="padding: 8px; text-align: center;">${formatPercent(targetSectionStats.receivedPercent)}</td>
+                                <td style="padding: 8px; text-align: center;">${formatPercent(targetSectionStats.promisePercent)}</td>
                             </tr>
                         </tbody>
                     </table>
@@ -1475,7 +1475,8 @@ const WaqfJadeed: React.FC = () => {
             totalReceived,
             totalPromised,
             remainingFromTarget: targetAmount > 0 ? Math.max(0, targetAmount - totalPromised) : 0,
-            receivedPercent: targetAmount > 0 ? (totalReceived / targetAmount) * 100 : 0
+            receivedPercent: targetAmount > 0 ? (totalReceived / targetAmount) * 100 : 0,
+            promisePercent: targetAmount > 0 ? (totalPromised / targetAmount) * 100 : 0
         };
     }, [baliganStats, targetAmount]);
 
@@ -2941,13 +2942,13 @@ const WaqfJadeed: React.FC = () => {
                                 </div>
                                 <div style={{ marginTop: 8 }}>
                                     <Text type="secondary" style={{ fontSize: '11px', display: 'block', marginBottom: 4 }}>
-                                        Progress: {targetSectionStats.receivedPercent.toFixed(1)}%
+                                        Progress (Promises): {targetSectionStats.promisePercent.toFixed(1)}%
                                     </Text>
                                     <Progress
-                                        percent={Math.round(targetSectionStats.receivedPercent)}
+                                        percent={Math.round(targetSectionStats.promisePercent)}
                                         size="small"
-                                        status={targetSectionStats.receivedPercent >= 100 ? "success" : "active"}
-                                        strokeColor={targetSectionStats.receivedPercent >= 100 ? "#52c41a" : "#1890ff"}
+                                        status={targetSectionStats.promisePercent >= 100 ? "success" : "active"}
+                                        strokeColor={targetSectionStats.promisePercent >= 100 ? "#52c41a" : "#1890ff"}
                                     />
                                 </div>
                             </Col>
