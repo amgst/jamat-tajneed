@@ -337,6 +337,16 @@ export const exportToPDF = async (
     rtl?: boolean;
     renderMode?: 'autoTable' | 'canvas';
     headerLabels?: Record<string, string>;
+    titleAlign?: 'left' | 'center' | 'right';
+    sections?: Array<{
+      title: string;
+      data: Array<Record<string, unknown>>;
+      headers: string[];
+      options?: {
+        showHeader?: boolean;
+        fontSize?: number;
+      };
+    }>;
   }
 ): Promise<void> => {
   const doc = new jsPDF();
@@ -373,30 +383,75 @@ export const exportToPDF = async (
   let currentY = 20;
 
   if (showTitle && title) {
-    doc.setFontSize(18);
-    doc.text(title, rtl ? pageWidth - 14 : 14, currentY + 2, { align: rtl ? 'right' : 'left' });
-    currentY = 28;
+    const titleAlign = options?.titleAlign ?? 'center';
+    const isUrdu = /[\u0600-\u06FF]/.test(title);
+
+    if (isUrdu) {
+      // For Urdu, we use a hidden div + html2canvas to ensure correct shaping
+      const titleContainer = document.createElement('div');
+      titleContainer.style.position = 'fixed';
+      titleContainer.style.left = '-10000px';
+      titleContainer.style.width = '800px';
+      titleContainer.style.textAlign = titleAlign;
+      titleContainer.style.fontFamily = "'Noto Nastaliq Urdu', 'Amiri', serif";
+      titleContainer.style.fontSize = '24px';
+      titleContainer.style.lineHeight = '1.6';
+      titleContainer.style.whiteSpace = 'pre-wrap';
+      titleContainer.style.padding = '20px';
+      titleContainer.style.direction = 'rtl';
+      titleContainer.textContent = title;
+      document.body.appendChild(titleContainer);
+
+      try {
+        const canvas = await html2canvas(titleContainer, {
+          backgroundColor: null,
+          scale: 2
+        });
+        const imgData = canvas.toDataURL('image/png');
+        const imgWidth = pageWidth - 28;
+        const imgHeight = (canvas.height * imgWidth) / canvas.width;
+        
+        let titleX = 14;
+        if (titleAlign === 'center') {
+          titleX = (pageWidth - imgWidth) / 2;
+        }
+
+        doc.addImage(imgData, 'PNG', 14, currentY, imgWidth, imgHeight);
+        currentY += imgHeight + 5;
+      } finally {
+        document.body.removeChild(titleContainer);
+      }
+    } else {
+      doc.setFontSize(18);
+      const titleLines = String(title).split('\n');
+      let x = 14;
+      if (titleAlign === 'center') x = pageWidth / 2;
+      else if (titleAlign === 'right' || rtl) x = pageWidth - 14;
+      doc.text(titleLines, x, currentY + 2, { align: titleAlign });
+      currentY += (titleLines.length * 9) + 4;
+    }
   }
 
   if (showGeneratedOn) {
-    doc.setFontSize(11);
-    doc.text(`Generated on: ${dayjs().format('DD/MM/YYYY')}`, rtl ? pageWidth - 14 : 14, currentY + 2, { align: rtl ? 'right' : 'left' });
+    const genText = `Generated on: ${dayjs().format('DD/MM/YYYY')}`;
+    doc.setFontSize(10);
+    const genAlign = options?.titleAlign ?? (rtl ? 'right' : 'left');
+    let genX = 14;
+    if (genAlign === 'center') genX = pageWidth / 2;
+    else if (genAlign === 'right') genX = pageWidth - 14;
+    doc.text(genText, genX, currentY, { align: genAlign });
     currentY += 8;
   }
-  
-  if (data.length === 0) return;
-  
-  const tableColumn = headers.map(h => headerLabels?.[h] ?? titleCaseFromKey(h));
-  const tableRows: (string | number)[][] = [];
 
-  data.forEach(item => {
-    const rowData = headers.map(header => formatCellValue(item?.[header]) as string | number);
-    tableRows.push(rowData);
-  });
+  const sections = options?.sections;
+  const hasSections = sections && sections.length > 0;
+
+  if (!hasSections && data.length === 0) return;
 
   const bodyFontSize = options?.fontSize ?? 8;
   const showHeader = options?.showHeader ?? true;
 
+  // Load font for all tables
   try {
     const fontRes = await fetch('https://raw.githubusercontent.com/google/fonts/main/ofl/amiri/Amiri-Regular.ttf');
     if (fontRes.ok) {
@@ -412,22 +467,80 @@ export const exportToPDF = async (
     console.error('Failed to load Amiri font', e);
   }
 
-  autoTable(doc, {
-    head: showHeader ? [tableColumn] : [],
-    body: tableRows,
-    startY: currentY + 5,
-    theme: 'grid',
-    styles: { 
-      fontSize: bodyFontSize,
-      halign: rtl ? 'right' : 'left',
-      font: 'Amiri'
-    },
-    headStyles: { 
-      fillColor: [22, 160, 133],
-      halign: rtl ? 'right' : 'left',
-      font: 'Amiri'
-    },
-  });
+  if (hasSections) {
+    for (const section of sections) {
+      if (section.data.length === 0) continue;
+
+      // Check if we need a new page for the section header
+      if (currentY > doc.internal.pageSize.getHeight() - 40) {
+        doc.addPage();
+        currentY = 20;
+      }
+
+      // Render section title
+      doc.setFontSize(14);
+      doc.setFont('Amiri', 'normal');
+      doc.text(section.title, rtl ? pageWidth - 14 : 14, currentY, { align: rtl ? 'right' : 'left' });
+      currentY += 6;
+
+      const sectionHeaders = section.headers;
+      const sectionTableColumn = sectionHeaders.map(h => headerLabels?.[h] ?? titleCaseFromKey(h));
+      const sectionTableRows = section.data.map(item =>
+        sectionHeaders.map(header => formatCellValue(item?.[header]) as string | number)
+      );
+
+      autoTable(doc, {
+        head: (section.options?.showHeader ?? showHeader) ? [sectionTableColumn] : [],
+        body: sectionTableRows,
+        startY: currentY + 2,
+        theme: 'grid',
+        styles: {
+          fontSize: section.options?.fontSize ?? bodyFontSize,
+          halign: rtl ? 'right' : 'left',
+          font: 'Amiri'
+        },
+        columnStyles: sectionHeaders && sectionHeaders.length === 3 && sectionHeaders.includes('col1') ? {
+          0: { cellWidth: (pageWidth - 28) / 3, halign: rtl ? 'right' : 'left' },
+          1: { cellWidth: (pageWidth - 28) / 3, halign: rtl ? 'right' : 'left' },
+          2: { cellWidth: (pageWidth - 28) / 3, halign: rtl ? 'right' : 'left' }
+        } : undefined,
+        headStyles: {
+          fillColor: [22, 160, 133],
+          halign: rtl ? 'right' : 'left',
+          font: 'Amiri'
+        },
+      });
+
+      currentY = (doc as any).lastAutoTable.finalY + 12;
+    }
+  } else {
+    const tableColumn = headers.map(h => headerLabels?.[h] ?? titleCaseFromKey(h));
+    const tableRows = data.map(item =>
+      headers.map(header => formatCellValue(item?.[header]) as string | number)
+    );
+
+    autoTable(doc, {
+      head: showHeader ? [tableColumn] : [],
+      body: tableRows,
+      startY: currentY + 5,
+      theme: 'grid',
+      styles: {
+        fontSize: bodyFontSize,
+        halign: rtl ? 'right' : 'left',
+        font: 'Amiri'
+      },
+      columnStyles: headers && headers.length === 3 && headers.includes('col1') ? {
+        0: { cellWidth: (pageWidth - 28) / 3, halign: rtl ? 'right' : 'left' },
+        1: { cellWidth: (pageWidth - 28) / 3, halign: rtl ? 'right' : 'left' },
+        2: { cellWidth: (pageWidth - 28) / 3, halign: rtl ? 'right' : 'left' }
+      } : undefined,
+      headStyles: {
+        fillColor: [22, 160, 133],
+        halign: rtl ? 'right' : 'left',
+        font: 'Amiri'
+      },
+    });
+  }
 
   doc.save(`${filename}.pdf`);
 };

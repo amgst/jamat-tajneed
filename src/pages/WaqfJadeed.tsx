@@ -320,25 +320,6 @@ const WaqfJadeed: React.FC = () => {
                                 <div style="width: ${stats.percent}%; height: 100%; background-color: #52c41a;"></div>
                             </div>
                         </div>
-                        <Space>
-                            <Text strong>Active Families ({families.filter(f => !f.isMoved).length})</Text>
-                            <Select
-                                value={familySort}
-                                onChange={setFamilySort}
-                                style={{ width: 200 }}
-                                options={[
-                                    { value: 'default', label: 'Default (By Family #)' },
-                                    { value: 'zero_promise_first', label: 'Zero Promises First' },
-                                ]}
-                            />
-                        </Space>
-                        <Button
-                            icon={<DownloadOutlined />}
-                            onClick={handleExportFamilyFitranaEid}
-                            type="default"
-                        >
-                            Export Family Fitrana/Eid
-                        </Button>
                     </div>
                 </div>
 
@@ -1204,6 +1185,15 @@ const WaqfJadeed: React.FC = () => {
     };
 
     const handleExport100PercentPaidPDF = async () => {
+        const urduTanzeemNames: Record<string, string> = {
+            'ansar': 'انصار',
+            'lajna': 'لجنہ',
+            'khuddam': 'خدام',
+            'dafar-atfal-male': 'دفتر اطفال لڑکے',
+            'dafar-atfal-female': 'دفتر اطفال لڑکیاں',
+            'marhumeen': 'مرحومین'
+        };
+
         const fullyPaidGroups = tanzeemGroupedData.map(group => {
             return {
                 ...group,
@@ -1211,16 +1201,12 @@ const WaqfJadeed: React.FC = () => {
             };
         }).filter(group => group.members.length > 0);
 
-        const rows: any[] = [];
-        fullyPaidGroups.forEach(group => {
-            const tanzeemName = getTanzeemDisplayName(group.tanzeem).toUpperCase();
-            rows.push({
-                col1: `--- ${tanzeemName} (${group.members.length}) ---`,
-                col2: '',
-                col3: ''
-            });
+        const totalMembersInList = fullyPaidGroups.reduce((acc, group) => acc + group.members.length, 0);
 
+        const sections = fullyPaidGroups.map(group => {
+            const rows: any[] = [];
             let buffer: string[] = [];
+
             group.members.forEach((item) => {
                 buffer.push(item.member.name);
                 if (buffer.length === 3) {
@@ -1232,6 +1218,7 @@ const WaqfJadeed: React.FC = () => {
                     buffer = [];
                 }
             });
+
             if (buffer.length > 0) {
                 rows.push({
                     col1: buffer[0] || '',
@@ -1239,40 +1226,78 @@ const WaqfJadeed: React.FC = () => {
                     col3: buffer[2] || ''
                 });
             }
-            rows.push({ col1: '', col2: '', col3: '' }); // spacing
+
+            return {
+                title: urduTanzeemNames[group.tanzeem] || group.tanzeem.toUpperCase(),
+                data: rows,
+                headers: ['col1', 'col2', 'col3'],
+                options: {
+                    showHeader: false,
+                    fontSize: 14
+                }
+            };
         });
 
         await exportToPDF(
-            rows,
+            [], // Main data is empty because we use sections
             ['col1', 'col2', 'col3'],
             `100_percent_paid_members_${selectedYear}`,
-            `Waqf-e-Jadeed - 100% Paid Members - ${selectedYear}`,
+            `دعائیہ فہرست\n چندہ وقف جدید 100 فیصد ادا کرنے والے \nجماعت مریدکے ضلع شیخوپورہ ${selectedYear}\n(کل ممبران: ${totalMembersInList})`,
             {
                 showHeader: false,
                 renderMode: 'autoTable',
-                fontSize: 10
+                fontSize: 14,
+                rtl: true,
+                titleAlign: 'center',
+                sections: sections
             }
         );
         message.success('100% Paid Members PDF generated');
     };
 
-    // Group members by tanzeem for Tanzeem Wise view
+    // Group members by tanzeem for Tanzeem Wise view, including Marhumeen/Others
     const tanzeemGroupedData = useMemo(() => {
-        const tanzeemOrder = ['ansar', 'lajna', 'khuddam', 'dafar-atfal-male', 'dafar-atfal-female'];
+        const tanzeemOrder = ['ansar', 'lajna', 'khuddam', 'dafar-atfal-male', 'dafar-atfal-female', 'marhumeen'];
         const grouped: Record<string, typeof filteredMemberData> = {};
 
+        // Group standard members
         filteredMemberData.forEach(item => {
             let tanzeem = item.member.tanzeem || 'Unknown';
             // Group Atfal, Nasirat, Saf-e-Awal into Daftar Atfal (Male/Female)
             if (['atfal', 'nasirat', 'saf-e-awal', 'saf-e-awal-girls'].includes(tanzeem)) {
                 const gender = item.member.gender?.toLowerCase() || 'male';
-                tanzeem = gender === 'female' ? 'dafar-atfal-female' : 'dafar-atfal-male';
+                tanzeem = (gender === 'female' ? 'dafar-atfal-female' : 'dafar-atfal-male') as any;
             }
 
             if (!grouped[tanzeem]) {
                 grouped[tanzeem] = [];
             }
             grouped[tanzeem].push(item);
+        });
+
+        // Group special records
+        specialRecords.forEach(record => {
+            const type = (record as any).type || (record.isDeceased ? 'marhumeen' : 'other');
+            if (type === 'other') return; // Skip "other" category
+
+            if (!grouped[type]) {
+                grouped[type] = [];
+            }
+            // Mock a standard member format to be seamlessly consumed by the export
+            grouped[type].push({
+                member: {
+                    id: record.id,
+                    name: record.name,
+                    tanzeem: type as any,
+                    familyId: '',
+                    safEAwal: false,
+                    gender: record.gender || 'male',
+                    isDeceased: record.isDeceased
+                } as any,
+                promise: record.promiseAmount,
+                paid: record.paidAmount,
+                family: null as any
+            } as any);
         });
 
         // Sort tanzeem groups by predefined order
