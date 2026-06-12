@@ -125,6 +125,7 @@ const WaqfJadeed: React.FC = () => {
     // Markaz Payment State
     const [markazPayments, setMarkazPayments] = useState<WaqfJadeedMarkazPayment[]>([]);
     const [markazModalVisible, setMarkazModalVisible] = useState(false);
+    const [netBalanceBreakdownVisible, setNetBalanceBreakdownVisible] = useState(false);
     const [markazForm] = Form.useForm();
 
     useEffect(() => {
@@ -1364,6 +1365,13 @@ const WaqfJadeed: React.FC = () => {
         return { totalPromise, totalPaid, totalNagarParkar, percent };
     }, [records, specialRecords]);
 
+    const totalMarkazPaid = useMemo(() => markazPayments.reduce(
+        (sum, payment) => sum + (payment.amountWJ || 0) + (payment.amountAtfal || 0) + (payment.amountNagarParkar || 0),
+        0
+    ), [markazPayments]);
+
+    const netBalanceInHand = useMemo(() => stats.totalPaid - totalMarkazPaid, [stats.totalPaid, totalMarkazPaid]);
+
     const allPayments = useMemo(() => {
         const payments: Payment[] = [];
         records.forEach(r => {
@@ -1541,6 +1549,141 @@ const WaqfJadeed: React.FC = () => {
             totalPaid
         };
     }, [tanzeemStats, deceasedStats, azafiStats, specialRecords]);
+
+    const netBalanceBreakdown = useMemo(() => {
+        const childTanzeems = new Set(['atfal', 'nasirat', 'saf-e-awal', 'saf-e-awal-girls']);
+        const adultRows = tanzeemStats
+            .filter(row => !childTanzeems.has(row.name))
+            .map(row => ({
+                key: row.name,
+                label: getTanzeemDisplayName(row.name),
+                collected: row.paid,
+                memberCount: row.count,
+                baseBasis: row.promiseBase,
+                nagarBasis: row.nagarpar,
+                bucket: 'adult'
+            }));
+
+        const childRows = tanzeemStats
+            .filter(row => childTanzeems.has(row.name))
+            .map(row => ({
+                key: row.name,
+                label: getTanzeemDisplayName(row.name),
+                collected: row.paid,
+                memberCount: row.count,
+                baseBasis: row.promiseBase,
+                nagarBasis: row.nagarpar,
+                bucket: 'child'
+            }));
+
+        const specialMembers = specialRecords.filter(record => !record.isDeceased && record.name !== 'اضافی');
+        const specialMembersRow = {
+            key: 'special-members',
+            label: 'Special Members',
+            collected: specialMembers.reduce((sum, record) => sum + (record.paidAmount || 0), 0),
+            memberCount: specialMembers.length,
+            baseBasis: specialMembers.reduce((sum, record) => sum + (record.promiseAmount || 0), 0),
+            nagarBasis: specialMembers.reduce((sum, record) => sum + (record.nagarparAmount || 0), 0),
+            bucket: 'adult'
+        };
+
+        const deceasedRow = {
+            key: 'deceased',
+            label: 'Deceased',
+            collected: deceasedStats.totalDeceasedPaid,
+            memberCount: deceasedStats.deceasedMales + deceasedStats.deceasedFemales,
+            baseBasis: deceasedStats.totalDeceasedPromiseBase,
+            nagarBasis: deceasedStats.totalDeceasedNagarpar,
+            bucket: 'adult'
+        };
+
+        const additionalRow = {
+            key: 'additional',
+            label: 'Azafi / Additional',
+            collected: azafiStats.paidAmount,
+            memberCount: azafiStats.count,
+            baseBasis: azafiStats.promiseBase,
+            nagarBasis: azafiStats.promiseAmount - azafiStats.promiseBase,
+            bucket: 'adult'
+        };
+
+        const allRows = [
+            ...adultRows,
+            ...childRows,
+            specialMembersRow,
+            deceasedRow,
+            additionalRow
+        ].filter(row => row.collected > 0 || row.baseBasis > 0 || row.nagarBasis > 0);
+
+        const adultBaseTotal = allRows
+            .filter(row => row.bucket === 'adult')
+            .reduce((sum, row) => sum + row.baseBasis, 0);
+        const childBaseTotal = allRows
+            .filter(row => row.bucket === 'child')
+            .reduce((sum, row) => sum + row.baseBasis, 0);
+        const nagarTotal = allRows.reduce((sum, row) => sum + row.nagarBasis, 0);
+
+        const adultMarkazPaid = markazPayments.reduce((sum, payment) => sum + (payment.amountWJ || 0), 0);
+        const childMarkazPaid = markazPayments.reduce((sum, payment) => sum + (payment.amountAtfal || 0), 0);
+        const nagarMarkazPaid = markazPayments.reduce((sum, payment) => sum + (payment.amountNagarParkar || 0), 0);
+
+        const rowsWithRawNet = allRows.map(row => {
+            const bucketAllocation = row.bucket === 'adult'
+                ? (adultBaseTotal > 0 ? (row.baseBasis / adultBaseTotal) * adultMarkazPaid : 0)
+                : (childBaseTotal > 0 ? (row.baseBasis / childBaseTotal) * childMarkazPaid : 0);
+            const nagarAllocation = nagarTotal > 0 ? (row.nagarBasis / nagarTotal) * nagarMarkazPaid : 0;
+            const allocatedToMarkaz = bucketAllocation + nagarAllocation;
+            const rawNetBalance = Math.max(0, row.collected - allocatedToMarkaz);
+
+            return {
+                ...row,
+                allocatedToMarkaz,
+                rawNetBalance
+            };
+        });
+
+        const rawNetTotal = rowsWithRawNet.reduce((sum, row) => sum + row.rawNetBalance, 0);
+
+        return rowsWithRawNet
+            .map(row => ({
+                ...row,
+                netBalance: rawNetTotal > 0 ? (row.rawNetBalance / rawNetTotal) * netBalanceInHand : 0
+            }))
+            .sort((a, b) => b.netBalance - a.netBalance);
+    }, [tanzeemStats, specialRecords, deceasedStats, azafiStats, markazPayments, netBalanceInHand]);
+
+    const currentCashDivision = useMemo(() => {
+        let baligan = 0;
+        let daftarAtfal = 0;
+        let nagarParkar = 0;
+
+        netBalanceBreakdown.forEach(row => {
+            const basisTotal = row.baseBasis + row.nagarBasis;
+            if (basisTotal <= 0) return;
+
+            const nagarShare = row.netBalance * (row.nagarBasis / basisTotal);
+            const baseShare = row.netBalance - nagarShare;
+
+            if (row.bucket === 'adult') {
+                baligan += baseShare;
+            } else {
+                daftarAtfal += baseShare;
+            }
+
+            nagarParkar += nagarShare;
+        });
+
+        const total = baligan + daftarAtfal + nagarParkar;
+        if (total <= 0) {
+            return { baligan: 0, daftarAtfal: 0, nagarParkar: 0 };
+        }
+
+        return {
+            baligan: (baligan / total) * netBalanceInHand,
+            daftarAtfal: (daftarAtfal / total) * netBalanceInHand,
+            nagarParkar: (nagarParkar / total) * netBalanceInHand
+        };
+    }, [netBalanceBreakdown, netBalanceInHand]);
 
     const targetSectionStats = useMemo(() => {
         // Calculate Total Received for target tracking (Baligan Paid)
@@ -2005,20 +2148,15 @@ const WaqfJadeed: React.FC = () => {
             });
             document.body.removeChild(cardDiv);
 
-            const imgData = canvas.toDataURL('image/png');
-            const pdf = new jsPDF({
-                orientation: 'portrait',
-                unit: 'px',
-                format: [canvas.width / 2, canvas.height / 2]
-            });
+            const link = document.createElement('a');
+            link.download = `${name.replace(/\s+/g, '_')}_WJ_${selectedYear}.jpg`;
+            link.href = canvas.toDataURL('image/jpeg', 0.95);
+            link.click();
 
-            pdf.addImage(imgData, 'PNG', 0, 0, canvas.width / 2, canvas.height / 2);
-            pdf.save(`${name.replace(/\s+/g, '_')}_WJ_${selectedYear}.pdf`);
-
-            message.success({ content: 'PDF Card generated successfully!', key: 'card-export' });
+            message.success({ content: 'JPG card generated successfully!', key: 'card-export' });
         } catch (error) {
             console.error('Error generating card:', error);
-            message.error({ content: 'Failed to generate PDF card', key: 'card-export' });
+            message.error({ content: 'Failed to generate JPG card', key: 'card-export' });
         }
     };
     const handleExportFamilyCard = async (family: Family, totalPromised: number, totalPaid: number) => {
@@ -3399,18 +3537,34 @@ const WaqfJadeed: React.FC = () => {
                             <Col xs={24} sm={8}>
                                 <Statistic
                                     title="Paid to Markaz"
-                                    value={markazPayments.reduce((sum, p) => sum + (p.amountWJ || 0) + (p.amountAtfal || 0) + (p.amountNagarParkar || 0), 0)}
+                                    value={totalMarkazPaid}
                                     prefix="Rs."
                                     valueStyle={{ color: '#cf1322' }}
                                 />
                             </Col>
                             <Col xs={24} sm={8}>
-                                <Statistic
-                                    title="Net Balance in Hand"
-                                    value={stats.totalPaid - markazPayments.reduce((sum, p) => sum + (p.amountWJ || 0) + (p.amountAtfal || 0) + (p.amountNagarParkar || 0), 0)}
-                                    prefix="Rs."
-                                    valueStyle={{ color: '#3f8600', fontWeight: 'bold' }}
-                                />
+                                <div
+                                    onClick={() => setNetBalanceBreakdownVisible(true)}
+                                    onKeyDown={(event) => {
+                                        if (event.key === 'Enter' || event.key === ' ') {
+                                            event.preventDefault();
+                                            setNetBalanceBreakdownVisible(true);
+                                        }
+                                    }}
+                                    role="button"
+                                    tabIndex={0}
+                                    style={{ cursor: 'pointer', borderRadius: 8, padding: '8px 12px', border: '1px dashed #95de64', background: '#f6ffed', height: '100%' }}
+                                >
+                                    <Statistic
+                                        title="Net Balance in Hand"
+                                        value={netBalanceInHand}
+                                        prefix="Rs."
+                                        valueStyle={{ color: '#3f8600', fontWeight: 'bold' }}
+                                    />
+                                    <Text type="secondary" style={{ fontSize: 12 }}>
+                                        Click to view tanzeem-wise split
+                                    </Text>
+                                </div>
                             </Col>
                         </Row>
 
@@ -3961,6 +4115,77 @@ const WaqfJadeed: React.FC = () => {
             </Drawer>
 
             {/* Receipt Modal */}
+            <Modal
+                title="Net Balance in Hand Breakdown"
+                open={netBalanceBreakdownVisible}
+                onCancel={() => setNetBalanceBreakdownVisible(false)}
+                footer={null}
+                width={820}
+            >
+                <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
+                    <Col xs={24} md={8}>
+                        <Card size="small" bordered style={{ background: '#fafafa' }}>
+                            <Statistic
+                                title="Baligan"
+                                value={currentCashDivision.baligan}
+                                prefix="Rs."
+                                precision={0}
+                                valueStyle={{ color: '#1f1f1f' }}
+                            />
+                        </Card>
+                    </Col>
+                    <Col xs={24} md={8}>
+                        <Card size="small" bordered style={{ background: '#fafafa' }}>
+                            <Statistic
+                                title="Daftar Atfal"
+                                value={currentCashDivision.daftarAtfal}
+                                prefix="Rs."
+                                precision={0}
+                                valueStyle={{ color: '#1f1f1f' }}
+                            />
+                        </Card>
+                    </Col>
+                    <Col xs={24} md={8}>
+                        <Card size="small" bordered style={{ background: '#fafafa' }}>
+                            <Statistic
+                                title="Nagar Parkar"
+                                value={currentCashDivision.nagarParkar}
+                                prefix="Rs."
+                                precision={0}
+                                valueStyle={{ color: '#1f1f1f' }}
+                            />
+                        </Card>
+                    </Col>
+                </Row>
+                <Table
+                    dataSource={netBalanceBreakdown}
+                    rowKey="key"
+                    pagination={false}
+                    size="small"
+                    columns={[
+                        { title: 'Tanzeem / Group', dataIndex: 'label', key: 'label' },
+                        { title: 'Members', dataIndex: 'memberCount', key: 'memberCount', width: 100 },
+                        { title: 'Allocated to Markaz', dataIndex: 'allocatedToMarkaz', key: 'allocatedToMarkaz', align: 'right' as const, render: (value: number) => `Rs. ${Math.round(value).toLocaleString()}` },
+                        { title: 'Net in Hand', dataIndex: 'netBalance', key: 'netBalance', align: 'right' as const, render: (value: number) => <Text strong style={{ color: '#237804' }}>Rs. {Math.round(value).toLocaleString()}</Text> }
+                    ]}
+                    summary={(pageData) => {
+                        const totalAllocated = pageData.reduce((sum, row) => sum + row.allocatedToMarkaz, 0);
+                        const totalNet = pageData.reduce((sum, row) => sum + row.netBalance, 0);
+
+                        return (
+                            <Table.Summary.Row>
+                                <Table.Summary.Cell index={0}><Text strong>Total</Text></Table.Summary.Cell>
+                                <Table.Summary.Cell index={1}>{pageData.reduce((sum, row) => sum + row.memberCount, 0)}</Table.Summary.Cell>
+                                <Table.Summary.Cell index={2} align="right"><Text strong>Rs. {Math.round(totalAllocated).toLocaleString()}</Text></Table.Summary.Cell>
+                                <Table.Summary.Cell index={3} align="right"><Text strong style={{ color: '#237804' }}>Rs. {Math.round(totalNet).toLocaleString()}</Text></Table.Summary.Cell>
+                            </Table.Summary.Row>
+                        );
+                    }}
+                />
+                <Text type="secondary" style={{ display: 'block', marginTop: 12 }}>
+                    The summary above shows the current cash in hand split into Baligan, Daftar Atfal, and Nagar Parkar. The table below shows how that same in-hand amount is distributed tanzeem-wise.
+                </Text>
+            </Modal>
             <Modal
                 title="Print Receipt"
                 open={!!printingPayment}
