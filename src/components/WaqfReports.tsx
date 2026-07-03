@@ -937,7 +937,7 @@ const WaqfReports: React.FC<WaqfReportsProps> = ({
 
     const handleExportFitranaPDF = async () => {
         try {
-            let rows = [...fitranaData.rows];
+            let rows: any[] = [...fitranaData.rows];
 
             if (fitranaSort.field && fitranaSort.order) {
                 const field = fitranaSort.field;

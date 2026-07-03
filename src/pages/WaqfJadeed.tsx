@@ -2,7 +2,6 @@ import React, { useState, useEffect, useMemo } from 'react';
 import {
     Card,
     List,
-    Avatar,
     Typography,
     Input,
     Select,
@@ -2165,7 +2164,6 @@ const WaqfJadeed: React.FC = () => {
 
             const balance = totalPromised - totalPaid;
             const percent = totalPromised > 0 ? Math.round((totalPaid / totalPromised) * 100) : 0;
-            const head = members.find(m => m.id === family.headId);
 
             const cardDiv = document.createElement('div');
             cardDiv.style.width = '400px';
@@ -2459,7 +2457,7 @@ const WaqfJadeed: React.FC = () => {
                                         <Text strong style={{ fontSize: '14px' }}>
                                             Rs. {record.promise.toLocaleString()}
                                         </Text>
-                                        <Button type="link" size="small" icon={<EditOutlined />} onClick={() => handleQuickEdit(record.member)} />
+                                        <Button type="link" size="small" icon={<EditOutlined />} onClick={() => handleEdit(record.member)} />
                                     </Space>
                                 ),
                                 align: 'right'
@@ -2473,7 +2471,7 @@ const WaqfJadeed: React.FC = () => {
                                         <Text strong style={{ fontSize: '14px' }}>
                                             Rs. {(record.record?.nagarparAmount || 0).toLocaleString()}
                                         </Text>
-                                        <Button type="link" size="small" icon={<EditOutlined />} onClick={() => handleQuickEdit(record.member)} />
+                                        <Button type="link" size="small" icon={<EditOutlined />} onClick={() => handleEdit(record.member)} />
                                     </Space>
                                 ),
                                 align: 'right'
@@ -2770,7 +2768,7 @@ const WaqfJadeed: React.FC = () => {
                                                         render: (val, record) => (
                                                             <Space>
                                                                 {`Rs. ${val.toLocaleString()}`}
-                                                                <Button type="link" size="small" icon={<EditOutlined />} onClick={() => handleQuickEdit(record.member)} />
+                                                                <Button type="link" size="small" icon={<EditOutlined />} onClick={() => handleEdit(record.member)} />
                                                             </Space>
                                                         )
                                                     },
@@ -2781,7 +2779,7 @@ const WaqfJadeed: React.FC = () => {
                                                         render: (val, record) => (
                                                             <Space>
                                                                 {`Rs. ${val.toLocaleString()}`}
-                                                                <Button type="link" size="small" icon={<EditOutlined />} onClick={() => handleQuickEdit(record.member)} />
+                                                                <Button type="link" size="small" icon={<EditOutlined />} onClick={() => handleEdit(record.member)} />
                                                             </Space>
                                                         )
                                                     },

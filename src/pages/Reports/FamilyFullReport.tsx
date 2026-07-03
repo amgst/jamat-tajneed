@@ -12,10 +12,9 @@ import {
   Statistic,
   Descriptions,
   message,
-  Avatar,
   Modal
 } from 'antd';
-import { DownloadOutlined, ReloadOutlined, UserOutlined, EditOutlined } from '@ant-design/icons';
+import { DownloadOutlined, ReloadOutlined, EditOutlined } from '@ant-design/icons';
 import MemberForm from '../../components/MemberForm';
 import dayjs from 'dayjs';
 import jsPDF from 'jspdf';

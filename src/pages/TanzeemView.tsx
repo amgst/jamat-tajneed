@@ -26,7 +26,7 @@ import autoTable from 'jspdf-autotable';
 import { ApiService } from '../services/apiService';
 import MemberForm from '../components/MemberForm';
 import type { Member, Tanzeem } from '../types';
-import { getTanzeemDisplayName, formatDate, exportToCSV, calculateAge, determineTanzeem } from '../utils/helpers';
+import { getTanzeemDisplayName, exportToCSV, calculateAge, determineTanzeem } from '../utils/helpers';
 
 
 const { TabPane } = Tabs;

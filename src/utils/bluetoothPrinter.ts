@@ -77,40 +77,6 @@ function pair(label: string, value: string): string {
     return combined.slice(0, LINE_WIDTH);
 }
 
-function encodeEscPos(lines: PrintableLine[]): Uint8Array {
-    const encoder = new TextEncoder();
-    const init = new Uint8Array([0x1b, 0x40]);
-    const alignLeft = new Uint8Array([0x1b, 0x61, 0x00]);
-    const boldOn = new Uint8Array([0x1b, 0x45, 0x01]);
-    const boldOff = new Uint8Array([0x1b, 0x45, 0x00]);
-    const feed = new Uint8Array([0x0a]);
-    const cut = new Uint8Array([0x1d, 0x56, 0x01]);
-
-    const chunks: Uint8Array[] = [];
-    chunks.push(init);
-    chunks.push(alignLeft);
-    chunks.push(boldOn);
-    chunks.push(encoder.encode(`${lines[0] || ''}\n`));
-    chunks.push(boldOff);
-
-    for (let i = 1; i < lines.length; i += 1) {
-        chunks.push(encoder.encode(`${lines[i]}\n`));
-    }
-
-    chunks.push(feed);
-    chunks.push(feed);
-    chunks.push(cut);
-
-    const totalLength = chunks.reduce((sum, chunk) => sum + chunk.length, 0);
-    const output = new Uint8Array(totalLength);
-    let offset = 0;
-    chunks.forEach(chunk => {
-        output.set(chunk, offset);
-        offset += chunk.length;
-    });
-    return output;
-}
-
 function renderUrduToCanvas(text: string): HTMLCanvasElement {
     const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d');

@@ -25,6 +25,7 @@ import {
     Modal,
     DatePicker
 } from 'antd';
+import type { ColumnsType } from 'antd/es/table';
 import {
     UserOutlined,
     SearchOutlined,
@@ -486,7 +487,7 @@ const Ansarullah: React.FC = () => {
     }, [ansarMembers, searchTerm]);
 
     const getMemberRecord = (id: string) => records.find(r => r.memberId === id);
-    const columns = [
+    const columns: ColumnsType<Member> = [
         {
             title: 'نمبر شمار',
             key: 'serial',

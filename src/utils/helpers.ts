@@ -410,11 +410,6 @@ export const exportToPDF = async (
         const imgData = canvas.toDataURL('image/png');
         const imgWidth = pageWidth - 28;
         const imgHeight = (canvas.height * imgWidth) / canvas.width;
-        
-        let titleX = 14;
-        if (titleAlign === 'center') {
-          titleX = (pageWidth - imgWidth) / 2;
-        }
 
         doc.addImage(imgData, 'PNG', 14, currentY, imgWidth, imgHeight);
         currentY += imgHeight + 5;

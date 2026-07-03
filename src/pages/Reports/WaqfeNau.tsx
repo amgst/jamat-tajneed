@@ -9,6 +9,7 @@ import {
   Tag,
   Typography,
   Avatar,
+  Modal,
   message
 } from 'antd';
 import {
@@ -26,6 +27,7 @@ import {
 import { generateAvatarFromName } from '../../utils/imageUtils';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import dayjs from 'dayjs';
 
 import MemberForm from '../../components/MemberForm';
 
@@ -142,7 +144,6 @@ const WaqfeNau: React.FC = () => {
 
   const handleExportPDF = async () => {
     const doc = new jsPDF();
-    const pageWidth = doc.internal.pageSize.getWidth();
     let currentY = 16;
 
     try {

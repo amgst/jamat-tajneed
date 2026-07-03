@@ -528,12 +528,6 @@ const Members: React.FC = () => {
       key: 'name',
       sorter: (a: Member, b: Member) => a.name.localeCompare(b.name),
       render: (name: string, record: Member) => {
-        const slug = name
-          .toLowerCase()
-          .replace(/[^a-z0-9\s-]/g, '')
-          .trim()
-          .replace(/\s+/g, '-');
-        const slugId = `${slug}-${record.id}`;
         return (
           <div>
             <div

@@ -21,7 +21,7 @@ import {
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import type { Member } from '../types';
-import { validateCNIC, formatDate } from '../utils/helpers';
+import { formatDate } from '../utils/helpers';
 
 
 const { Option } = Select;

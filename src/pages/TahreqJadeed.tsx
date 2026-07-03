@@ -2,7 +2,6 @@ import React, { useState, useEffect, useMemo } from 'react';
 import {
     Card,
     List,
-    Avatar,
     Typography,
     Input,
     Select,
@@ -902,10 +901,10 @@ const TahreqJadeed: React.FC = () => {
                 const idx = prev.findIndex(r => r.id === saved.id);
                 if (idx >= 0) {
                     const newRecs = [...prev];
-                    newRecs[idx] = { ...saved, isDeceased: !!saved.isDeceased } as WaqfJadeedSpecialRecord;
+                    newRecs[idx] = { ...saved, isDeceased: !!saved.isDeceased } as TahreqJadeedSpecialRecord;
                     return newRecs;
                 }
-                return [...prev, { ...saved, isDeceased: !!saved.isDeceased } as WaqfJadeedSpecialRecord];
+                return [...prev, { ...saved, isDeceased: !!saved.isDeceased } as TahreqJadeedSpecialRecord];
             });
             message.success('Special record saved');
             setDrawerVisible(false); // Reuse drawer state or add separate? Special usually has its own
@@ -1068,7 +1067,7 @@ const TahreqJadeed: React.FC = () => {
 
     const handleExportFamilyFitranaEid = async () => {
         let totalMembers = 0;
-        const rows = filteredFamilyData.map((family, index) => {
+        const rows: { no: number | string; familyDisplay: string; fitrana: string; eidFundTotal: string }[] = filteredFamilyData.map((family, index) => {
             const familyMembers = members.filter(m => m.familyId === family.id && !m.isDeceased && !m.isMoved);
             const memberCount = familyMembers.length;
             totalMembers += memberCount;
@@ -1101,7 +1100,7 @@ const TahreqJadeed: React.FC = () => {
         const grouped: Record<string, typeof filteredMemberData> = {};
 
         filteredMemberData.forEach(item => {
-            let tanzeem = item.member.tanzeem || 'Unknown';
+            let tanzeem: string = item.member.tanzeem || 'Unknown';
             // Group Atfal, Nasirat, Saf-e-Awal into Daftar Atfal
             if (['atfal', 'nasirat', 'saf-e-awal', 'saf-e-awal-girls'].includes(tanzeem)) {
                 tanzeem = 'dafar-atfal';
@@ -1901,7 +1900,6 @@ const TahreqJadeed: React.FC = () => {
 
             const balance = totalPromised - totalPaid;
             const percent = totalPromised > 0 ? Math.round((totalPaid / totalPromised) * 100) : 0;
-            const head = members.find(m => m.id === family.headId);
 
             const cardDiv = document.createElement('div');
             cardDiv.style.width = '400px';
@@ -2783,7 +2781,7 @@ const TahreqJadeed: React.FC = () => {
                     )}
                 </div>
             ) : activeTab === 'reports' ? (
-                <WaqfReports
+                <TahreqReports
                     members={members}
                     records={filteredMemberData}
                     specialRecords={specialRecords}
