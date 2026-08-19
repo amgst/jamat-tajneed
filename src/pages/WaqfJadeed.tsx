@@ -1184,6 +1184,58 @@ const WaqfJadeed: React.FC = () => {
         message.success('Tanzeem Wise PDF generated');
     };
 
+    const handleExportDaftarAtfalPDF = async () => {
+        const maleGroup = tanzeemGroupedData.find(g => g.tanzeem === 'dafar-atfal-male');
+        const femaleGroup = tanzeemGroupedData.find(g => g.tanzeem === 'dafar-atfal-female');
+
+        const combinedMembers = [
+            ...(maleGroup?.members || []),
+            ...(femaleGroup?.members || [])
+        ];
+
+        if (combinedMembers.length === 0) {
+            message.warning('No Daftar Atfal members found to export');
+            return;
+        }
+
+        const rows = combinedMembers.map((item, index) => ({
+            sNo: index + 1,
+            name: item.member.name,
+            fatherName: item.member.fatherName || '-',
+            age: item.member.age,
+            gender: item.member.gender === 'female' ? 'Female' : 'Male',
+            halqa: item.member.halqa || '-',
+            promise: item.promise,
+            paid: item.paid,
+            progress: item.promise > 0 ? `${Math.round((item.paid / item.promise) * 100)}%` : '0%'
+        }));
+
+        const maleCount = maleGroup?.count || 0;
+        const femaleCount = femaleGroup?.count || 0;
+
+        await exportToPDF(
+            rows,
+            ['sNo', 'name', 'fatherName', 'age', 'gender', 'halqa', 'promise', 'paid', 'progress'],
+            `daftar_atfal_report_${selectedYear}`,
+            `Waqf-e-Jadeed - Daftar Atfal Report - ${selectedYear}\nMale: ${maleCount}  |  Female: ${femaleCount}  |  Total: ${maleCount + femaleCount}`,
+            {
+                headerLabels: {
+                    sNo: 'S.No',
+                    name: 'Name',
+                    fatherName: 'Father Name',
+                    age: 'Age',
+                    gender: 'Gender',
+                    halqa: 'Halqa',
+                    promise: 'Promise',
+                    paid: 'Paid',
+                    progress: 'Progress'
+                },
+                titleAlign: 'center'
+            }
+        );
+        message.success('Daftar Atfal PDF generated');
+    };
+
     const handleExport100PercentPaidPDF = async () => {
         const urduTanzeemNames: Record<string, string> = {
             'ansar': 'انصار',
@@ -2959,6 +3011,12 @@ const WaqfJadeed: React.FC = () => {
                                 onClick={handleExportTanzeemWisePDF}
                             >
                                 Export Tanzeem PDF
+                            </Button>
+                            <Button
+                                icon={<FilePdfOutlined />}
+                                onClick={handleExportDaftarAtfalPDF}
+                            >
+                                Export Daftar Atfal PDF
                             </Button>
                         </Space>
                     </div>

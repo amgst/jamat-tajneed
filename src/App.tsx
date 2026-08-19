@@ -15,14 +15,11 @@ import ReligiousActivitiesPage from './pages/ReligiousActivities';
 import Settings from './pages/Settings';
 import Profile from './pages/Profile';
 
-import MembersJsonView from './pages/MembersJsonView';
 import WaqfJadeed from './pages/WaqfJadeed';
-import TahreqJadeed from './pages/TahreqJadeed';
+import WaqfJadeedPro from './pages/WaqfJadeedPro';
+import TajneedPro from './pages/TajneedPro';
 import Ansarullah from './pages/Ansarullah';
-import Graveyard from './pages/Graveyard';
 import FinancialReportsPage from './pages/FinancialReportsPage';
-import Tools from './pages/Tools';
-import ZakatCalculator from './pages/ZakatCalculator';
 import WaqfeNau from './pages/Reports/WaqfeNau';
 import Mossi from './pages/Reports/Mossi';
 import FamilyFullReport from './pages/Reports/FamilyFullReport';
@@ -82,6 +79,7 @@ function App() {
               >
                 <Route index element={<Dashboard />} />
                 <Route path="members" element={<Members />} />
+                <Route path="tajneed-pro" element={<TajneedPro />} />
                 <Route path="members/:slugId" element={<MemberDetails />} />
                 <Route path="families" element={<Families />} />
                 <Route path="families/:id" element={<FamilyDetails />} />
@@ -89,17 +87,13 @@ function App() {
                 <Route path="religious-activities" element={<ReligiousActivitiesPage />} />
                 <Route path="settings" element={<Settings />} />
                 <Route path="profile" element={<Profile />} />
-                <Route path="members-json" element={<MembersJsonView />} />
                 <Route path="waqf-jadeed" element={<WaqfJadeed />} />
-                <Route path="tahreq-jadeed" element={<TahreqJadeed />} />
+                <Route path="waqf-jadeed-pro" element={<WaqfJadeedPro />} />
                 <Route path="ansar-uallah" element={<Ansarullah />} />
-                <Route path="graveyard" element={<Graveyard />} />
                 <Route path="financial-reports" element={<FinancialReportsPage />} />
                 <Route path="reports/waqfe-nau" element={<WaqfeNau />} />
                 <Route path="reports/mossi" element={<Mossi />} />
                 <Route path="reports/family-full" element={<FamilyFullReport />} />
-                <Route path="tools" element={<Tools />} />
-                <Route path="tools/zakat-calculator" element={<ZakatCalculator />} />
               </Route>
             </Routes>
           </Router>

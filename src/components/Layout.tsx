@@ -10,12 +10,8 @@ import {
   MenuUnfoldOutlined,
   BankOutlined,
   BookOutlined,
-  HeartOutlined,
   FileTextOutlined,
-
-  DatabaseOutlined,
   MenuOutlined,
-  ToolOutlined,
   SolutionOutlined
 } from '@ant-design/icons';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
@@ -60,6 +56,11 @@ const AppLayout: React.FC = () => {
       label: 'Members',
     },
     {
+      key: '/tajneed-pro',
+      icon: <TeamOutlined />,
+      label: 'Tajneed Pro',
+    },
+    {
       key: '/families',
       icon: <TeamOutlined />,
       label: 'Families',
@@ -80,19 +81,14 @@ const AppLayout: React.FC = () => {
       label: 'Waqf-e-Jadeed',
     },
     {
-      key: '/tahreq-jadeed',
+      key: '/waqf-jadeed-pro',
       icon: <BankOutlined />,
-      label: 'Tahreq Jadeed',
+      label: 'Waqf-e-Jadeed Pro',
     },
     {
       key: '/ansar-uallah',
       icon: <BankOutlined />,
       label: 'Ansar uallah',
-    },
-    {
-      key: '/graveyard',
-      icon: <HeartOutlined />,
-      label: 'Graveyard',
     },
     {
       key: '/financial-reports',
@@ -123,26 +119,6 @@ const AppLayout: React.FC = () => {
       icon: <SettingOutlined />,
       label: 'Settings',
     },
-    {
-      key: '/members-json',
-      icon: <DatabaseOutlined />,
-      label: 'Members (JSON)',
-    },
-    {
-      key: 'tools-menu',
-      icon: <ToolOutlined />,
-      label: 'Tools',
-      children: [
-        {
-          key: 'tools-overview',
-          label: 'Overview',
-        },
-        {
-          key: '/tools/zakat-calculator',
-          label: 'Zakat Calculator',
-        }
-      ]
-    },
   ];
 
   const handleUserMenuClick = ({ key }: { key: string }) => {
@@ -167,11 +143,7 @@ const AppLayout: React.FC = () => {
   ];
 
   const handleMenuClick = ({ key }: { key: string }) => {
-    if (key === 'tools-overview') {
-      navigate('/tools');
-    } else {
-      navigate(key);
-    }
+    navigate(key);
     if (isMobile) setDrawerVisible(false);
   };
 
