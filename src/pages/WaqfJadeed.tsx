@@ -45,7 +45,8 @@ import {
     SaveOutlined,
     ShareAltOutlined,
     BookOutlined,
-    DownloadOutlined
+    DownloadOutlined,
+    WarningOutlined
 } from '@ant-design/icons';
 import WaqfReports from '../components/WaqfReports';
 import dayjs from 'dayjs';
@@ -80,7 +81,7 @@ const WaqfJadeed: React.FC = () => {
     // Target amount state (stored per year in localStorage)
     const [targetAmount, setTargetAmount] = useState<number>(0);
 
-    const [familySort, setFamilySort] = useState<'default' | 'zero_promise_first'>('default');
+    const [familySort, setFamilySort] = useState<'default' | 'zero_promise_first' | 'pending_first'>('default');
 
     // Drawer & Edit State
     const [drawerVisible, setDrawerVisible] = useState(false);
@@ -660,15 +661,19 @@ const WaqfJadeed: React.FC = () => {
                     updateLocalRecord(savedRecord);
                 }
             } else if (editingSpecial) {
+                // Payments live in their own collection; don't write a stale copy back into the record
+                const { payments: _payments, ...specialFields } = editingSpecial;
                 const payload = {
-                    ...editingSpecial,
+                    ...specialFields,
                     promiseAmount: values.promiseAmount,
                     nagarparAmount: values.nagarparAmount,
                 };
                 const saved = await ApiService.saveWaqfJadeedSpecialRecord(payload);
                 if (saved) {
-                    updateLocalSpecialRecord({ ...saved, payments: editingSpecial.payments } as WaqfJadeedSpecialRecord);
-                    setEditingSpecial({ ...saved, payments: editingSpecial.payments } as WaqfJadeedSpecialRecord);
+                    const fresh = await ApiService.getWaqfJadeedSpecialRecordById(saved.id);
+                    const merged = (fresh || { ...saved, payments: editingSpecial.payments }) as WaqfJadeedSpecialRecord;
+                    updateLocalSpecialRecord(merged);
+                    setEditingSpecial(merged);
                 }
             }
 
@@ -1055,6 +1060,12 @@ const WaqfJadeed: React.FC = () => {
                 // If one has 0 promise and other doesn't, put 0 promise first
                 if (a.totalPromise === 0 && b.totalPromise > 0) return -1;
                 if (a.totalPromise > 0 && b.totalPromise === 0) return 1;
+            } else if (familySort === 'pending_first') {
+                // Pending (promised but not fully paid) at top, no promise in middle, 100% paid at bottom
+                const rank = (f: { totalPromise: number; totalPaid: number }) =>
+                    f.totalPromise === 0 ? 1 : f.totalPaid >= f.totalPromise ? 2 : 0;
+                const diff = rank(a) - rank(b);
+                if (diff !== 0) return diff;
             }
 
             // Default numeric sort by familyNumber
@@ -1128,6 +1139,68 @@ const WaqfJadeed: React.FC = () => {
         message.success('Family summary PDF generated');
     };
 
+    // Same per-family totals as the Family Wise list, keeping only families with balance
+    const handleExportFamiliesBalancePDF = async () => {
+        const pending = filteredFamilyData
+            .map(family => {
+                const familyMembersCtx = family.memberIds
+                    .map(mid => getMemberData(mid))
+                    .filter((item): item is NonNullable<MemberData> =>
+                        !!item && !item.member.isDeceased && !item.member.isMoved);
+                const familySpecialRecords = specialRecords.filter(r => r.familyId === family.id);
+                const promise = familyMembersCtx.reduce((sum, m) => sum + m.promise, 0) +
+                    familySpecialRecords.reduce((sum, r) => sum + (r.promiseAmount || 0) + (r.nagarparAmount || 0), 0);
+                const paid = familyMembersCtx.reduce((sum, m) => sum + m.paid, 0) +
+                    familySpecialRecords.reduce((sum, r) => sum + (r.paidAmount || 0), 0);
+                return { family, promise, paid, balance: promise - paid };
+            })
+            .filter(f => f.balance > 0)
+            .sort((a, b) => (a.family.familyNumber || 999999) - (b.family.familyNumber || 999999));
+
+        if (pending.length === 0) {
+            message.info('No families with remaining balance');
+            return;
+        }
+
+        const rows: Array<Record<string, unknown>> = pending.map((f, index) => ({
+            no: index + 1,
+            familyNo: f.family.familyNumber ?? '-',
+            familyName: f.family.familyName,
+            halqa: f.family.halqa || '-',
+            promise: f.promise,
+            paid: f.paid,
+            balance: f.balance
+        }));
+        rows.push({
+            no: '',
+            familyNo: '',
+            familyName: 'Total',
+            halqa: '',
+            promise: pending.reduce((sum, f) => sum + f.promise, 0),
+            paid: pending.reduce((sum, f) => sum + f.paid, 0),
+            balance: pending.reduce((sum, f) => sum + f.balance, 0)
+        });
+
+        await exportToPDF(
+            rows,
+            ['no', 'familyNo', 'familyName', 'halqa', 'promise', 'paid', 'balance'],
+            `families_balance_${selectedYear}`,
+            `Waqf-e-Jadeed - Families with Remaining Balance - ${selectedYear}`,
+            {
+                headerLabels: {
+                    no: '#',
+                    familyNo: 'Family #',
+                    familyName: 'Family',
+                    halqa: 'Halqa',
+                    promise: 'Promise',
+                    paid: 'Paid',
+                    balance: 'Balance'
+                }
+            }
+        );
+        message.success(`Exported ${pending.length} families with remaining balance`);
+    };
+
     const handleExportMembersPDF = async () => {
         const rows = filteredMemberData.map((item, index) => ({
             no: index + 1,
@@ -1182,6 +1255,66 @@ const WaqfJadeed: React.FC = () => {
             `Waqf-e-Jadeed - Tanzeem Wise Report - ${selectedYear}`
         );
         message.success('Tanzeem Wise PDF generated');
+    };
+
+    const handleExportUnpaidMembersPDF = async () => {
+        const rows: any[] = [];
+        let totalUnpaidCount = 0;
+        let totalOutstanding = 0;
+
+        tanzeemGroupedData.forEach(group => {
+            const nonPayers = group.members
+                .filter(item => item.promise > 0 && item.paid < item.promise)
+                .sort((a, b) => (b.promise - b.paid) - (a.promise - a.paid));
+
+            if (nonPayers.length === 0) return;
+
+            rows.push({
+                name: `--- ${getTanzeemDisplayName(group.tanzeem).toUpperCase()} (${nonPayers.length} Unpaid) ---`,
+                halqa: '',
+                promise: '',
+                paid: '',
+                balance: ''
+            });
+
+            nonPayers.forEach((item, idx) => {
+                const balance = item.promise - item.paid;
+                totalUnpaidCount += 1;
+                totalOutstanding += balance;
+                rows.push({
+                    name: `  ${idx + 1}. ${item.member.name}`,
+                    halqa: item.member.halqa || '-',
+                    promise: item.promise,
+                    paid: item.paid,
+                    balance
+                });
+            });
+
+            rows.push({ name: '', halqa: '', promise: '', paid: '', balance: '' });
+        });
+
+        if (totalUnpaidCount === 0) {
+            message.info('All members have paid their full promise amount');
+            return;
+        }
+
+        await exportToPDF(
+            rows,
+            ['name', 'halqa', 'promise', 'paid', 'balance'],
+            `unpaid_members_waqf_jadeed_${selectedYear}`,
+            `Waqf-e-Jadeed - Unpaid / Outstanding Members Report - ${selectedYear}\nTotal Unpaid: ${totalUnpaidCount}  |  Total Outstanding: Rs. ${totalOutstanding.toLocaleString()}`,
+            {
+                headerLabels: {
+                    name: 'Name',
+                    halqa: 'Halqa',
+                    promise: 'Promise',
+                    paid: 'Paid',
+                    balance: 'Balance'
+                },
+                titleAlign: 'center'
+            }
+        );
+        message.success('Unpaid Members PDF generated');
     };
 
     const handleExportDaftarAtfalPDF = async () => {
@@ -1513,6 +1646,42 @@ const WaqfJadeed: React.FC = () => {
         };
     }, [members, records]);
 
+    // Under-7 (Saf-e-Awal / Saf-e-Awal Girls) members whose promise (incl. Nagar Parkar) is >= Rs. 1000
+    const under7MinPromiseStats = useMemo(() => {
+        const summarize = (items: typeof filteredMemberData) => ({
+            count: items.length,
+            promise: items.reduce((sum, m) => sum + m.promise, 0),
+            paid: items.reduce((sum, m) => sum + m.paid, 0)
+        });
+        const boys = filteredMemberData.filter(item => item.member.tanzeem === 'saf-e-awal' && item.promise >= 1000);
+        const girls = filteredMemberData.filter(item => item.member.tanzeem === 'saf-e-awal-girls' && item.promise >= 1000);
+        const male = summarize(boys);
+        const female = summarize(girls);
+        return {
+            male,
+            female,
+            total: { count: male.count + female.count, promise: male.promise + female.promise, paid: male.paid + female.paid }
+        };
+    }, [filteredMemberData]);
+
+    // 7-15 years (Atfal / Nasirat) members whose promise (incl. Nagar Parkar) is >= Rs. 1000
+    const age7to15MinPromiseStats = useMemo(() => {
+        const summarize = (items: typeof filteredMemberData) => ({
+            count: items.length,
+            promise: items.reduce((sum, m) => sum + m.promise, 0),
+            paid: items.reduce((sum, m) => sum + m.paid, 0)
+        });
+        const boys = filteredMemberData.filter(item => item.member.tanzeem === 'atfal' && item.promise >= 1000);
+        const girls = filteredMemberData.filter(item => item.member.tanzeem === 'nasirat' && item.promise >= 1000);
+        const male = summarize(boys);
+        const female = summarize(girls);
+        return {
+            male,
+            female,
+            total: { count: male.count + female.count, promise: male.promise + female.promise, paid: male.paid + female.paid }
+        };
+    }, [filteredMemberData]);
+
     // Deceased Stats
     const deceasedStats = useMemo(() => {
         const deceasedMaleRecords = specialRecords.filter(r => r.isDeceased && r.gender === 'male');
@@ -1746,6 +1915,7 @@ const WaqfJadeed: React.FC = () => {
         return {
             totalReceived,
             totalPromised,
+            gapFromPromise: Math.max(0, totalPromised - totalReceived),
             remainingFromTarget: targetAmount > 0 ? Math.max(0, targetAmount - totalPromised) : 0,
             receivedPercent: targetAmount > 0 ? (totalReceived / targetAmount) * 100 : 0,
             promisePercent: targetAmount > 0 ? (totalPromised / targetAmount) * 100 : 0
@@ -2646,10 +2816,11 @@ const WaqfJadeed: React.FC = () => {
                             <Select
                                 value={familySort}
                                 onChange={setFamilySort}
-                                style={{ width: 200 }}
+                                style={{ width: 220 }}
                                 options={[
                                     { value: 'default', label: 'Default (By Family #)' },
                                     { value: 'zero_promise_first', label: 'Zero Promises First' },
+                                    { value: 'pending_first', label: 'Pending First, 100% Last' },
                                 ]}
                             />
                         </Space>
@@ -2659,6 +2830,12 @@ const WaqfJadeed: React.FC = () => {
                                 onClick={handleExportFamilySummaryPDF}
                             >
                                 Families Summary PDF
+                            </Button>
+                            <Button
+                                icon={<DownloadOutlined />}
+                                onClick={handleExportFamiliesBalancePDF}
+                            >
+                                Families with Balance
                             </Button>
                             <Button
                                 icon={<DownloadOutlined />}
@@ -2997,9 +3174,9 @@ const WaqfJadeed: React.FC = () => {
                 </div >
             ) : activeTab === 'tanzeem' ? (
                 <div className="tanzeem-list">
-                    <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
                         <Text strong>Tanzeem Wise Breakdown ({tanzeemGroupedData.length} Groups)</Text>
-                        <Space>
+                        <Space wrap>
                             <Button
                                 icon={<DownloadOutlined />}
                                 onClick={handleExport100PercentPaidPDF}
@@ -3011,6 +3188,13 @@ const WaqfJadeed: React.FC = () => {
                                 onClick={handleExportTanzeemWisePDF}
                             >
                                 Export Tanzeem PDF
+                            </Button>
+                            <Button
+                                icon={<WarningOutlined />}
+                                danger
+                                onClick={handleExportUnpaidMembersPDF}
+                            >
+                                Export Unpaid List
                             </Button>
                             <Button
                                 icon={<FilePdfOutlined />}
@@ -3252,6 +3436,35 @@ const WaqfJadeed: React.FC = () => {
                             </Col>
                             <Col xs={24} sm={12} md={6}>
                                 <Card styles={{ body: { padding: 16 } }} hoverable>
+                                    <Tooltip title="Total amount actually received (paid) from Daftar Baligan promises">
+                                        <Statistic
+                                            title={<span style={{ fontSize: '12px' }}>Total Received (Baligan)</span>}
+                                            value={targetSectionStats.totalReceived}
+                                            prefix="Rs."
+                                            precision={0}
+                                            valueStyle={{ fontSize: 'clamp(18px, 4vw, 24px)', color: '#3f8600' }}
+                                        />
+                                    </Tooltip>
+                                </Card>
+                            </Col>
+                            <Col xs={24} sm={12} md={6}>
+                                <Card styles={{ body: { padding: 16 } }} hoverable>
+                                    <Tooltip title="Outstanding amount yet to be collected from Baligan promises already made">
+                                        <Statistic
+                                            title={<span style={{ fontSize: '12px' }}>Gap (Promised - Received)</span>}
+                                            value={targetSectionStats.gapFromPromise}
+                                            prefix="Rs."
+                                            precision={0}
+                                            valueStyle={{
+                                                fontSize: 'clamp(18px, 4vw, 24px)',
+                                                color: targetSectionStats.gapFromPromise <= 0 ? '#3f8600' : '#cf1322'
+                                            }}
+                                        />
+                                    </Tooltip>
+                                </Card>
+                            </Col>
+                            <Col xs={24} sm={12} md={6}>
+                                <Card styles={{ body: { padding: 16 } }} hoverable>
                                     <Tooltip title="Remaining collection needed reach the Target Amount from Baligan promises">
                                         <Statistic
                                             title={<span style={{ fontSize: '12px' }}>Remaining Gap</span>}
@@ -3456,6 +3669,106 @@ const WaqfJadeed: React.FC = () => {
                                         );
                                     })}
                                 </Row>
+                            </Col>
+                        </Row>
+                        <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
+                            <Col xs={24} sm={12} md={8}>
+                                <Tooltip title="Boys under 7 (Saf-e-Awal) whose promise + Nagar Parkar is Rs. 1000 or more">
+                                    <Card hoverable styles={{ body: { padding: 16, background: '#e6f7ff' } }}>
+                                        <Statistic
+                                            title={<span style={{ fontWeight: 600, color: '#0958d9' }}>Under 7 Boys ≥ Rs. 1000</span>}
+                                            value={under7MinPromiseStats.male.count}
+                                            valueStyle={{ fontSize: '20px', color: '#0958d9' }}
+                                        />
+                                        <div style={{ marginTop: 8 }}>
+                                            <Text type="secondary" style={{ fontSize: '12px' }}>
+                                                Promise: Rs. {under7MinPromiseStats.male.promise.toLocaleString()} | Paid: Rs. {under7MinPromiseStats.male.paid.toLocaleString()}
+                                            </Text>
+                                        </div>
+                                    </Card>
+                                </Tooltip>
+                            </Col>
+                            <Col xs={24} sm={12} md={8}>
+                                <Tooltip title="Girls under 7 (Saf-e-Awal Girls) whose promise + Nagar Parkar is Rs. 1000 or more">
+                                    <Card hoverable styles={{ body: { padding: 16, background: '#fff0f6' } }}>
+                                        <Statistic
+                                            title={<span style={{ fontWeight: 600, color: '#c41d7f' }}>Under 7 Girls ≥ Rs. 1000</span>}
+                                            value={under7MinPromiseStats.female.count}
+                                            valueStyle={{ fontSize: '20px', color: '#c41d7f' }}
+                                        />
+                                        <div style={{ marginTop: 8 }}>
+                                            <Text type="secondary" style={{ fontSize: '12px' }}>
+                                                Promise: Rs. {under7MinPromiseStats.female.promise.toLocaleString()} | Paid: Rs. {under7MinPromiseStats.female.paid.toLocaleString()}
+                                            </Text>
+                                        </div>
+                                    </Card>
+                                </Tooltip>
+                            </Col>
+                            <Col xs={24} md={8}>
+                                <Tooltip title="Total under-7 members (both boys and girls) whose promise + Nagar Parkar is Rs. 1000 or more">
+                                    <Card hoverable styles={{ body: { padding: 16, background: '#f6ffed' } }}>
+                                        <Statistic
+                                            title={<span style={{ fontWeight: 600, color: '#389e0d' }}>Under 7 Total ≥ Rs. 1000</span>}
+                                            value={under7MinPromiseStats.total.count}
+                                            valueStyle={{ fontSize: '20px', color: '#389e0d' }}
+                                        />
+                                        <div style={{ marginTop: 8 }}>
+                                            <Text type="secondary" style={{ fontSize: '12px' }}>
+                                                Promise: Rs. {under7MinPromiseStats.total.promise.toLocaleString()} | Paid: Rs. {under7MinPromiseStats.total.paid.toLocaleString()}
+                                            </Text>
+                                        </div>
+                                    </Card>
+                                </Tooltip>
+                            </Col>
+                        </Row>
+                        <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
+                            <Col xs={24} sm={12} md={8}>
+                                <Tooltip title="Boys 7-15 (Atfal) whose promise + Nagar Parkar is Rs. 1000 or more">
+                                    <Card hoverable styles={{ body: { padding: 16, background: '#e6f7ff' } }}>
+                                        <Statistic
+                                            title={<span style={{ fontWeight: 600, color: '#0958d9' }}>7-15 Boys ≥ Rs. 1000</span>}
+                                            value={age7to15MinPromiseStats.male.count}
+                                            valueStyle={{ fontSize: '20px', color: '#0958d9' }}
+                                        />
+                                        <div style={{ marginTop: 8 }}>
+                                            <Text type="secondary" style={{ fontSize: '12px' }}>
+                                                Promise: Rs. {age7to15MinPromiseStats.male.promise.toLocaleString()} | Paid: Rs. {age7to15MinPromiseStats.male.paid.toLocaleString()}
+                                            </Text>
+                                        </div>
+                                    </Card>
+                                </Tooltip>
+                            </Col>
+                            <Col xs={24} sm={12} md={8}>
+                                <Tooltip title="Girls 7-15 (Nasirat) whose promise + Nagar Parkar is Rs. 1000 or more">
+                                    <Card hoverable styles={{ body: { padding: 16, background: '#fff0f6' } }}>
+                                        <Statistic
+                                            title={<span style={{ fontWeight: 600, color: '#c41d7f' }}>7-15 Girls ≥ Rs. 1000</span>}
+                                            value={age7to15MinPromiseStats.female.count}
+                                            valueStyle={{ fontSize: '20px', color: '#c41d7f' }}
+                                        />
+                                        <div style={{ marginTop: 8 }}>
+                                            <Text type="secondary" style={{ fontSize: '12px' }}>
+                                                Promise: Rs. {age7to15MinPromiseStats.female.promise.toLocaleString()} | Paid: Rs. {age7to15MinPromiseStats.female.paid.toLocaleString()}
+                                            </Text>
+                                        </div>
+                                    </Card>
+                                </Tooltip>
+                            </Col>
+                            <Col xs={24} md={8}>
+                                <Tooltip title="Total 7-15 year old members (both boys and girls) whose promise + Nagar Parkar is Rs. 1000 or more">
+                                    <Card hoverable styles={{ body: { padding: 16, background: '#f6ffed' } }}>
+                                        <Statistic
+                                            title={<span style={{ fontWeight: 600, color: '#389e0d' }}>7-15 Total ≥ Rs. 1000</span>}
+                                            value={age7to15MinPromiseStats.total.count}
+                                            valueStyle={{ fontSize: '20px', color: '#389e0d' }}
+                                        />
+                                        <div style={{ marginTop: 8 }}>
+                                            <Text type="secondary" style={{ fontSize: '12px' }}>
+                                                Promise: Rs. {age7to15MinPromiseStats.total.promise.toLocaleString()} | Paid: Rs. {age7to15MinPromiseStats.total.paid.toLocaleString()}
+                                            </Text>
+                                        </div>
+                                    </Card>
+                                </Tooltip>
                             </Col>
                         </Row>
                     </div>

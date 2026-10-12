@@ -5,6 +5,7 @@ import { AuthProvider } from './contexts/AuthContext';
 import { useAuth } from './contexts/useAuth';
 import AppLayout from './components/Layout';
 import Login from './pages/Login';
+import PeopleHome from './pages/PeopleHome';
 import Dashboard from './pages/Dashboard';
 import Members from './pages/Members';
 import Families from './pages/Families';
@@ -61,6 +62,7 @@ function App() {
         <AuthProvider>
           <Router>
             <Routes>
+              <Route path="/index.html" element={<Navigate to="/" replace />} />
               <Route
                 path="/login"
                 element={
@@ -77,7 +79,9 @@ function App() {
                   </ProtectedRoute>
                 }
               >
-                <Route index element={<Dashboard />} />
+                <Route index element={<PeopleHome />} />
+                <Route path="people" element={<PeopleHome />} />
+                <Route path="dashboard" element={<Dashboard />} />
                 <Route path="members" element={<Members />} />
                 <Route path="tajneed-pro" element={<TajneedPro />} />
                 <Route path="members/:slugId" element={<MemberDetails />} />
@@ -95,6 +99,7 @@ function App() {
                 <Route path="reports/mossi" element={<Mossi />} />
                 <Route path="reports/family-full" element={<FamilyFullReport />} />
               </Route>
+              <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
           </Router>
         </AuthProvider>

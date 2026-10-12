@@ -1,1 +1,15 @@
 @import "tailwindcss";
+
+html{background:#f9fafc;-webkit-text-size-adjust:100%}
+body{min-width:320px;margin:0}
+button,a,input,select,textarea{-webkit-tap-highlight-color:transparent}
+.tajneed-header{padding-top:env(safe-area-inset-top)!important;height:calc(64px + env(safe-area-inset-top))!important}
+@media(max-width:767px){
+  .tajneed-content{margin:0 0 calc(96px + env(safe-area-inset-bottom))!important;padding:12px max(12px,env(safe-area-inset-right)) 20px max(12px,env(safe-area-inset-left))!important;border-radius:0!important}
+  .tajneed-header{padding-left:max(12px,env(safe-area-inset-left))!important;padding-right:max(12px,env(safe-area-inset-right))!important}
+  .tajneed-header .ant-btn-text{width:44px!important;height:44px!important}
+  .tajneed-header .ant-avatar{width:36px;height:36px;line-height:36px}
+  .people-search input{font-size:16px!important}
+  .mobile-bottom-nav button{min-height:48px!important;font-size:11px!important}
+  .person-card{min-height:84px}
+}

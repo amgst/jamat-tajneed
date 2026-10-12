@@ -1,0 +1,20 @@
+{
+  "name": "Tajneed Person Directory",
+  "short_name": "Tajneed",
+  "id": "/",
+  "description": "Jamaat person and family directory",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#f9fafc",
+  "theme_color": "#345eae",
+  "icons": [
+    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    { "name": "Search people", "url": "/" },
+    { "name": "Person directory", "url": "/people" }
+  ]
+}

@@ -1,10 +1,10 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Card, Avatar, Tag, Button, Descriptions, message, Tabs, Modal, Space } from 'antd';
-import { UserOutlined, ArrowLeftOutlined, EditOutlined } from '@ant-design/icons';
+import { Alert, Button, message, Modal, Skeleton } from 'antd';
+import MemberProfileView from '../components/MemberProfileView';
 import { ApiService } from '../services/apiService';
 import type { Member, Family, WaqfJadeedRecord, TahreqJadeedRecord } from '../types';
-import { getTanzeemDisplayName, formatDate, calculateAge, determineTanzeem, formatCNIC } from '../utils/helpers';
+import { calculateAge, determineTanzeem, formatCNIC } from '../utils/helpers';
 import MemberForm from '../components/MemberForm';
 import { generateAvatarFromName } from '../utils/imageUtils';
 import { validateMemberData, sanitizeMemberData } from '../utils/validation';
@@ -16,6 +16,8 @@ const MemberDetails: React.FC = () => {
   const [family, setFamily] = useState<Family | null>(null);
   const [waqfJadeedRecord, setWaqfJadeedRecord] = useState<WaqfJadeedRecord | null>(null);
   const [tahreqJadeedRecord, setTahreqJadeedRecord] = useState<TahreqJadeedRecord | null>(null);
+  const [loadError, setLoadError] = useState(false);
+  const [financialError, setFinancialError] = useState(false);
   const [loading, setLoading] = useState<boolean>(true);
   const [isEditModalVisible, setIsEditModalVisible] = useState<boolean>(false);
   const [isSaving, setIsSaving] = useState<boolean>(false);
@@ -29,15 +31,20 @@ const MemberDetails: React.FC = () => {
 
   useEffect(() => {
     const load = async () => {
-      setLoading(true);
+      setLoading(true); setLoadError(false); setMember(null); setFamily(null);
       try {
-        const [members, families, waqfRecords, tahreqRecords] = await Promise.all([
+        const [members, families, financialRecords] = await Promise.all([
           ApiService.getAllMembers(),
           ApiService.getAllFamilies(),
-          ApiService.getWaqfJadeedRecords(new Date().getFullYear()),
-          ApiService.getTahreqJadeedRecords(new Date().getFullYear())
+          Promise.allSettled([
+            ApiService.getWaqfJadeedRecords(new Date().getFullYear()),
+            ApiService.getTahreqJadeedRecords(new Date().getFullYear())
+          ])
         ]);
-        const found = members.find((m: Member) => m.id === memberId) || null;
+        setFinancialError(financialRecords.some(result => result.status === 'rejected'));
+        const waqfRecords = financialRecords[0].status === 'fulfilled' ? financialRecords[0].value : [];
+        const tahreqRecords = financialRecords[1].status === 'fulfilled' ? financialRecords[1].value : [];
+        const found = members.find((m: Member) => slugId === m.id || slugId?.endsWith(`-${m.id}`)) || null;
         setMember(found);
         if (found) {
           const fam = families.find((f: Family) => (f.memberIds || []).includes(found.id)) || null;
@@ -55,13 +62,13 @@ const MemberDetails: React.FC = () => {
           message.error('Member not found');
         }
       } catch (e) {
-        message.error('Failed to load member');
+        setLoadError(true);
       } finally {
         setLoading(false);
       }
     };
     load();
-  }, [memberId]);
+  }, [memberId, slugId]);
 
   const handleEditSave = async (values: any) => {
     if (!member) return;
@@ -95,6 +102,7 @@ const MemberDetails: React.FC = () => {
         education: formData.education || '',
         bloodGroup: formData.bloodGroup || '',
         waqfeNauNumber: formData.waqfeNauNumber || '',
+        maritalStatus: formData.maritalStatus,
         updatedAt: new Date().toISOString(),
       };
 
@@ -122,140 +130,14 @@ const MemberDetails: React.FC = () => {
     }
   };
 
-  if (!member && !loading) {
-    return (
-      <Card>
-        <Button type="link" icon={<ArrowLeftOutlined />} onClick={() => navigate('/members')}>
-          Back to Members
-        </Button>
-        <div>Member not found.</div>
-      </Card>
-    );
-  }
+  if (loading) return <div style={{ maxWidth: 960, margin: 'auto', padding: 24 }}><Skeleton active avatar paragraph={{ rows: 8 }} /></div>;
+  if (!member) return <div style={{ maxWidth: 600, margin: '32px auto' }}><Alert type={loadError ? 'error' : 'info'} showIcon message={loadError ? 'Unable to load this profile' : 'Person not found'} description={loadError ? 'Check your connection and refresh the page to try again.' : 'This record may have been removed.'} /><Button style={{ marginTop: 16 }} onClick={() => navigate('/people')}>Back to people</Button></div>;
 
   return (
     <>
-      <Card loading={loading} title="Member Details" extra={
-        <Space>
-          <Button
-            type="primary"
-            icon={<EditOutlined />}
-            onClick={() => setIsEditModalVisible(true)}
-          >
-            Edit Member
-          </Button>
-          <Button type="link" icon={<ArrowLeftOutlined />} onClick={() => navigate('/members')}>
-            Back to Members
-          </Button>
-        </Space>
-      }>
-        {member && (
-          <>
-            <div style={{ display: 'flex', alignItems: 'center', marginBottom: 24 }}>
-              <Avatar size={72} src={member.profilePhoto || undefined} icon={<UserOutlined />} />
-              <div style={{ marginLeft: 16 }}>
-                <h2 style={{ margin: 0 }}>{member.name}</h2>
-                <div style={{ color: '#888' }}>
-                  {member.husbandName ? `Husband: ${member.husbandName}` : member.fatherName}
-                </div>
-              </div>
-            </div>
-
-            <Tabs defaultActiveKey="1">
-              <Tabs.TabPane tab="Personal Information" key="1">
-                <Card>
-                  <Descriptions column={1} bordered size="middle">
-                    <Descriptions.Item label="Gender">
-                      <Tag color={member.gender === 'male' ? 'blue' : 'pink'}>{member.gender.toUpperCase()}</Tag>
-                    </Descriptions.Item>
-                    <Descriptions.Item label="Age">{member.age}</Descriptions.Item>
-                    <Descriptions.Item label="CNIC">{member.cnic || '-'}</Descriptions.Item>
-                    <Descriptions.Item label="Date of Birth">{formatDate(member.dateOfBirth)}</Descriptions.Item>
-                    <Descriptions.Item label="Phone">{member.phone || '-'}</Descriptions.Item>
-                    <Descriptions.Item label="Address">{member.address}</Descriptions.Item>
-                    <Descriptions.Item label="Tanzeem">
-                      <Tag color="green">{getTanzeemDisplayName(member.tanzeem)}</Tag>
-                    </Descriptions.Item>
-                    <Descriptions.Item label="Halqa">{family?.halqa || '-'}</Descriptions.Item>
-                    <Descriptions.Item label="Family">
-                      {family ? (
-                        <Button type="link" onClick={() => navigate(`/families/${family.id}`)}>
-                          {family.familyName}
-                        </Button>
-                      ) : '-'}
-                    </Descriptions.Item>
-                    <Descriptions.Item label="Year of Bait">
-                      {member.isBaitByBirth ? 'By Birth' : (member.baitYear || '-')}
-                    </Descriptions.Item>
-                    <Descriptions.Item label="Wasit No">{member.wasitNo || '-'}</Descriptions.Item>
-                    <Descriptions.Item label="Education">{member.education || '-'}</Descriptions.Item>
-                    <Descriptions.Item label="Blood Group">{member.bloodGroup || '-'}</Descriptions.Item>
-                    <Descriptions.Item label="Waqf-e-Nau No">{member.waqfeNauNumber || '-'}</Descriptions.Item>
-                    <Descriptions.Item label="Created At">{formatDate(member.createdAt)}</Descriptions.Item>
-                    <Descriptions.Item label="Updated At">{formatDate(member.updatedAt)}</Descriptions.Item>
-                    {member.isMoved && (
-                      <Descriptions.Item label="Status">
-                        <Tag color="orange">Moved to {member.movedTo || 'unknown location'}</Tag>
-                      </Descriptions.Item>
-                    )}
-                    {member.isBList && (
-                      <Descriptions.Item label="Status">
-                        <Tag color="blue">B List</Tag>
-                      </Descriptions.Item>
-                    )}
-                  </Descriptions>
-                </Card>
-              </Tabs.TabPane>
-
-              <Tabs.TabPane tab="Financial Records" key="2">
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 16 }}>
-                  <Card title="Waqf-e-Jadeed">
-                    {waqfJadeedRecord ? (
-                      <>
-                        <Descriptions column={1}>
-                          <Descriptions.Item label="Promised Amount">
-                            Rs. {((waqfJadeedRecord.promiseAmount || 0) + (waqfJadeedRecord.nagarparAmount || 0)).toLocaleString()}
-                          </Descriptions.Item>
-                          <Descriptions.Item label="Paid Amount">
-                            Rs. {(waqfJadeedRecord.paidAmount || 0).toLocaleString()}
-                          </Descriptions.Item>
-                          <Descriptions.Item label="Remaining">
-                            Rs. {(((waqfJadeedRecord.promiseAmount || 0) + (waqfJadeedRecord.nagarparAmount || 0)) - (waqfJadeedRecord.paidAmount || 0)).toLocaleString()}
-                          </Descriptions.Item>
-                        </Descriptions>
-                      </>
-                    ) : (
-                      <div>No Waqf-e-Jadeed record found for this member</div>
-                    )}
-                  </Card>
-
-                  <Card title="Tahreq Jadeed">
-                    {tahreqJadeedRecord ? (
-                      <>
-                        <Descriptions column={1}>
-                          <Descriptions.Item label="Promised Amount">
-                            Rs. {((tahreqJadeedRecord.promiseAmount || 0) + (tahreqJadeedRecord.nagarparAmount || 0)).toLocaleString()}
-                          </Descriptions.Item>
-                          <Descriptions.Item label="Paid Amount">
-                            Rs. {(tahreqJadeedRecord.paidAmount || 0).toLocaleString()}
-                          </Descriptions.Item>
-                          <Descriptions.Item label="Remaining">
-                            Rs. {(((tahreqJadeedRecord.promiseAmount || 0) + (tahreqJadeedRecord.nagarparAmount || 0)) - (tahreqJadeedRecord.paidAmount || 0)).toLocaleString()}
-                          </Descriptions.Item>
-                        </Descriptions>
-                      </>
-                    ) : (
-                      <div>No Tahreq Jadeed record found for this member</div>
-                    )}
-                  </Card>
-                </div>
-              </Tabs.TabPane>
-            </Tabs>
-          </>
-        )}
-      </Card>
-
+      <MemberProfileView member={member} family={family} waqf={waqfJadeedRecord} tahreq={tahreqJadeedRecord} financialError={financialError} onEdit={() => setIsEditModalVisible(true)} />
       <Modal
+        className="member-edit-modal"
         title="Edit Member"
         open={isEditModalVisible}
         onCancel={() => setIsEditModalVisible(false)}

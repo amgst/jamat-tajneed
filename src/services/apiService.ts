@@ -242,7 +242,8 @@ export class ApiService {
       const pQuery = query(collection(db, 'waqfJadeedPayments'), where('waqfJadeedId', '==', d.id));
       const pSnap = await getDocs(pQuery);
       const payments = pSnap.docs.map(pd => ({ ...pd.data(), id: pd.id } as Payment));
-      return { ...data, id: d.id, payments } as WaqfJadeedRecord;
+      const paidAmount = this.syncPaidAmount('waqfJadeed', d.id, data.paidAmount, payments);
+      return { ...data, id: d.id, payments, paidAmount } as WaqfJadeedRecord;
     }));
     return records;
   }
@@ -276,8 +277,9 @@ export class ApiService {
     const pQuery = query(collection(db, 'waqfJadeedPayments'), where('waqfJadeedId', '==', id));
     const pSnap = await getDocs(pQuery);
     const payments = pSnap.docs.map(pd => ({ ...pd.data(), id: pd.id } as Payment));
+    const paidAmount = this.syncPaidAmount('waqfJadeed', snap.id, snap.data().paidAmount, payments);
 
-    return { ...snap.data(), id: snap.id, payments } as WaqfJadeedRecord;
+    return { ...snap.data(), id: snap.id, payments, paidAmount } as WaqfJadeedRecord;
   }
 
   static async addWaqfJadeedPayment(data: { memberId: string; year: number; amount: number; date: string; notes?: string; bookId?: string; bookNo?: string; receiptNo?: number }): Promise<WaqfJadeedRecord | null> {
@@ -321,9 +323,23 @@ export class ApiService {
     const waqfJadeedId = snap.data().waqfJadeedId;
     await deleteDoc(doc(db, 'waqfJadeedPayments', id));
 
-    const newTotal = await this.recalculatePaidAmount(waqfJadeedId);
+    // Payments are shared by normal and special records; update whichever parent exists
+    const isNormal = (await getDoc(doc(db, 'waqfJadeed', waqfJadeedId))).exists();
+    const newTotal = isNormal
+      ? await this.recalculatePaidAmount(waqfJadeedId)
+      : await this.recalculateSpecialPaidAmount(waqfJadeedId);
 
     return { success: true, waqfJadeedId, newTotal };
+  }
+
+  // Paid total must always equal the sum of payments; repair the stored value if it drifted
+  static syncPaidAmount(collectionName: 'waqfJadeed' | 'waqfJadeedSpecial', id: string, stored: number | undefined, payments: Payment[]): number {
+    const total = payments.reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
+    if ((stored || 0) !== total) {
+      updateDoc(doc(db, collectionName, id), { paidAmount: total, updatedAt: new Date().toISOString() })
+        .catch(e => console.error('Failed to repair paidAmount', id, e));
+    }
+    return total;
   }
 
   static async recalculatePaidAmount(waqfJadeedId: string) {
@@ -379,7 +395,8 @@ export class ApiService {
       const pQuery = query(collection(db, 'waqfJadeedPayments'), where('waqfJadeedId', '==', d.id));
       const pSnap = await getDocs(pQuery);
       const payments = pSnap.docs.map(pd => ({ ...pd.data(), id: pd.id } as Payment));
-      return { ...data, id: d.id, payments } as WaqfJadeedSpecialRecord;
+      const paidAmount = this.syncPaidAmount('waqfJadeedSpecial', d.id, data.paidAmount, payments);
+      return { ...data, id: d.id, payments, paidAmount } as WaqfJadeedSpecialRecord;
     }));
     return records;
   }
@@ -407,8 +424,9 @@ export class ApiService {
     const pQuery = query(collection(db, 'waqfJadeedPayments'), where('waqfJadeedId', '==', id));
     const pSnap = await getDocs(pQuery);
     const payments = pSnap.docs.map(pd => ({ ...pd.data(), id: pd.id } as Payment));
+    const paidAmount = this.syncPaidAmount('waqfJadeedSpecial', snap.id, snap.data().paidAmount, payments);
 
-    return { ...snap.data(), id: snap.id, payments } as WaqfJadeedSpecialRecord;
+    return { ...snap.data(), id: snap.id, payments, paidAmount } as WaqfJadeedSpecialRecord;
   }
 
   static async addWaqfJadeedSpecialPayment(data: { specialId: string; amount: number; date: string; notes?: string; bookId?: string; bookNo?: string; receiptNo?: number }): Promise<WaqfJadeedSpecialRecord | null> {

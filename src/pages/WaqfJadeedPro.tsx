@@ -4,6 +4,7 @@ import {
     Button,
     Card,
     Col,
+    Dropdown,
     Empty,
     Form,
     Input,
@@ -26,8 +27,10 @@ import {
     ClockCircleOutlined,
     DeleteOutlined,
     DollarOutlined,
+    DownOutlined,
     DownloadOutlined,
     EditOutlined,
+    MobileOutlined,
     ExclamationCircleOutlined,
     MinusCircleOutlined,
     ReloadOutlined,
@@ -108,6 +111,7 @@ const WaqfJadeedPro: React.FC = () => {
     const [selectedYear, setSelectedYear] = useState<number>(currentYear);
     const [members, setMembers] = useState<Member[]>([]);
     const [families, setFamilies] = useState<Family[]>([]);
+    const [excludedFamilies, setExcludedFamilies] = useState<Family[]>([]); // B List / moved
     const [records, setRecords] = useState<WaqfJadeedRecord[]>([]);
     const [specialRecords, setSpecialRecords] = useState<WaqfJadeedSpecialRecord[]>([]);
     const [markazPayments, setMarkazPayments] = useState<WaqfJadeedMarkazPayment[]>([]);
@@ -147,6 +151,7 @@ const WaqfJadeedPro: React.FC = () => {
 
                 setMembers(membersData);
                 setFamilies(familiesData.filter(f => !f.isMoved && !f.isBList));
+                setExcludedFamilies(familiesData.filter(f => f.isMoved || f.isBList));
                 setRecords((Array.isArray(recordsData) ? recordsData : []).filter(r => r.year === selectedYear));
                 setSpecialRecords((Array.isArray(specialData) ? specialData : []).filter(r => r.year === selectedYear));
                 setMarkazPayments((Array.isArray(markazData) ? markazData : []).map((p: WaqfJadeedMarkazPayment & { amount?: number }) => ({
@@ -194,21 +199,31 @@ const WaqfJadeedPro: React.FC = () => {
         return map;
     }, [families]);
 
+    // Some members are linked only via family.memberIds (member.familyId empty)
+    const familyByMemberId = useMemo(() => {
+        const map = new Map<string, Family>();
+        families.forEach(f => (f.memberIds || []).forEach(id => map.set(id, f)));
+        return map;
+    }, [families]);
+
     // ---------- Unified rows (members + special) ----------
     const allRows = useMemo<PayerRow[]>(() => {
-        const movedFamilyIds = new Set(families.filter(f => f.isMoved).map(f => f.id));
+        // B List / moved families and their members are never part of this list
+        const excludedFamilyIds = new Set(excludedFamilies.map(f => f.id));
+        const excludedMemberIds = new Set(excludedFamilies.flatMap(f => f.memberIds || []));
         const rows: PayerRow[] = [];
 
         members.forEach(m => {
+            if (m.isBList || excludedMemberIds.has(m.id) || excludedFamilyIds.has(m.familyId || '')) return;
             const record = recordByMember.get(m.id);
-            const active = !m.isMoved && !m.isDeceased && !m.isBList && !movedFamilyIds.has(m.familyId || '');
+            const active = !m.isMoved && !m.isDeceased;
             if (!active && !record) return;
 
             const promiseBase = record?.promiseAmount || 0;
             const nagarpar = record?.nagarparAmount || 0;
             const promise = promiseBase + nagarpar;
             const paid = record?.paidAmount || 0;
-            const family = m.familyId ? familyById.get(m.familyId) : undefined;
+            const family = (m.familyId ? familyById.get(m.familyId) : undefined) || familyByMemberId.get(m.id);
 
             let status: PayerStatus = 'no-promise';
             if (promise > 0) {
@@ -221,7 +236,7 @@ const WaqfJadeedPro: React.FC = () => {
                 name: m.name,
                 subtitle: m.fatherName ? `S/O ${m.fatherName}` : (m.husbandName ? `W/O ${m.husbandName}` : ''),
                 memberId: m.id,
-                familyId: m.familyId || '',
+                familyId: family?.id || m.familyId || '',
                 familyName: family?.familyName || '-',
                 halqa: m.halqa || family?.halqa || '',
                 tanzeem: m.tanzeem || 'unknown',
@@ -238,6 +253,7 @@ const WaqfJadeedPro: React.FC = () => {
         });
 
         specialRecords.forEach(r => {
+            if (excludedFamilyIds.has(r.familyId || '')) return;
             const promiseBase = r.promiseAmount || 0;
             const nagarpar = r.nagarparAmount || 0;
             const promise = promiseBase + nagarpar;
@@ -272,7 +288,7 @@ const WaqfJadeedPro: React.FC = () => {
         });
 
         return rows;
-    }, [members, specialRecords, recordByMember, familyById, families]);
+    }, [members, specialRecords, recordByMember, familyById, familyByMemberId, excludedFamilies]);
 
     // ---------- Filtering ----------
     const filteredRows = useMemo(() => {
@@ -548,6 +564,125 @@ const WaqfJadeedPro: React.FC = () => {
         message.success('PDF exported');
     };
 
+    // Families whose combined promise is not yet fully paid.
+    // Honors search/tanzeem/halqa filters but ignores the status tab.
+    const handleExportFamiliesBalance = async () => {
+        const rows = allRows.filter(r =>
+            (!debouncedSearch ||
+                r.name.toLowerCase().includes(debouncedSearch) ||
+                r.subtitle.toLowerCase().includes(debouncedSearch) ||
+                r.familyName.toLowerCase().includes(debouncedSearch) ||
+                r.halqa.toLowerCase().includes(debouncedSearch)) &&
+            (!tanzeemFilter || r.tanzeem === tanzeemFilter) &&
+            (!halqaFilter || r.halqa === halqaFilter)
+        );
+        const groups = new Map<string, { family: Family; rows: PayerRow[] }>();
+        rows.forEach(row => {
+            const family = row.familyId ? familyById.get(row.familyId) : undefined;
+            if (!family) return;
+            if (!groups.has(family.id)) groups.set(family.id, { family, rows: [] });
+            groups.get(family.id)!.rows.push(row);
+        });
+        const pending = [...groups.values()]
+            .map(g => {
+                const promise = g.rows.reduce((sum, r) => sum + r.promise, 0);
+                const paid = g.rows.reduce((sum, r) => sum + r.paid, 0);
+                return { ...g, promise, paid, balance: Math.max(0, promise - paid) };
+            })
+            .filter(g => g.balance > 0)
+            .sort((a, b) => (a.family.familyNumber || 999999) - (b.family.familyNumber || 999999));
+
+        if (pending.length === 0) {
+            message.info('No families with remaining balance');
+            return;
+        }
+
+        const data: Array<Record<string, unknown>> = pending.map((g, i) => ({
+            no: i + 1,
+            familyNo: g.family.familyNumber ?? '-',
+            family: g.family.familyName,
+            halqa: g.family.halqa || '-',
+            promise: g.promise,
+            paid: g.paid,
+            balance: g.balance
+        }));
+        const totals = pending.reduce(
+            (acc, g) => ({ promise: acc.promise + g.promise, paid: acc.paid + g.paid, balance: acc.balance + g.balance }),
+            { promise: 0, paid: 0, balance: 0 }
+        );
+        data.push({ no: '', familyNo: '', family: 'Total', halqa: '', ...totals });
+
+        await exportToPDF(
+            data,
+            ['no', 'familyNo', 'family', 'halqa', 'promise', 'paid', 'balance'],
+            `waqf_jadeed_families_balance_${selectedYear}`,
+            `Waqf-e-Jadeed - Families with Remaining Balance - ${selectedYear}`,
+            {
+                headerLabels: {
+                    no: '#',
+                    familyNo: 'Family #',
+                    family: 'Family',
+                    halqa: 'Halqa',
+                    promise: 'Promise',
+                    paid: 'Paid',
+                    balance: 'Balance'
+                }
+            }
+        );
+        message.success(`Exported ${pending.length} families with remaining balance`);
+    };
+
+    const handleExportJSON = () => {
+        const payload = {
+            exportedAt: new Date().toISOString(),
+            year: selectedYear,
+            families: families.map(f => ({
+                id: f.id,
+                familyName: f.familyName,
+                familyNumber: f.familyNumber ?? null,
+                halqa: f.halqa ?? ''
+            })),
+            payers: allRows.map(r => ({
+                id: r.key,
+                kind: r.kind,
+                memberId: r.memberId ?? null,
+                specialId: r.specialId ?? null,
+                name: r.name,
+                subtitle: r.subtitle,
+                familyId: r.familyId,
+                familyName: r.familyName,
+                halqa: r.halqa,
+                tanzeem: r.tanzeem,
+                isDeceased: r.isDeceased,
+                promiseAmount: r.promiseBase,
+                nagarparAmount: r.nagarpar,
+                totalPromise: r.promise,
+                paidAmount: r.paid,
+                balance: r.balance,
+                status: r.status,
+                payments: r.payments.map(p => ({
+                    id: p.id,
+                    date: p.date,
+                    amount: p.amount,
+                    bookNo: p.bookNo ?? null,
+                    receiptNo: p.receiptNo ?? null,
+                    notes: p.notes ?? null
+                }))
+            })),
+            receiptBooks: books.map(b => ({ id: b.id, bookNo: b.bookNo, status: b.status }))
+        };
+        const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `waqf_jadeed_export_${selectedYear}.json`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+        message.success('JSON exported for mobile app');
+    };
+
     // ---------- Render helpers ----------
     const renderPaymentHistory = (row: PayerRow) => {
         if (!row.payments || row.payments.length === 0) {
@@ -769,8 +904,26 @@ const WaqfJadeedPro: React.FC = () => {
                                 </Button>
                             </Col>
                             <Col>
-                                <Button icon={<DownloadOutlined />} onClick={handleExportPDF}>
-                                    Export PDF
+                                <Dropdown
+                                    menu={{
+                                        items: [
+                                            { key: 'list', label: 'Current list', icon: <UserOutlined /> },
+                                            { key: 'families-balance', label: 'Families with balance', icon: <TeamOutlined /> }
+                                        ],
+                                        onClick: ({ key }) => {
+                                            if (key === 'families-balance') handleExportFamiliesBalance();
+                                            else handleExportPDF();
+                                        }
+                                    }}
+                                >
+                                    <Button icon={<DownloadOutlined />}>
+                                        Export PDF <DownOutlined />
+                                    </Button>
+                                </Dropdown>
+                            </Col>
+                            <Col>
+                                <Button icon={<MobileOutlined />} onClick={handleExportJSON}>
+                                    Export for App
                                 </Button>
                             </Col>
                         </Row>

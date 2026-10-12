@@ -17,6 +17,8 @@ import {
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 // import { logout } from '../services/storage'; // Using mock logout
 import { useAuth } from '../contexts/useAuth';
+import { Search, Users, House, Menu as MenuIcon } from 'lucide-react';
+import InstallApp from './InstallApp';
 
 const { Header, Sider, Content } = Layout;
 const { Text } = Typography;
@@ -48,7 +50,17 @@ const AppLayout: React.FC = () => {
     {
       key: '/',
       icon: <DashboardOutlined />,
-      label: 'Dashboard',
+      label: 'Home',
+    },
+    {
+      key: '/dashboard',
+      icon: <DashboardOutlined />,
+      label: 'Statistics',
+    },
+    {
+      key: '/people',
+      icon: <UserOutlined />,
+      label: 'Person Directory',
     },
     {
       key: '/members',
@@ -148,7 +160,7 @@ const AppLayout: React.FC = () => {
   };
 
   return (
-    <Layout style={{ minHeight: '100vh' }}>
+    <Layout className="tajneed-layout" style={{ minHeight: '100dvh' }}>
       {!isMobile && (
         <Sider trigger={null} collapsible collapsed={collapsed}>
           <div style={{
@@ -163,7 +175,7 @@ const AppLayout: React.FC = () => {
             fontWeight: 'bold',
             fontSize: collapsed ? '12px' : '14px'
           }}>
-            {collapsed ? 'Tajneed' : 'Tajneed Dashboard'}
+            Tajneed
           </div>
 
           <Menu
@@ -179,7 +191,7 @@ const AppLayout: React.FC = () => {
 
       {/* Mobile Drawer */}
       <Drawer
-        title="Tajneed Dashboard"
+        title="Tajneed"
         placement="left"
         onClose={() => setDrawerVisible(false)}
         open={drawerVisible}
@@ -196,7 +208,7 @@ const AppLayout: React.FC = () => {
       </Drawer>
 
       <Layout>
-        <Header style={{
+        <Header className="tajneed-header" style={{
           padding: '0 16px',
           background: '#fff',
           display: 'flex',
@@ -222,12 +234,13 @@ const AppLayout: React.FC = () => {
             )}
             <div>
               <Text strong style={{ fontSize: '16px' }}>
-                Jamaat
+                Tajneed
               </Text>
             </div>
           </Space>
 
           <Space>
+            <InstallApp />
             {!isMobile && (
               <Text type="secondary">
                 Welcome back!
@@ -246,15 +259,21 @@ const AppLayout: React.FC = () => {
           </Space>
         </Header>
 
-        <Content style={{
-          margin: isMobile ? '8px' : '24px 16px',
+        <Content className="tajneed-content" style={{
+          margin: isMobile ? '8px 8px 90px' : '24px 16px',
           padding: isMobile ? 12 : 24,
           minHeight: 280,
-          background: '#fff',
+          background: ['/', '/people'].includes(location.pathname) || location.pathname.startsWith('/members/') ? '#f9fafc' : '#fff',
           borderRadius: 6
         }}>
           <Outlet />
         </Content>
+        {isMobile && <nav className="mobile-bottom-nav" aria-label="Main navigation">
+          <button className={location.pathname === '/' ? 'active' : ''} onClick={() => navigate('/')}><Search /><span>Search</span></button>
+          <button className={location.pathname.startsWith('/people') || location.pathname.startsWith('/members') ? 'active' : ''} onClick={() => navigate('/people')}><Users /><span>People</span></button>
+          <button className={location.pathname.startsWith('/families') ? 'active' : ''} onClick={() => navigate('/families')}><House /><span>Families</span></button>
+          <button onClick={() => setDrawerVisible(true)}><MenuIcon /><span>More</span></button>
+        </nav>}
       </Layout>
     </Layout >
   );
