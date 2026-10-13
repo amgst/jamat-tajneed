@@ -10,3 +10,12 @@
 @media(max-width:767px){.member-edit-modal.ant-modal{max-width:calc(100vw - 16px);margin:0 auto;top:max(8px,env(safe-area-inset-top));padding-bottom:env(safe-area-inset-bottom)}.member-edit-modal .ant-input,.member-edit-modal .ant-select-selector,.member-edit-modal .ant-picker{min-height:44px;font-size:16px}.member-edit-modal .ant-select-selection-item,.member-edit-modal .ant-picker-input>input{font-size:16px}.member-edit-modal .ant-btn{min-height:44px}}
 @media(max-width:359px){.profile-tabs button{font-size:11px;padding-inline:5px}.profile-tabs svg{display:none}.profile-actions{flex-direction:column}}
 @media(min-width:768px){.member-profile{padding-top:4px}.profile-toolbar{margin-bottom:22px}.profile-cover{height:114px;padding:23px 28px}.profile-identity{grid-template-columns:90px minmax(0,1fr) auto;gap:23px;padding:0 28px 24px;align-items:center}.profile-avatar.ant-avatar{width:90px;height:90px;line-height:80px;font-size:34px}.profile-name{padding-top:46px}.profile-name h1{font-size:28px}.profile-edit.ant-btn{grid-column:auto;margin-top:40px;padding-inline:18px}.profile-summary{margin-inline:28px}.profile-actions{padding-inline:28px}.profile-actions a,.profile-actions button,.profile-actions>span{flex:none;padding-inline:18px}.profile-tabs{gap:25px}.profile-tabs button{flex:none;padding-inline:4px;font-size:14px}.profile-section-grid,.religious-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.profile-section{padding:23px}.family-section{grid-column:1/-1}}
+
+.profile-identity{display:flex;flex-direction:column;align-items:stretch;margin-top:0;padding-top:20px;gap:16px}
+.profile-name{padding-top:0;flex:1}
+.profile-management-actions{display:flex;align-items:center;flex-wrap:wrap;gap:8px}
+.profile-management-actions .ant-btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;min-height:40px;border-radius:10px;font-size:12px;padding-inline:12px}
+.profile-management-actions .profile-edit.ant-btn{margin:0;grid-column:auto;min-height:40px;font-size:12px}
+@media(min-width:768px){.profile-identity{flex-direction:row;align-items:center;padding-top:24px;gap:20px}.profile-name{padding-top:0}.profile-management-actions{justify-content:flex-end;flex-shrink:0}.profile-management-actions .profile-edit.ant-btn{margin-top:0}}
+.profile-remove-action{display:flex;justify-content:flex-end;margin-top:24px;padding-top:20px;border-top:1px solid #e2e8f0}
+.profile-remove-action .ant-btn{display:inline-flex;align-items:center;gap:7px;min-height:40px;border-radius:10px;font-size:12px}

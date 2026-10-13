@@ -73,10 +73,7 @@ const Families: React.FC = () => {
   const [activeTab, setActiveTab] = useState<string>('active');
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
-  const [viewMode, setViewMode] = useState<'cards' | 'list'>(() => {
-    try { return localStorage.getItem('families-view') === 'list' ? 'list' : 'cards'; }
-    catch { return 'cards'; }
-  });
+  const [viewMode, setViewMode] = useState<'cards' | 'list'>('cards');
   useEffect(() => { setCurrentPage(1); }, [searchText, sortField, sortOrder, activeTab, families.length]);
 
   // Move Family State
@@ -578,7 +575,7 @@ const Families: React.FC = () => {
         <div className="families-view-toolbar"><span className="families-view-label">Choose your view</span><Segmented
           aria-label="Family display view"
           value={viewMode}
-          onChange={value => { setViewMode(value as 'cards' | 'list'); try { localStorage.setItem('families-view', value); } catch { /* View still works when storage is unavailable. */ } }}
+          onChange={value => setViewMode(value as 'cards' | 'list')}
           options={[{ value: 'cards', label: <span className="families-view-option"><LayoutGrid size={16} />Cards</span> }, { value: 'list', label: <span className="families-view-option"><ListIcon size={16} />List</span> }]}
         /></div>
         {viewMode === 'cards' ? <Spin spinning={loading}>

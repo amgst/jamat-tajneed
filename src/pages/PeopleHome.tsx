@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
-import { Alert, Avatar, Button, Empty, Select, Spin } from 'antd';
+import { Alert, Button, Empty, Select, Spin } from 'antd';
 import { Search, ArrowRight, Users, House, X, MapPin, RefreshCw } from 'lucide-react';
 import { ApiService } from '../services/apiService';
 import type { Family, Member, Tanzeem } from '../types';
@@ -66,7 +66,7 @@ export default function PeopleHome() {
     }).sort((a, b) => a.name.localeCompare(b.name));
   }, [members, query, group, status]);
   const showResults = directory || !!query.trim() || group !== 'all' || status !== 'all';
-  return <div className="people-app">
+  return <div className={`people-app ${directory || showResults ? 'directory-layout' : ''}`}>
     <section className={`people-hero ${showResults ? 'compact' : ''}`}>
       <span className="community-label"><span /> JAMAAT AHMADIYYA · MURIDKE</span>
       <div className="people-wordmark">Taj<span>need</span><i /></div>
@@ -111,7 +111,6 @@ export default function PeopleHome() {
         <div className="results-heading"><div><span className="section-eyebrow">{group === 'all' ? 'PERSON DIRECTORY' : getTanzeemDisplayName(group).toUpperCase()}</span><h2>{results.length.toLocaleString()} {results.length === 1 ? 'person' : 'people'}</h2></div><Button type="text" aria-label="Refresh directory" icon={<RefreshCw size={17} />} onClick={load} /></div>
         <div className="people-filters"><Select aria-label="Filter by Tanzeem" value={group} onChange={setGroup} options={[{ value: 'all', label: 'All Tanzeems' }, ...Array.from(new Set(members.map(m => m.tanzeem))).map(value => ({ value, label: getTanzeemDisplayName(value) }))]} /><Select aria-label="Filter by record status" value={status} onChange={setStatus} options={[{ value: 'all', label: 'All records' }, { value: 'active', label: 'Active' }, { value: 'moved', label: 'Moved' }, { value: 'deceased', label: 'Deceased' }]} /></div>
         {results.length === 0 ? <Empty description="No people found. Try a different name or clear the filters." /> : <div className="people-list">{results.slice(0, limit).map(member => <button className="person-card" key={member.id} onClick={() => navigate(`/members/person-${encodeURIComponent(member.id)}`)}>
-          <Avatar size={48} src={member.profilePhoto} style={{ background: '#e9edf9', color: '#425fa9', flexShrink: 0 }}>{member.name.slice(0, 1)}</Avatar>
           <div className="person-copy"><strong>{member.name}</strong><span>{member.fatherName ? `Father: ${member.fatherName}` : member.husbandName ? `Husband: ${member.husbandName}` : getTanzeemDisplayName(member.tanzeem)}</span><small><MapPin size={12} />{member.halqa || member.address || 'Location not recorded'}</small></div>
           <div className="person-meta"><span>{member.isDeceased ? 'Deceased' : member.isMoved ? 'Moved' : getTanzeemDisplayName(member.tanzeem)}</span><ArrowRight size={17} /></div>
         </button>)}</div>}
