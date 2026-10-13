@@ -6,11 +6,11 @@ import type { Member, Family, WaqfJadeedRecord, TahreqJadeedRecord } from '../ty
 import { formatDate, getTanzeemDisplayName } from '../utils/helpers';
 import './MemberProfileView.css';
 
-type Props = { member: Member; family: Family | null; waqf: WaqfJadeedRecord | null; tahreq: TahreqJadeedRecord | null; financialError: boolean; onEdit: () => void };
+type Props = { member: Member; family: Family | null; waqf: WaqfJadeedRecord | null; tahreq: TahreqJadeedRecord | null; financialError: boolean; onEdit: () => void; backTo?: string; backLabel?: string };
 const Field = ({ label, value }: { label: string; value?: string | number | null }) => <div className="profile-field"><dt>{label}</dt><dd>{value === undefined || value === null || value === '' ? <span className="unrecorded">Not recorded</span> : value}</dd></div>;
 const date = (value?: string) => value ? formatDate(value) : undefined;
 
-export default function MemberProfileView({ member, family, waqf, tahreq, financialError, onEdit }: Props) {
+export default function MemberProfileView({ member, family, waqf, tahreq, financialError, onEdit, backTo = '/people', backLabel = 'Back to people' }: Props) {
   const navigate = useNavigate();
   const [tab, setTab] = useState('about');
   const phone = member.phone?.replace(/[^+\d]/g, '');
@@ -21,7 +21,7 @@ export default function MemberProfileView({ member, family, waqf, tahreq, financ
     { title: 'Education & work', icon: BookOpen, fields: [['Education', member.education], ['Profession', member.profession], ['Talem', member.talem]] },
   ];
   return <div className="member-profile">
-    <div className="profile-toolbar"><button onClick={() => navigate('/people')}><ArrowLeft size={17} /> Back to people</button><span>PERSON PROFILE</span></div>
+    <div className="profile-toolbar"><button onClick={() => navigate(backTo)}><ArrowLeft size={17} /> {backLabel}</button><span>PERSON PROFILE</span></div>
     <section className="profile-hero">
       <div className="profile-cover"><span>TAJNEED DIRECTORY</span><span className="cover-ring" /></div>
       <div className="profile-identity">

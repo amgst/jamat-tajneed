@@ -19,8 +19,13 @@ import {
   Col,
   Tabs,
   Checkbox,
-  App
+  App,
+  Segmented,
+  Pagination,
+  Empty,
+  Spin
 } from 'antd';
+import { House, MapPin, Users, ArrowRight, LayoutGrid, List as ListIcon } from 'lucide-react';
 import {
   PlusOutlined,
   EditOutlined,
@@ -37,6 +42,8 @@ import { ApiService } from '../services/apiService';
 import type { Family, Member } from '../types';
 import { getTanzeemDisplayName, formatDate } from '../utils/helpers';
 import { sanitizeFamilyData } from '../utils/validation';
+import './PeopleHome.css';
+import './Families.css';
 
 const { Option } = Select;
 const { Text, Title } = Typography;
@@ -66,6 +73,11 @@ const Families: React.FC = () => {
   const [activeTab, setActiveTab] = useState<string>('active');
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
+  const [viewMode, setViewMode] = useState<'cards' | 'list'>(() => {
+    try { return localStorage.getItem('families-view') === 'list' ? 'list' : 'cards'; }
+    catch { return 'cards'; }
+  });
+  useEffect(() => { setCurrentPage(1); }, [searchText, sortField, sortOrder, activeTab, families.length]);
 
   // Move Family State
   const [moveModalVisible, setMoveModalVisible] = useState(false);
@@ -100,7 +112,7 @@ const Families: React.FC = () => {
     const family = families.find(f => f.id === familyId);
     if (!family) return [];
 
-    return members.filter(member => family.memberIds.includes(member.id));
+    return members.filter(member => family.memberIds.includes(member.id) || member.id === family.headId || member.familyId === family.id);
   };
 
   const getMemberName = (memberId: string): string => {
@@ -116,7 +128,7 @@ const Families: React.FC = () => {
   };
 
   const getFilteredAndSortedFamilies = (): Family[] => {
-    let filtered = families;
+    let filtered = [...families];
 
     // Filter by Active/Moved/B-List Tab
     if (activeTab === 'active') {
@@ -353,14 +365,14 @@ const Families: React.FC = () => {
     {
       title: 'S.No',
       key: 'serial',
-      width: 80,
+      width: 55,
       render: (_: any, __: any, index: number) => (currentPage - 1) * pageSize + index + 1,
     },
     {
       title: 'Family #',
       dataIndex: 'familyNumber',
       key: 'familyNumber',
-      width: 100,
+      width: 80,
       render: (familyNumber: number) => (
         <Tag color={familyNumber ? 'blue' : 'default'}>
           {familyNumber || 'Not Set'}
@@ -385,16 +397,11 @@ const Families: React.FC = () => {
       render: (headId: string) => getMemberName(headId),
     },
     {
-      title: 'Total Members',
+      title: 'Members',
       key: 'totalMembers',
-      render: (record: Family) => {
-        const memberCount = getMembersByFamily(record.id).length;
-        return (
-          <Tag color="blue">
-            {memberCount} Member{memberCount !== 1 ? 's' : ''}
-          </Tag>
-        );
-      },
+      width: 85,
+      align: 'center' as const,
+      render: (record: Family) => getMembersByFamily(record.id).length,
     },
     {
       title: 'Halqa',
@@ -403,16 +410,10 @@ const Families: React.FC = () => {
       render: (halqa: string) => halqa || '-',
     },
     {
-      title: 'Created',
-      dataIndex: 'createdAt',
-      key: 'createdAt',
-      render: (createdAt: string) => formatDate(createdAt),
-    },
-    {
       title: 'Actions',
       key: 'actions',
       render: (record: Family) => (
-        <Space>
+        <Space size={4}>
           <Button
             type="link"
             size="small"
@@ -438,13 +439,13 @@ const Families: React.FC = () => {
               type="default"
               size="small"
               icon={<ReloadOutlined style={{ color: '#fa8c16' }} />}
+              title="Move family"
+              aria-label={`Move ${record.familyName}`}
               onClick={() => {
                 setMovingFamily(record);
                 setMoveModalVisible(true);
               }}
-            >
-              Move
-            </Button>
+            />
           ) : (
             <Popconfirm
               title="Restore this family as active?"
@@ -472,14 +473,28 @@ const Families: React.FC = () => {
           </Popconfirm>
         </Space>
       ),
-      width: 250,
+      width: 210,
     },
   ];
 
+  const visibleFamilies = getFilteredAndSortedFamilies();
+  const pagination = {
+    current: currentPage,
+    pageSize,
+    total: visibleFamilies.length,
+    pageSizeOptions: [10, 20, 50, 100],
+    showSizeChanger: true,
+    responsive: true,
+    showTotal: (total: number, range: [number, number]) => `${range[0]}–${range[1]} of ${total} families`,
+    onChange: (page: number, size: number) => { setCurrentPage(size !== pageSize ? 1 : page); setPageSize(size); },
+  };
+
   return (
-    <div>
+    <div className="families-page">
+      <header className="families-header"><div><span className="section-eyebrow">YOUR COMMUNITY DIRECTORY</span><h1>Families</h1><p>Family records and connections, together in one place.</p></div></header>
       <Card
-        title={`Families (${getFilteredAndSortedFamilies().length} of ${families.length})`}
+        className="families-panel"
+        title={`${visibleFamilies.length} of ${families.length} families`}
         extra={
           <Space>
             <Button
@@ -560,26 +575,45 @@ const Families: React.FC = () => {
           ]}
         />
 
-        <Table
+        <div className="families-view-toolbar"><span className="families-view-label">Choose your view</span><Segmented
+          aria-label="Family display view"
+          value={viewMode}
+          onChange={value => { setViewMode(value as 'cards' | 'list'); try { localStorage.setItem('families-view', value); } catch { /* View still works when storage is unavailable. */ } }}
+          options={[{ value: 'cards', label: <span className="families-view-option"><LayoutGrid size={16} />Cards</span> }, { value: 'list', label: <span className="families-view-option"><ListIcon size={16} />List</span> }]}
+        /></div>
+        {viewMode === 'cards' ? <Spin spinning={loading}>
+          {!loading && visibleFamilies.length === 0 ? <Empty description="No families found. Try another search or tab." /> : <div className="family-search-grid families-card-grid">
+            {visibleFamilies.slice((currentPage - 1) * pageSize, currentPage * pageSize).map(family => {
+              const people = getMembersByFamily(family.id);
+              return <article className="families-card" key={family.id}>
+                <button className="family-search-card" onClick={() => navigate(`/families/${encodeURIComponent(family.id)}`)}>
+                  <div className="family-card-top"><span className="family-house"><House size={21} /></span><span className="family-number">{family.familyNumber != null ? `Family #${family.familyNumber}` : 'Family record'}</span><ArrowRight size={18} /></div>
+                  <strong className="family-card-name" dir="auto">{family.familyName}</strong>
+                  <span className="family-card-head">Head: <span dir="auto">{getMemberName(family.headId)}</span></span>
+                  <span className="family-card-location"><MapPin size={14} /><span dir="auto">{family.halqa || 'Location not recorded'}</span></span>
+                  <div className="family-card-bottom"><span className="family-card-members"><Users size={15} />{people.length} {people.length === 1 ? 'member' : 'members'}</span><span className={`family-status ${family.isMoved || family.isBList ? 'muted' : ''}`}>{family.isMoved ? 'Moved' : family.isBList ? 'B List' : 'Active'}</span></div>
+                  <span className="family-card-preview" dir="auto">{people.slice(0, 3).map(member => member.name).join(' · ')}{people.length > 3 ? ` · +${people.length - 3} more` : ''}</span>
+                </button>
+                <div className="families-card-actions">
+                  <Button icon={<EyeOutlined />} onClick={() => handleViewFamily(family)}>View</Button>
+                  <Button icon={<EditOutlined />} onClick={() => handleEditFamily(family)}>Edit</Button>
+                  {family.isMoved ? <Popconfirm title="Restore this family as active?" onConfirm={() => handleRestoreFamily(family)}><Button>Restore</Button></Popconfirm> : <Button title="Move family" aria-label={`Move ${family.familyName}`} icon={<ReloadOutlined />} onClick={() => { setMovingFamily(family); setMoveModalVisible(true); }} />}
+                  <Popconfirm title="Are you sure you want to delete this family?" onConfirm={() => handleDeleteFamily(family.id)}><Button danger icon={<DeleteOutlined />} aria-label={`Delete ${family.familyName}`} /></Popconfirm>
+                </div>
+              </article>;
+            })}
+          </div>}
+          {visibleFamilies.length > 0 && <Pagination className="families-pagination" {...pagination} />}
+        </Spin> : <Table
+          className="families-list"
+          size="small"
           columns={columns}
-          dataSource={getFilteredAndSortedFamilies()}
+          dataSource={visibleFamilies}
+          scroll={{ x: 800 }}
           rowKey="id"
           loading={loading}
-          pagination={{
-            current: currentPage,
-            pageSize: pageSize,
-            pageSizeOptions: [10, 20, 50, 100],
-            showSizeChanger: true,
-            showQuickJumper: true,
-            showTotal: (total, range) =>
-              `${range[0]}-${range[1]} of ${total} items`,
-            responsive: true,
-            onChange: (page, pageSize) => {
-              setCurrentPage(page);
-              setPageSize(pageSize || 10);
-            },
-          }}
-        />
+          pagination={pagination}
+        />}
       </Card>
 
       {/* Add/Edit Family Modal */}

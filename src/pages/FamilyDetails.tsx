@@ -8,10 +8,8 @@ import {
   Typography,
   Tag,
   Avatar,
-  Row,
-  Col,
-  Statistic,
-  Descriptions,
+  Grid,
+  Empty,
   Spin,
   Popconfirm,
   Modal,
@@ -29,6 +27,8 @@ import {
   PlusOutlined,
   DeleteOutlined,
   EditOutlined,
+  EyeOutlined,
+  BookOutlined,
 } from '@ant-design/icons';
 import { ApiService } from '../services/apiService';
 import ReligiousActivitiesModal from '../components/ReligiousActivitiesModal';
@@ -39,6 +39,9 @@ import { validateMemberData, sanitizeMemberData } from '../utils/validation';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import MemberForm from '../components/MemberForm';
+import { House, MapPin, Users, Search } from 'lucide-react';
+import './PeopleHome.css';
+import './FamilyDetails.css';
 const { Title, Text } = Typography;
 const { Option } = Select;
 
@@ -46,6 +49,7 @@ const FamilyDetails: React.FC = () => {
   const { message } = App.useApp();
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const screens = Grid.useBreakpoint();
   const [family, setFamily] = useState<Family | null>(null);
   const [familyMembers, setFamilyMembers] = useState<Member[]>([]);
   const [movedFamilyMembers, setMovedFamilyMembers] = useState<Member[]>([]);
@@ -58,6 +62,7 @@ const FamilyDetails: React.FC = () => {
   const [religiousModalVisible, setReligiousModalVisible] = useState(false);
   const [selectedMemberForReligious, setSelectedMemberForReligious] = useState<Member | null>(null);
   const [form] = Form.useForm();
+  const [memberQuery, setMemberQuery] = useState('');
   // Removed memberForm as it's now handled inside MemberForm component
 
   const loadFamilyData = useCallback(async () => {
@@ -370,60 +375,42 @@ const FamilyDetails: React.FC = () => {
 
   const columns = [
     {
-      title: 'Photo',
-      key: 'photo',
-      render: (record: Member) => (
-        <Avatar
-          size="small"
-          src={record.profilePhoto || undefined}
-          icon={<UserOutlined />}
-        />
-      ),
-      width: 60,
-    },
-    {
-      title: 'Name',
+      title: 'Member',
       dataIndex: 'name',
       key: 'name',
       render: (name: string, record: Member) => (
-        <div>
+        <div className="family-table-member"><Avatar size={36} src={record.profilePhoto} icon={<UserOutlined />} /><div>
           <div style={{ fontWeight: 500 }}>
-            <span
-              style={{ color: '#1890ff', cursor: 'pointer' }}
+            <button
+              className="family-member-name"
               onClick={() => {
-                setSelectedMember(record);
-                // Form state is now handled by MemberForm via initialValues prop
-                setMemberDetailModalVisible(true);
+                navigate(`/members/${encodeURIComponent(record.id)}`, { state: { fromFamilyId: id } });
               }}
             >
               {name}
-            </span>
+            </button>
             {record.id === family?.headId && (
               <Tag color="gold" style={{ marginLeft: 8 }}>Head</Tag>
             )}
+            {record.isDeceased && <Tag>Deceased</Tag>}
+            {record.isBList && <Tag>B List</Tag>}
           </div>
           <Text type="secondary" style={{ fontSize: '12px' }}>
-            {record.husbandName ? `Husband: ${record.husbandName}` : `Father: ${record.fatherName}`}
+            {record.husbandName ? `Husband: ${record.husbandName}` : record.fatherName ? `Father: ${record.fatherName}` : 'Relationship not recorded'}
           </Text>
           {record.isMoved && (
             <Tag color="orange" style={{ marginTop: 4, display: 'block' }}>
               Moved to {record.movedTo || 'unknown location'}
             </Tag>
           )}
-        </div>
+        </div></div>
       ),
     },
     {
-      title: 'Age & Gender',
+      title: 'Age',
       key: 'demographics',
-      render: (record: Member) => (
-        <div>
-          <div>{record.age} years</div>
-          <Text type="secondary" style={{ fontSize: '12px' }}>
-            {record.gender === 'male' ? 'Male' : 'Female'}
-          </Text>
-        </div>
-      ),
+      width: 70,
+      render: (record: Member) => `${record.age} yrs`,
     },
     {
       title: 'Tanzeem',
@@ -443,7 +430,7 @@ const FamilyDetails: React.FC = () => {
       key: 'contact',
       render: (phone: string) => (
         <div>
-          <div>{phone || '-'}</div>
+          {phone ? <a className="family-phone" href={`tel:${phone}`}>{phone}</a> : <span className="family-contact-empty">—</span>}
         </div>
       ),
     },
@@ -451,26 +438,27 @@ const FamilyDetails: React.FC = () => {
       title: 'Actions',
       key: 'actions',
       render: (record: Member) => (
-        <Space>
+        <Space size={4}>
           <Button
-            type="link"
+            type="default"
             size="small"
-            onClick={() => navigate(`/members/${record.id}`)}
-          >
-            Details
-          </Button>
+            icon={<EyeOutlined />}
+            title="View member"
+            aria-label={`View ${record.name}`}
+            onClick={() => navigate(`/members/${encodeURIComponent(record.id)}`, { state: { fromFamilyId: id } })}
+          />
+          <Button size="small" icon={<EditOutlined />} title="Edit member" aria-label={`Edit ${record.name}`} onClick={() => { setSelectedMember(record); setMemberDetailModalVisible(true); }} />
           <Button
             type={record.religiousActivities ? 'primary' : 'default'}
             size="small"
-            icon={<EditOutlined />}
+            icon={<BookOutlined />}
             onClick={() => {
               setSelectedMemberForReligious(record);
               setReligiousModalVisible(true);
             }}
             title="Update Religious Activities"
-          >
-            Religious
-          </Button>
+            aria-label={`Religious activities for ${record.name}`}
+          />
           {record.id !== family?.headId && (
             <Popconfirm
               title="Remove member from family?"
@@ -485,19 +473,13 @@ const FamilyDetails: React.FC = () => {
                 size="small"
                 icon={<DeleteOutlined />}
                 title="Remove from Family"
-              >
-                Remove
-              </Button>
+                aria-label={`Remove ${record.name} from family`}
+              />
             </Popconfirm>
-          )}
-          {record.id === family?.headId && (
-            <Text type="secondary" style={{ fontSize: '12px' }}>
-              Family Head
-            </Text>
           )}
         </Space>
       ),
-      width: 180,
+      width: 145,
     },
   ];
 
@@ -522,132 +504,39 @@ const FamilyDetails: React.FC = () => {
 
   const familyHead = getFamilyHead();
   const tanzeemStats = getTanzeemStats();
+  const renderMembers = (people: Member[]) => {
+    const words = memberQuery.trim().toLocaleLowerCase().split(/\s+/).filter(Boolean);
+    people = people.filter(member => {
+      const text = [member.name, member.fatherName, member.husbandName, member.phone, member.tajneedCode, getTanzeemDisplayName(member.tanzeem)].filter(Boolean).join(' ').toLocaleLowerCase();
+      return words.every(word => text.includes(word));
+    });
+    if (!people.length) return <Empty description={memberQuery.trim() ? 'No matching members. Try another name or phone.' : 'No members in this group'} />;
+    if (screens.md) return <Table className="family-members-table" columns={columns} dataSource={people} rowKey="id" pagination={false} size="small" scroll={{ x: 700 }} />;
+    return <div className="family-mobile-members">{people.map(member => <article className="family-mobile-member" key={member.id}>
+      <div className="family-mobile-member-heading"><Avatar size={40} src={member.profilePhoto} icon={<UserOutlined />} /><div><button className="family-member-name" onClick={() => { setSelectedMember(member); setMemberDetailModalVisible(true); }} dir="auto">{member.name}</button><span>{member.age} years · {member.gender === 'male' ? 'Male' : 'Female'}</span></div>{member.id === family.headId && <Tag color="gold">Head</Tag>}</div>
+      <div className="family-mobile-member-meta"><span>{getTanzeemDisplayName(member.tanzeem)}</span><span>{member.phone || 'No phone recorded'}</span>{member.isDeceased && <Tag>Deceased</Tag>}{member.isBList && <Tag>B List</Tag>}{member.isMoved && <Tag color="orange">Moved{member.movedTo ? ` · ${member.movedTo}` : ''}</Tag>}</div>
+      <div className="family-mobile-member-actions"><Button onClick={() => navigate(`/members/${encodeURIComponent(member.id)}`, { state: { fromFamilyId: id } })}>Details</Button><Button icon={<EditOutlined />} onClick={() => { setSelectedMember(member); setMemberDetailModalVisible(true); }}>Edit</Button><Button onClick={() => { setSelectedMemberForReligious(member); setReligiousModalVisible(true); }}>Religious</Button>{member.id !== family.headId && <Popconfirm title="Remove member from family?" description="The member record will be kept." onConfirm={() => handleRemoveMember(member.id)}><Button danger icon={<DeleteOutlined />} aria-label={`Remove ${member.name} from family`} /></Popconfirm>}</div>
+    </article>)}</div>;
+  };
 
   return (
-    <div>
+    <div className="family-detail-page">
       {/* Header Section */}
-      <div style={{ marginBottom: 24 }}>
-        <Space>
+      <header className="family-detail-header">
           <Button
             icon={<ArrowLeftOutlined />}
             onClick={() => navigate('/families')}
           >
             Back
           </Button>
-          <Title level={2} style={{ margin: 0 }}>
-            {family.familyName}
-          </Title>
-        </Space>
-        <Text type="secondary">
-          Family Details & Member Management
-        </Text>
-      </div>
-
-      {/* Family Information */}
-      <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
-        <Col xs={24} lg={16}>
-          <Card title="Family Information">
-            <Descriptions column={2}>
-              <Descriptions.Item label="Family Name">
-                {family.familyName}
-              </Descriptions.Item>
-              <Descriptions.Item label="Family Head">
-                {familyHead ? familyHead.name : 'Not Found'}
-              </Descriptions.Item>
-              <Descriptions.Item label="Total Members">
-                {familyMembers.length}
-              </Descriptions.Item>
-              <Descriptions.Item label="Halqa">
-                {family.halqa || 'Not Assigned'}
-              </Descriptions.Item>
-              <Descriptions.Item label="Created">
-                {formatDate(family.createdAt)}
-              </Descriptions.Item>
-              <Descriptions.Item label="Updated">
-                {formatDate(family.updatedAt)}
-              </Descriptions.Item>
-              {family.isBList && (
-                <Descriptions.Item label="Status">
-                  <Tag color="blue">B List</Tag>
-                </Descriptions.Item>
-              )}
-            </Descriptions>
-
-            {/* Family History Section */}
-            <div style={{ marginTop: 24 }}>
-              <Title level={4}>Family History</Title>
-              <Input.TextArea
-                rows={4}
-                placeholder="Write family history, background, or any important notes..."
-                value={family.familyHistory || ''}
-                onChange={(e) => {
-                  const updatedFamily = { ...family, familyHistory: e.target.value };
-                  setFamily(updatedFamily);
-                }}
-                onBlur={async () => {
-                  try {
-                    await ApiService.updateFamily(family.id, {
-                      familyHistory: family.familyHistory || '',
-                      updatedAt: new Date().toISOString()
-                    });
-                    message.success('Family history updated');
-                  } catch (error) {
-                    message.error('Failed to update family history');
-                  }
-                }}
-              />
-            </div>
-          </Card>
-        </Col>
-        <Col xs={24} lg={8}>
-          <Card title="Family Statistics">
-            <Space direction="vertical" style={{ width: '100%' }}>
-              {Object.entries(tanzeemStats).map(([tanzeem, count]) => (
-                <div key={tanzeem} style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <Text>{tanzeem}:</Text>
-                  <Tag color="blue">{count}</Tag>
-                </div>
-              ))}
-            </Space>
-          </Card>
-        </Col>
-      </Row>
-
-      {/* Quick Stats */}
-      <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
-        <Col xs={24} sm={8}>
-          <Card>
-            <Statistic
-              title="Total Members"
-              value={familyMembers.length}
-              prefix={<UserOutlined style={{ color: '#1890ff' }} />}
-              valueStyle={{ color: '#1890ff' }}
-            />
-          </Card>
-        </Col>
-        <Col xs={24} sm={8}>
-          <Card>
-            <Statistic
-              title="Male Members"
-              value={familyMembers.filter(m => m.gender === 'male').length}
-              valueStyle={{ color: '#52c41a' }}
-            />
-          </Card>
-        </Col>
-        <Col xs={24} sm={8}>
-          <Card>
-            <Statistic
-              title="Female Members"
-              value={familyMembers.filter(m => m.gender === 'female').length}
-              valueStyle={{ color: '#f759ab' }}
-            />
-          </Card>
-        </Col>
-      </Row>
+          <div className="family-detail-identity"><span className="family-detail-icon"><House size={27} /></span><div><span className="section-eyebrow">{family.familyNumber != null ? `FAMILY #${family.familyNumber}` : 'FAMILY RECORD'}</span><h1 dir="auto">{family.familyName}</h1><div className="family-inline-stats" aria-label="Family member summary"><span><Users size={14} /><strong>{familyMembers.length}</strong> Members</span>{Object.entries(tanzeemStats).map(([tanzeem, count]) => <span className="family-inline-tanzeem" key={tanzeem}>{tanzeem} <strong>{count}</strong></span>)}</div><p><MapPin size={14} />{family.halqa || 'Halqa not assigned'}<span className={`family-status ${family.isMoved || family.isBList ? 'muted' : ''}`}>{family.isMoved ? 'Moved' : family.isBList ? 'B List' : 'Active'}</span></p></div></div>
+      </header>
+      <div className="family-head-line"><span>Family head</span>{familyHead ? <button className="family-member-name" dir="auto" onClick={() => navigate(`/members/${encodeURIComponent(familyHead.id)}`, { state: { fromFamilyId: id } })}>{familyHead.name}</button> : <span>Not recorded</span>}{family.isMoved && <span className="family-moved-location">Moved to: {family.movedTo || 'Not recorded'}</span>}</div>
 
       {/* Family Members Tabs */}
       <Card
-        title="Family Members"
+        className="family-members-section"
+        title={<div className="family-members-title"><span className="family-members-icon"><Users size={19} /></span><div><strong>Family Members</strong><span>Profiles, contacts and member records</span></div></div>}
         extra={
           <Space>
             <Button
@@ -666,34 +555,19 @@ const FamilyDetails: React.FC = () => {
           </Space>
         }
       >
+        <Input className="family-members-search" aria-label="Search family members" placeholder="Search members by name, phone or tanzeem" prefix={<Search size={16} />} allowClear value={memberQuery} onChange={event => setMemberQuery(event.target.value)} />
         <Tabs
           defaultActiveKey="active"
           items={[
             {
               key: 'active',
-              label: `Active Members (${familyMembers.length})`,
-              children: (
-                <Table
-                  columns={columns}
-                  dataSource={familyMembers}
-                  rowKey="id"
-                  pagination={false}
-                  size="middle"
-                />
-              ),
+              label: 'Current Members',
+              children: renderMembers(familyMembers),
             },
             {
               key: 'moved',
               label: `Moved (${movedFamilyMembers.length})`,
-              children: (
-                <Table
-                  columns={columns}
-                  dataSource={movedFamilyMembers}
-                  rowKey="id"
-                  pagination={false}
-                  size="middle"
-                />
-              ),
+              children: renderMembers(movedFamilyMembers),
             },
           ]}
         />

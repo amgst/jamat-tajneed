@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { Alert, Button, message, Modal, Skeleton } from 'antd';
 import MemberProfileView from '../components/MemberProfileView';
 import { ApiService } from '../services/apiService';
@@ -11,6 +11,10 @@ import { validateMemberData, sanitizeMemberData } from '../utils/validation';
 
 const MemberDetails: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const fromFamilyId = typeof location.state?.fromFamilyId === 'string' ? location.state.fromFamilyId : null;
+  const backTo = fromFamilyId ? `/families/${encodeURIComponent(fromFamilyId)}` : '/people';
+  const backLabel = fromFamilyId ? 'Back to family tree' : 'Back to people';
   const { slugId } = useParams<{ slugId: string }>();
   const [member, setMember] = useState<Member | null>(null);
   const [family, setFamily] = useState<Family | null>(null);
@@ -131,11 +135,11 @@ const MemberDetails: React.FC = () => {
   };
 
   if (loading) return <div style={{ maxWidth: 960, margin: 'auto', padding: 24 }}><Skeleton active avatar paragraph={{ rows: 8 }} /></div>;
-  if (!member) return <div style={{ maxWidth: 600, margin: '32px auto' }}><Alert type={loadError ? 'error' : 'info'} showIcon message={loadError ? 'Unable to load this profile' : 'Person not found'} description={loadError ? 'Check your connection and refresh the page to try again.' : 'This record may have been removed.'} /><Button style={{ marginTop: 16 }} onClick={() => navigate('/people')}>Back to people</Button></div>;
+  if (!member) return <div style={{ maxWidth: 600, margin: '32px auto' }}><Alert type={loadError ? 'error' : 'info'} showIcon message={loadError ? 'Unable to load this profile' : 'Person not found'} description={loadError ? 'Check your connection and refresh the page to try again.' : 'This record may have been removed.'} /><Button style={{ marginTop: 16 }} onClick={() => navigate(backTo)}>{backLabel}</Button></div>;
 
   return (
     <>
-      <MemberProfileView member={member} family={family} waqf={waqfJadeedRecord} tahreq={tahreqJadeedRecord} financialError={financialError} onEdit={() => setIsEditModalVisible(true)} />
+      <MemberProfileView member={member} family={family} waqf={waqfJadeedRecord} tahreq={tahreqJadeedRecord} financialError={financialError} onEdit={() => setIsEditModalVisible(true)} backTo={backTo} backLabel={backLabel} />
       <Modal
         className="member-edit-modal"
         title="Edit Member"
