@@ -10,7 +10,6 @@ import {
   MenuUnfoldOutlined,
   BankOutlined,
   BookOutlined,
-  FileTextOutlined,
   MenuOutlined,
   SolutionOutlined
 } from '@ant-design/icons';
@@ -53,29 +52,14 @@ const AppLayout: React.FC = () => {
       label: 'Home',
     },
     {
-      key: '/dashboard',
-      icon: <DashboardOutlined />,
-      label: 'Statistics',
+      key: '/families',
+      icon: <TeamOutlined />,
+      label: 'Families',
     },
     {
       key: '/people',
       icon: <UserOutlined />,
-      label: 'Person Directory',
-    },
-    {
-      key: '/members',
-      icon: <UserOutlined />,
       label: 'Members',
-    },
-    {
-      key: '/tajneed-pro',
-      icon: <TeamOutlined />,
-      label: 'Tajneed Pro',
-    },
-    {
-      key: '/families',
-      icon: <TeamOutlined />,
-      label: 'Families',
     },
     {
       key: '/tanzeem',
@@ -93,19 +77,9 @@ const AppLayout: React.FC = () => {
       label: 'Waqf-e-Jadeed',
     },
     {
-      key: '/waqf-jadeed-pro',
-      icon: <BankOutlined />,
-      label: 'Waqf-e-Jadeed Pro',
-    },
-    {
       key: '/ansar-uallah',
       icon: <BankOutlined />,
       label: 'Ansar uallah',
-    },
-    {
-      key: '/financial-reports',
-      icon: <FileTextOutlined />,
-      label: 'Financial Reports',
     },
     {
       key: 'reports-menu',
@@ -127,9 +101,29 @@ const AppLayout: React.FC = () => {
       ]
     },
     {
+      key: '/families-old',
+      icon: <TeamOutlined />,
+      label: 'Families (Old)',
+    },
+    {
+      key: '/members',
+      icon: <UserOutlined />,
+      label: 'Members (Old)',
+    },
+    {
       key: '/settings',
       icon: <SettingOutlined />,
       label: 'Settings',
+    },
+    {
+      key: '/tajneed-pro',
+      icon: <TeamOutlined />,
+      label: 'Tajneed Pro (Old)',
+    },
+    {
+      key: '/waqf-jadeed-pro',
+      icon: <BankOutlined />,
+      label: 'Waqf-e-Jadeed Pro (Old)',
     },
   ];
 
@@ -181,7 +175,7 @@ const AppLayout: React.FC = () => {
           <Menu
             theme="dark"
             mode="inline"
-            selectedKeys={[location.pathname]}
+            selectedKeys={[location.pathname.startsWith('/members/') ? '/people' : location.pathname.startsWith('/families/') ? '/families' : location.pathname]}
             items={menuItems}
             onClick={handleMenuClick}
             style={{ height: 'calc(100vh - 64px)', borderRight: 0, overflowY: 'auto' }}
@@ -200,7 +194,7 @@ const AppLayout: React.FC = () => {
       >
         <Menu
           mode="inline"
-          selectedKeys={[location.pathname]}
+          selectedKeys={[location.pathname.startsWith('/members/') ? '/people' : location.pathname.startsWith('/families/') ? '/families' : location.pathname]}
           items={menuItems}
           onClick={handleMenuClick}
           style={{ height: '100%', borderRight: 0 }}
@@ -270,8 +264,8 @@ const AppLayout: React.FC = () => {
         </Content>
         {isMobile && <nav className="mobile-bottom-nav" aria-label="Main navigation">
           <button className={location.pathname === '/' ? 'active' : ''} onClick={() => navigate('/')}><Search /><span>Search</span></button>
-          <button className={location.pathname.startsWith('/people') || location.pathname.startsWith('/members') ? 'active' : ''} onClick={() => navigate('/people')}><Users /><span>People</span></button>
-          <button className={location.pathname.startsWith('/families') ? 'active' : ''} onClick={() => navigate('/families')}><House /><span>Families</span></button>
+          <button className={location.pathname === '/families' || location.pathname.startsWith('/families/') ? 'active' : ''} onClick={() => navigate('/families')}><House /><span>Families</span></button>
+          <button className={location.pathname.startsWith('/people') || location.pathname.startsWith('/members/') ? 'active' : ''} onClick={() => navigate('/people')}><Users /><span>Members</span></button>
           <button onClick={() => setDrawerVisible(true)}><MenuIcon /><span>More</span></button>
         </nav>}
       </Layout>

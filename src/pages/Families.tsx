@@ -56,7 +56,7 @@ interface FamilyForm {
   isBList?: boolean;
 }
 
-const Families: React.FC = () => {
+const Families: React.FC<{ legacy?: boolean }> = ({ legacy = false }) => {
   const { message } = App.useApp();
   const navigate = useNavigate();
   const [families, setFamilies] = useState<Family[]>([]);
@@ -73,7 +73,7 @@ const Families: React.FC = () => {
   const [activeTab, setActiveTab] = useState<string>('active');
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
-  const [viewMode, setViewMode] = useState<'cards' | 'list'>('cards');
+  const [viewMode, setViewMode] = useState<'cards' | 'list'>(legacy ? 'list' : 'cards');
   useEffect(() => { setCurrentPage(1); }, [searchText, sortField, sortOrder, activeTab, families.length]);
 
   // Move Family State

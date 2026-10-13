@@ -1,0 +1,51 @@
+.waqf-jadeed-container{color:#26334a;font-family:Inter,system-ui,sans-serif}
+.waqf-jadeed-container .section-eyebrow{font-size:10px;font-weight:700;letter-spacing:2px;color:#7d899b}
+.waqf-jadeed-container .ant-card{background:#fff!important;border:1px solid #e6ebf2!important;border-radius:18px;box-shadow:0 3px 12px #26334a05;overflow:hidden}
+.waqf-jadeed-container .ant-card-head{padding:16px 20px;border-color:#edf0f4;min-height:52px}
+.waqf-jadeed-container .ant-card-head-wrapper{flex-wrap:wrap;gap:10px}
+.waqf-jadeed-container .ant-card-head-title{font-size:14px;color:#526783}
+.waqf-jadeed-container .ant-card-body{padding:20px}
+.waqf-jadeed-container .waqf-toolbar{background:#f9fafc!important;border:0!important;box-shadow:none}
+.waqf-jadeed-container .ant-btn,.waqf-finance-overlay .ant-btn{border-radius:9px;min-height:36px;font-size:12px}
+.waqf-jadeed-container .ant-btn-primary:not(.ant-btn-dangerous),.waqf-finance-overlay .ant-btn-primary:not(.ant-btn-dangerous){background:#345eae}
+.waqf-jadeed-container .ant-input-affix-wrapper,.waqf-jadeed-container .ant-select-selector,.waqf-finance-overlay .ant-select-selector{min-height:40px;border-radius:11px!important}
+.waqf-jadeed-container .ant-input,.waqf-jadeed-container .ant-input-number,.waqf-jadeed-container .ant-picker,.waqf-finance-overlay .ant-input,.waqf-finance-overlay .ant-input-number,.waqf-finance-overlay .ant-picker{border-radius:10px}
+.waqf-jadeed-container .ant-tabs-tab{font-size:13px}
+.waqf-jadeed-container .ant-tabs-tab-active .ant-tabs-tab-btn{color:#345eae}
+.waqf-jadeed-container .ant-tabs-ink-bar{background:#345eae}
+.waqf-jadeed-container .ant-segmented{padding:4px;border-radius:12px;background:#eaf0f8}
+.waqf-jadeed-container .ant-segmented-item{border-radius:9px}
+.waqf-jadeed-container .ant-table{font-size:12px;color:#26334a;border-radius:12px;overflow:hidden}
+.waqf-jadeed-container .ant-table-thead>tr>th{background:#edf2f9;color:#526783;font-size:12px;font-weight:600;padding:10px 12px}
+.waqf-jadeed-container .ant-table-tbody>tr>td{padding:10px 12px;font-size:12px}
+.waqf-jadeed-container .ant-tag{border-radius:6px;font-size:10px}
+.waqf-jadeed-container .ant-statistic-title{font-size:12px;color:#8590a1}
+.waqf-jadeed-container .ant-collapse{background:transparent;border:0}
+.waqf-jadeed-container .ant-collapse>.ant-collapse-item{background:#fff;border:1px solid #e6ebf2;border-radius:16px;margin-bottom:12px;overflow:hidden}
+.waqf-jadeed-container .ant-collapse>.ant-collapse-item>.ant-collapse-header{padding:16px;align-items:center}
+.waqf-jadeed-container .ant-collapse-content{border-color:#edf0f4}
+.waqf-member-grid{display:grid;grid-template-columns:minmax(0,1fr);gap:14px}
+.waqf-member-card{display:flex;flex-direction:column;border:1px solid #e0e7ed;border-radius:18px;background:#fff;overflow:hidden;min-width:0;box-shadow:0 3px 12px #26334a05}
+.waqf-member-open{display:flex;flex:1;flex-direction:column;gap:10px;width:100%;padding:18px;border:0;background:transparent;text-align:left;color:#26334a;cursor:pointer}
+.waqf-member-open:hover{background:#fbfcff}
+.waqf-member-open:focus-visible{outline:3px solid #587ac1;outline-offset:-3px}
+.waqf-member-name{display:flex;align-items:baseline;flex-wrap:wrap;gap:7px;width:100%}
+.waqf-member-name strong{font-size:17px;overflow-wrap:anywhere}
+.waqf-member-name small{font-size:10px;color:#8590a1}
+.waqf-member-name svg{margin-left:auto;color:#8fa0b5;flex-shrink:0}
+.waqf-member-guardian{font-size:12px;color:#7b899b;overflow-wrap:anywhere}
+.waqf-member-tanzeem{font-size:10px;color:#526783;background:#edf2fc;padding:4px 7px;border-radius:6px;align-self:flex-start}
+.waqf-card-amounts{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;width:100%;padding-top:12px;border-top:1px solid #edf0f4}
+.waqf-card-amounts>div{display:flex;flex-direction:column;gap:5px;min-width:0}
+.waqf-card-amounts span{font-size:10px;color:#8590a1}
+.waqf-card-amounts strong{font-size:12px;font-weight:600;overflow-wrap:anywhere}
+.waqf-card-footer{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 16px;border-top:1px solid #edf0f4;font-size:11px;color:#7b899b}
+.waqf-jadeed-container .family-list>div:not(.ant-collapse),.waqf-jadeed-container .tanzeem-list>div:not(.ant-collapse){flex-wrap:wrap;gap:12px}
+.waqf-jadeed-container .ant-space{max-width:100%}
+.waqf-finance-overlay .ant-modal-content{border-radius:18px}
+.waqf-finance-overlay .ant-modal-body{max-height:65dvh;overflow-y:auto;overscroll-behavior:contain}
+.waqf-finance-overlay .ant-drawer-header-title,.waqf-finance-overlay .ant-drawer-extra>.ant-space{flex-wrap:wrap;gap:8px}
+.waqf-finance-overlay .ant-drawer-body{background:#f9fafc}
+@media(min-width:600px){.waqf-member-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(min-width:1100px){.waqf-member-grid{grid-template-columns:repeat(3,minmax(0,1fr))}.waqf-family-cards>.ant-collapse{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;align-items:start}.waqf-family-cards>.ant-collapse>.ant-collapse-item{margin:0}.waqf-family-cards>.ant-collapse>.ant-collapse-item:has(.ant-collapse-content-active){grid-column:1/-1}}
+@media(max-width:767px){.waqf-jadeed-container{padding-inline:0!important}.waqf-jadeed-container .ant-card-body{padding:14px!important}.waqf-jadeed-container .ant-card-head{padding:14px}.waqf-jadeed-container .ant-collapse>.ant-collapse-item>.ant-collapse-header{padding:14px}.waqf-jadeed-container .ant-collapse-content-box{padding:12px}.waqf-jadeed-container .ant-btn{white-space:normal;height:auto;min-height:40px}.waqf-jadeed-container .ant-space{flex-wrap:wrap;gap:8px!important}.waqf-finance-overlay .ant-modal{max-width:calc(100vw - 16px);top:8px}.waqf-finance-overlay .ant-input,.waqf-finance-overlay .ant-input-number-input{font-size:16px;min-height:40px}}

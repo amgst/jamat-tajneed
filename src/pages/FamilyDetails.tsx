@@ -45,6 +45,7 @@ import MemberForm from '../components/MemberForm';
 import { MapPin, Users } from 'lucide-react';
 import './PeopleHome.css';
 import './FamilyDetails.css';
+import { getRecordedPhone } from '../utils/phone';
 const { Title, Text } = Typography;
 const { Option } = Select;
 
@@ -210,7 +211,7 @@ const FamilyDetails: React.FC = () => {
         age: member.age,
         dateOfBirth: formatDate(member.dateOfBirth),
         tanzeem: getTanzeemDisplayName(member.tanzeem),
-        phone: member.phone || '',
+        phone: getRecordedPhone(member.phone) || '',
       }));
       await exportToPDF(rows, ['serial', 'name', 'relationship', 'gender', 'age', 'dateOfBirth', 'tanzeem', 'phone'],
         `${family.familyName.replace(/[<>:"/\\|?*]/g, '').replace(/\s+/g, '_')}_members`,
@@ -469,7 +470,7 @@ const FamilyDetails: React.FC = () => {
       key: 'contact',
       render: (phone: string) => (
         <div>
-          {phone ? <a className="family-phone" href={`tel:${phone}`}>{phone}</a> : <span className="family-contact-empty">—</span>}
+          {getRecordedPhone(phone) ? <a className="family-phone" href={`tel:${phone}`}>{phone}</a> : null}
         </div>
       ),
     },
@@ -548,7 +549,7 @@ const FamilyDetails: React.FC = () => {
     if (screens.md) return <Table className="family-members-table" columns={columns.filter(column => column.key !== 'actions')} dataSource={people} onRow={member => ({ onClick: event => { if ((event.target as HTMLElement).closest('a,button')) return; navigate(`/members/${encodeURIComponent(member.id)}`, { state: { fromFamilyId: id } }); } })} rowKey="id" pagination={false} size="small" scroll={{ x: 700 }} />;
     return <div className="family-mobile-members">{people.map(member => <a className="family-mobile-member" key={member.id} href={`/members/${encodeURIComponent(member.id)}`} onClick={event => { event.preventDefault(); navigate(`/members/${encodeURIComponent(member.id)}`, { state: { fromFamilyId: id } }); }}>
       <div className="family-mobile-member-heading"><div><strong className="family-member-name" dir="auto">{member.name}</strong><span>{member.age} years · {member.gender === 'male' ? 'Male' : 'Female'}</span></div>{member.id === family.headId && <Tag color="gold">Head</Tag>}</div>
-      <div className="family-mobile-member-meta"><span>{getTanzeemDisplayName(member.tanzeem)}</span><span>{member.phone || 'No phone recorded'}</span>{member.isDeceased && <Tag>Deceased</Tag>}{member.isBList && <Tag>B List</Tag>}{member.isMoved && <Tag color="orange">Moved{member.movedTo ? ` · ${member.movedTo}` : ''}</Tag>}</div>
+      <div className="family-mobile-member-meta"><span>{getTanzeemDisplayName(member.tanzeem)}</span>{getRecordedPhone(member.phone) && <span>{getRecordedPhone(member.phone)}</span>}{member.isDeceased && <Tag>Deceased</Tag>}{member.isBList && <Tag>B List</Tag>}{member.isMoved && <Tag color="orange">Moved{member.movedTo ? ` · ${member.movedTo}` : ''}</Tag>}</div>
     </a>)}</div>;
   };
 
@@ -656,7 +657,7 @@ const FamilyDetails: React.FC = () => {
                           )}
                         </div>
                         <Text type="secondary" style={{ fontSize: '12px' }}>
-                          {member.age} yrs • {getTanzeemDisplayName(member.tanzeem)} • {member.phone || 'No phone'}
+                          {member.age} yrs • {getTanzeemDisplayName(member.tanzeem)}{getRecordedPhone(member.phone) ? ` • ${getRecordedPhone(member.phone)}` : ''}
                         </Text>
                       </div>
                     </div>

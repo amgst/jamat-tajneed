@@ -1,4 +1,5 @@
 import { db } from '../lib/firebase';
+import { getRecordedPhone } from '../utils/phone';
 import {
   collection,
   getDocs,
@@ -59,6 +60,7 @@ export class ApiService {
     const snapshot = await getDoc(doc(db, 'members', id));
     if (!snapshot.exists()) return null;
     const member = { ...snapshot.data(), id: snapshot.id } as Member;
+    member.phone = getRecordedPhone(member.phone);
     this.cachedMembers = [...this.cachedMembers.filter(item => item.id !== id), member];
     return member;
   }
@@ -78,6 +80,7 @@ export class ApiService {
   static async getAllMembers(): Promise<Member[]> {
     const snapshot = await getDocs(collection(db, 'members'));
     const members = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Member));
+    members.forEach(member => { member.phone = getRecordedPhone(member.phone); });
     this.cachedMembers = members;
     return members;
   }

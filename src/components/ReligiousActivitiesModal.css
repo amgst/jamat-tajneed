@@ -1,0 +1,33 @@
+.religious-activities-modal.ant-modal{top:24px;padding-bottom:24px;max-width:calc(100vw - 24px)}
+.religious-activities-modal .ant-modal-content{padding:0;border-radius:18px;overflow:hidden;display:flex;flex-direction:column;max-height:calc(100dvh - 48px);color:#26334a}
+.religious-activities-modal .ant-modal-header{padding:18px 24px;margin:0;border-bottom:1px solid #e6ebf2;flex-shrink:0}
+.religious-modal-heading{display:flex;align-items:center;gap:12px;padding-right:24px}
+.religious-modal-icon{display:grid;place-items:center;width:40px;height:40px;flex-shrink:0;border-radius:12px;background:#edf2fc;color:#345eae}
+.religious-modal-heading>div{min-width:0}
+.religious-modal-eyebrow{display:block;font-size:11px;font-weight:400;color:#8590a1;margin-bottom:4px}
+.religious-modal-member{display:flex;align-items:center;flex-wrap:wrap;gap:10px}
+.religious-modal-member strong{font-size:17px;overflow-wrap:anywhere}
+.religious-modal-member .ant-tag{font-size:10px;color:#526783;background:#edf2fc;border:0;border-radius:6px}
+.religious-activities-modal .ant-modal-body{overflow-y:auto;overscroll-behavior:contain;min-height:0;padding:20px 24px;background:#f9fafc}
+.religious-activities-modal .ant-modal-footer{margin:0;padding:14px 24px;border-top:1px solid #e6ebf2;background:#fff;flex-shrink:0}
+.religious-activities-modal .ant-modal-footer .ant-btn{min-height:40px;border-radius:9px}
+.religious-activities-modal .ant-btn-primary{background:#345eae}
+.religious-activity-group{background:#fff;border:1px solid #e6ebf2;border-radius:14px;padding:16px;margin-bottom:14px}
+.religious-activity-group h3{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin:0 0 12px;font-size:13px;font-weight:600;color:#526783}
+.religious-activity-group h3>span:last-child{font-size:12px;font-weight:400;color:#8590a1}
+.religious-activity-grid{display:grid;grid-template-columns:minmax(0,1fr);gap:10px}
+.religious-activity-grid .ant-form-item{margin-bottom:0;min-width:0}
+.religious-activity-grid .ant-form-item-label{text-align:right;padding-bottom:6px}
+.religious-activity-grid .ant-form-item-label label{font-size:13px;line-height:1.8;color:#526783}
+.religious-activity-grid .ant-input-number{min-height:44px;border-radius:9px;direction:ltr}
+.religious-activity-grid .ant-input-number-input{height:42px;text-align:center}
+.religious-check-field .ant-checkbox-wrapper{display:flex;align-items:center;gap:10px;width:100%;min-height:48px;padding:10px 12px;box-sizing:border-box;border:1px solid #e6ebf2;border-radius:9px;background:#fbfcfe;direction:rtl;font-size:13px;line-height:1.8}
+.religious-check-field .ant-checkbox{top:0}
+.religious-check-field .ant-checkbox+span{padding:0}
+.religious-check-field .ant-checkbox-inner{width:18px;height:18px;border-radius:5px}
+.religious-check-field .ant-checkbox-wrapper-checked{background:#edf2fc;border-color:#b7c9e6}
+.religious-notes.ant-form-item{margin:0}
+.religious-notes .ant-form-item-label{text-align:right}
+.religious-notes textarea{border-radius:12px;font-size:14px}
+@media(min-width:600px){.religious-activity-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:599px){.religious-activities-modal.ant-modal{top:8px;max-width:calc(100vw - 16px);padding-bottom:8px}.religious-activities-modal .ant-modal-content{max-height:calc(100dvh - 16px)}.religious-activities-modal .ant-modal-header{padding:16px}.religious-activities-modal .ant-modal-body{padding:14px}.religious-activities-modal .ant-modal-footer{padding:12px 16px calc(12px + env(safe-area-inset-bottom))}.religious-activity-group{padding:12px}.religious-notes textarea,.religious-activity-grid .ant-input-number-input{font-size:16px}}

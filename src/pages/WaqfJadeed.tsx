@@ -25,7 +25,11 @@ import {
     Divider,
     Tooltip,
     Popconfirm,
-    DatePicker
+    DatePicker,
+    Segmented,
+    Pagination,
+    Empty,
+    Spin
 } from 'antd';
 
 const { Text, Title } = Typography;
@@ -61,6 +65,9 @@ import MemberForm from '../components/MemberForm';
 import { generateAvatarFromName } from '../utils/imageUtils';
 import { validateMemberData, sanitizeMemberData } from '../utils/validation';
 import { printFamilyReceiptBluetooth } from '../utils/bluetoothPrinter';
+import { LayoutGrid, List as ListIcon, ArrowRight } from 'lucide-react';
+import './Families.css';
+import './WaqfJadeed.css';
 
 const WaqfJadeed: React.FC = () => {
     const { message } = App.useApp();
@@ -77,6 +84,9 @@ const WaqfJadeed: React.FC = () => {
     const [selectedYear, setSelectedYear] = useState<number>(2026);
     const [searchTerm, setSearchTerm] = useState('');
     const [activeTab, setActiveTab] = useState('families');
+    const [memberView, setMemberView] = useState<'cards' | 'list'>('cards');
+    const [familyView, setFamilyView] = useState<'cards' | 'list'>('cards');
+    useEffect(() => { setMembersCurrentPage(1); }, [searchTerm, selectedYear]);
 
     // Target amount state (stored per year in localStorage)
     const [targetAmount, setTargetAmount] = useState<number>(0);
@@ -2459,11 +2469,12 @@ const WaqfJadeed: React.FC = () => {
 
     return (
         <div style={{ margin: 0, padding: '0 8px', width: '100%', maxWidth: '100%', boxSizing: 'border-box', paddingBottom: 80 }} className="waqf-jadeed-container">
+            <header className="families-header"><span className="section-eyebrow">COMMUNITY CONTRIBUTIONS</span><h1>Waqf-e-Jadeed</h1></header>
             {/* Search Header */}
-            <Card style={{ marginBottom: 16, position: 'sticky', top: 0, zIndex: 10 }} styles={{ body: { padding: 12 } }}>
+            <Card className="waqf-toolbar" style={{ marginBottom: 16 }}>
                 <Row gutter={[8, 8]} align="middle">
                     <Col xs={24} sm={12} md={8}>
-                        <Title level={4} style={{ margin: 0, fontSize: 'clamp(16px, 4vw, 20px)' }}>Waqf-e-Jadeed</Title>
+                        <Text type="secondary">Contribution year & records</Text>
                     </Col>
                     <Col xs={12} sm={6} md={4}>
                         <Select
@@ -2471,7 +2482,7 @@ const WaqfJadeed: React.FC = () => {
                             onChange={setSelectedYear}
                             style={{ width: '100%' }}
                         >
-                            {[2023, 2024, 2025, 2026].map(y => (
+                            {Array.from({ length: Math.max(4, new Date().getFullYear() - 2023 + 1) }, (_, index) => 2023 + index).map(y => (
                                 <Option key={y} value={y}>{y}</Option>
                             ))}
                         </Select>
@@ -2479,14 +2490,15 @@ const WaqfJadeed: React.FC = () => {
                     <Col xs={12} sm={6} md={4}>
                         <Input
                             prefix={<SearchOutlined />}
-                            placeholder="Search..."
+                            placeholder="Search members or families"
+                            aria-label="Search Waqf-e-Jadeed records"
                             value={searchTerm}
                             onChange={e => setSearchTerm(e.target.value)}
                             allowClear
                         />
                     </Col>
                     <Col xs={24} sm={24} md={8} style={{ textAlign: 'right' }}>
-                        <Space>
+                        <Space wrap>
                             {activeTab === 'dashboard' && (
                                 <Button
                                     icon={<FilePdfOutlined />}
@@ -2520,7 +2532,7 @@ const WaqfJadeed: React.FC = () => {
                     activeKey={activeTab}
                     onChange={setActiveTab}
                     style={{ marginTop: 12 }}
-                    type="card"
+                    type="line"
                     items={[
                         { key: 'members', label: 'Members' },
                         { key: 'families', label: 'Family Wise' },
@@ -2529,17 +2541,12 @@ const WaqfJadeed: React.FC = () => {
                         {
                             key: 'dashboard',
                             label: 'Dashboard',
-                            children: (
-                                <div style={{ padding: 16 }}>
-                                    <Text type="secondary">Dashboard insights are available in the main section below.</Text>
-                                </div>
-                            )
                         },
                         { key: 'about', label: 'About' }
                     ]}
                 />
 
-                <Modal
+                <Modal rootClassName="waqf-finance-overlay"
                     title="Record Payment to Markaz"
                     open={markazModalVisible}
                     onCancel={() => setMarkazModalVisible(false)}
@@ -2579,7 +2586,7 @@ const WaqfJadeed: React.FC = () => {
 
 
             {activeTab === 'members' ? (
-                <Card>
+                <Card className="waqf-members-panel">
                     <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                         <Text strong>Member Records ({filteredMemberData.length})</Text>
                         <Button
@@ -2589,7 +2596,21 @@ const WaqfJadeed: React.FC = () => {
                             Export Members PDF
                         </Button>
                     </div>
-                    <Table
+                    <div className="families-view-toolbar"><span className="families-view-label">Choose your view</span><Segmented value={memberView} onChange={value => setMemberView(value as 'cards' | 'list')} options={[{ value: 'cards', label: <span className="families-view-option"><LayoutGrid size={16} />Cards</span> }, { value: 'list', label: <span className="families-view-option"><ListIcon size={16} />List</span> }]} /></div>
+                    {memberView === 'cards' ? <Spin spinning={loading}>
+                        {!loading && filteredMemberData.length === 0 ? <Empty description="No member records found" /> : <div className="waqf-member-grid">{filteredMemberData.slice((membersCurrentPage - 1) * membersPageSize, membersCurrentPage * membersPageSize).map(item => <article className="waqf-member-card" key={item.member.id}>
+                            <button className="waqf-member-open" onClick={() => handleEdit(item.member)}>
+                                <div className="waqf-member-name"><strong dir="auto">{item.member.name}</strong><small>{item.member.age} yrs</small><ArrowRight size={17} /></div>
+                                {item.member.fatherName && <span className="waqf-member-guardian">Father: {item.member.fatherName}</span>}
+                                <span className="waqf-member-tanzeem">{getTanzeemDisplayName(item.member.tanzeem)}</span>
+                                <div className="waqf-card-amounts"><div><span>Promised</span><strong>Rs. {item.promise.toLocaleString()}</strong></div><div><span>Paid</span><strong>Rs. {item.paid.toLocaleString()}</strong></div><div><span>{item.paid > item.promise ? 'Overpaid' : 'Remaining'}</span><strong>Rs. {Math.abs(item.promise - item.paid).toLocaleString()}</strong></div></div>
+                                <Progress percent={item.promise > 0 ? Math.min(100, Math.round(item.paid / item.promise * 100)) : 0} size="small" strokeColor="#70a58a" />
+                            </button>
+                            <div className="waqf-card-footer"><span>{item.promise > 0 && item.paid >= item.promise ? 'Fully paid' : item.promise > 0 ? 'Payment pending' : 'No promise recorded'}</span><Button icon={<ShareAltOutlined />} title="Export member card" aria-label={`Export card for ${item.member.name}`} onClick={() => handleExportMemberCard(item)} /></div>
+                        </article>)}</div>}
+                        {filteredMemberData.length > 0 && <Pagination className="families-pagination" current={membersCurrentPage} pageSize={membersPageSize} total={filteredMemberData.length} responsive showSizeChanger pageSizeOptions={[10, 20, 50, 100]} showTotal={(total, range) => `${range[0]}–${range[1]} of ${total} members`} onChange={(page, size) => { setMembersCurrentPage(size !== membersPageSize ? 1 : page); setMembersPageSize(size); }} />}
+                    </Spin> : <Table
+                        size="small"
                         dataSource={filteredMemberData}
                         loading={loading}
                         rowKey={(record) => record.member.id}
@@ -2769,10 +2790,11 @@ const WaqfJadeed: React.FC = () => {
                                 sorter: false
                             }
                         ]}
-                    />
+                    />}
                 </Card>
             ) : activeTab === 'families' ? (
-                <div className="family-list">
+                <div className={`family-list waqf-family-${familyView}`}>
+                    <div className="families-view-toolbar"><span className="families-view-label">Family records</span><Segmented value={familyView} onChange={value => setFamilyView(value as 'cards' | 'list')} options={[{ value: 'cards', label: <span className="families-view-option"><LayoutGrid size={16} />Cards</span> }, { value: 'list', label: <span className="families-view-option"><ListIcon size={16} />List</span> }]} /></div>
                     <Card style={{ marginBottom: 16, background: '#fafafa', border: '1px solid #d9d9d9' }} styles={{ body: { padding: '12px 24px' } }}>
                         <Row gutter={[48, 16]} align="middle">
                             <Col>
@@ -4184,7 +4206,7 @@ const WaqfJadeed: React.FC = () => {
             }
 
             {/* Edit Drawer */}
-            <Drawer
+            <Drawer rootClassName="waqf-finance-overlay"
                 title={`Edit: ${editingMember ? editingMember.name : editingSpecial ? editingSpecial.name : ''}`}
                 placement="bottom"
                 height="70vh"
@@ -4484,7 +4506,7 @@ const WaqfJadeed: React.FC = () => {
             </Drawer>
 
             {/* Receipt Modal */}
-            <Modal
+            <Modal rootClassName="waqf-finance-overlay"
                 title="Net Balance in Hand Breakdown"
                 open={netBalanceBreakdownVisible}
                 onCancel={() => setNetBalanceBreakdownVisible(false)}
@@ -4555,7 +4577,7 @@ const WaqfJadeed: React.FC = () => {
                     The summary above shows the current cash in hand split into Baligan, Daftar Atfal, and Nagar Parkar. The table below shows how that same in-hand amount is distributed tanzeem-wise.
                 </Text>
             </Modal>
-            <Modal
+            <Modal rootClassName="waqf-finance-overlay"
                 title="Print Receipt"
                 open={!!printingPayment}
                 onCancel={() => setPrintingPayment(null)}
@@ -4592,7 +4614,7 @@ const WaqfJadeed: React.FC = () => {
             </Modal>
 
             {/* Special Member Modal */}
-            <Modal
+            <Modal rootClassName="waqf-finance-overlay"
                 title="Add/Edit Special Pledge"
                 open={specialModalVisible}
                 onOk={handleSaveSpecial}
@@ -4662,7 +4684,7 @@ const WaqfJadeed: React.FC = () => {
             </Modal>
 
             {/* Add Book Modal */}
-            <Modal
+            <Modal rootClassName="waqf-finance-overlay"
                 title="Add New Receipt Book"
                 open={addBookModalVisible}
                 onCancel={() => setAddBookModalVisible(false)}
@@ -4680,7 +4702,7 @@ const WaqfJadeed: React.FC = () => {
                 </Form>
             </Modal>
 
-            <Modal
+            <Modal rootClassName="waqf-finance-overlay"
                 title="Manage Receipt Books"
                 open={manageBooksModalVisible}
                 onCancel={() => setManageBooksModalVisible(false)}

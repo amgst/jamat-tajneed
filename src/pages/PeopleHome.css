@@ -48,3 +48,17 @@
 .directory-layout .person-meta{flex-shrink:0;gap:8px}
 .directory-layout .people-filters{max-width:600px}
 @media(min-width:1100px){.directory-layout .people-list{grid-template-columns:repeat(auto-fill,minmax(300px,1fr))}}
+.tanzeem-grid.membership-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+.person-name-line{display:flex;align-items:baseline;flex-wrap:wrap;gap:5px 8px}
+.person-copy .person-age{font-size:10px;color:#8590a1;font-weight:400;white-space:nowrap}
+.record-breakdown{border-top:1px solid #e7ebf1;padding-top:24px}
+.record-breakdown-note{font-size:11px;line-height:1.8;color:#8590a1;margin:12px 0 0}
+.people-logo-location{display:block;font-size:9px;color:#8590a1;letter-spacing:1.5px;margin:2px 0 12px}
+.members-directory-controls{display:grid;grid-template-columns:minmax(0,1fr);gap:12px;margin-bottom:16px}
+.members-directory-controls .ant-select{width:100%}
+.member-directory-card .person-name-line{width:100%;gap:8px}
+.member-directory-card .person-name-line>svg{margin-left:auto;flex-shrink:0;color:#8fa0b5}
+.member-directory-card .person-age{font-size:10px;color:#8590a1;white-space:nowrap}
+.member-directory-name{border:0;background:transparent;padding:0;color:#345eae;text-align:left;cursor:pointer;font:inherit}
+.member-directory-name:focus-visible{outline:2px solid #587ac1;outline-offset:3px}
+@media(min-width:600px){.members-directory-controls{grid-template-columns:repeat(3,minmax(0,1fr))}}
