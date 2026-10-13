@@ -254,6 +254,7 @@ const exportToPDFViaCanvas = async (
     headers.forEach(h => {
       const td = document.createElement('td');
       td.textContent = formatCellValue(item?.[h]);
+      td.setAttribute('dir', 'auto');
       td.style.border = '1px solid #e5e7eb';
       td.style.padding = '7px 6px';
       td.style.verticalAlign = 'top';
@@ -268,6 +269,7 @@ const exportToPDFViaCanvas = async (
 
   document.body.appendChild(container);
   try {
+    await document.fonts.ready;
     const canvas = await html2canvas(container, {
       scale: Math.max(2, window.devicePixelRatio || 1),
       backgroundColor: '#ffffff'
@@ -372,6 +374,7 @@ export const exportToPDF = async (
     }
   } catch (error) {
     console.error('Error in PDF export check:', error);
+    throw error;
   }
 
   const showTitle = options?.showTitle ?? true;

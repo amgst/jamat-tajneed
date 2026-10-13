@@ -51,11 +51,35 @@ const calculateAge = (dob: string) => {
 };
 
 export class ApiService {
+  private static cachedMembers: Member[] = [];
+  private static cachedFamilies: Family[] = [];
+  static getDirectorySnapshot() { return { members: this.cachedMembers, families: this.cachedFamilies }; }
   // --- Members ---
+  static async getMember(id: string): Promise<Member | null> {
+    const snapshot = await getDoc(doc(db, 'members', id));
+    if (!snapshot.exists()) return null;
+    const member = { ...snapshot.data(), id: snapshot.id } as Member;
+    this.cachedMembers = [...this.cachedMembers.filter(item => item.id !== id), member];
+    return member;
+  }
+  static async getMemberFamily(member: Member): Promise<Family | null> {
+    if (member.familyId) {
+      const family = await this.getFamily(member.familyId);
+      if (family) return family;
+    }
+    const snapshots = await Promise.all([
+      getDocs(query(collection(db, 'families'), where('memberIds', 'array-contains', member.id))),
+      getDocs(query(collection(db, 'families'), where('headId', '==', member.id)))
+    ]);
+    const match = snapshots.flatMap(snapshot => snapshot.docs)[0];
+    return match ? { ...match.data(), id: match.id } as Family : null;
+  }
 
   static async getAllMembers(): Promise<Member[]> {
     const snapshot = await getDocs(collection(db, 'members'));
-    return snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Member));
+    const members = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Member));
+    this.cachedMembers = members;
+    return members;
   }
 
   static async createMember(member: any): Promise<Member> {
@@ -83,7 +107,9 @@ export class ApiService {
     };
     await updateDoc(ref, stripUndefinedDeep(updateData));
     const snap = await getDoc(ref);
-    return { ...snap.data(), id: snap.id } as Member;
+    const updated = { ...snap.data(), id: snap.id } as Member;
+    this.cachedMembers = this.cachedMembers.map(member => member.id === id ? updated : member);
+    return updated;
   }
 
   static async deleteMember(id: string): Promise<{ success: boolean }> {
@@ -95,7 +121,9 @@ export class ApiService {
 
   static async getAllFamilies(): Promise<Family[]> {
     const snapshot = await getDocs(collection(db, 'families'));
-    return snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Family));
+    const families = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Family));
+    this.cachedFamilies = families;
+    return families;
   }
 
   static async getFamily(id: string): Promise<Family | null> {
@@ -114,7 +142,9 @@ export class ApiService {
     const ref = doc(db, 'families', id);
     await updateDoc(ref, stripUndefinedDeep(family));
     const snap = await getDoc(ref);
-    return { ...snap.data(), id: snap.id } as Family;
+    const updated = { ...snap.data(), id: snap.id } as Family;
+    this.cachedFamilies = this.cachedFamilies.map(family => family.id === id ? updated : family);
+    return updated;
   }
 
   static async deleteFamily(id: string): Promise<{ success: boolean }> {

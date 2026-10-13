@@ -88,3 +88,11 @@
 .family-phone{color:#526783;font-variant-numeric:tabular-nums;white-space:nowrap}
 .family-contact-empty{color:#a0a9b6}
 .family-members-section .ant-card-extra>.ant-space{flex-wrap:wrap}
+.family-page-toolbar{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;width:100%}
+.family-page-toolbar{flex-wrap:nowrap;gap:6px}
+.family-toolbar-actions{margin-left:auto}
+.family-mobile-member{display:block;color:#26334a;text-decoration:none;cursor:pointer;background:#fff}
+.family-mobile-member:hover{border-color:#8aa1d0;background:#fbfcff;color:#26334a}
+.family-mobile-member:focus-visible{outline:3px solid #587ac1;outline-offset:3px}
+@media(max-width:400px){.family-toolbar-actions{gap:4px!important}.family-toolbar-actions .ant-btn-icon-only{width:28px}.family-page-toolbar>.ant-btn{padding-inline:9px}}
+.family-members-table .ant-table-tbody>tr{cursor:pointer}

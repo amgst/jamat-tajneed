@@ -594,12 +594,6 @@ const Families: React.FC = () => {
                   <div className="family-card-bottom"><span className="family-card-members"><Users size={15} />{people.length} {people.length === 1 ? 'member' : 'members'}</span><span className={`family-status ${family.isMoved || family.isBList ? 'muted' : ''}`}>{family.isMoved ? 'Moved' : family.isBList ? 'B List' : 'Active'}</span></div>
                   <span className="family-card-preview" dir="auto">{people.slice(0, 3).map(member => member.name).join(' · ')}{people.length > 3 ? ` · +${people.length - 3} more` : ''}</span>
                 </button>
-                <div className="families-card-actions">
-                  <Button icon={<EyeOutlined />} onClick={() => handleViewFamily(family)}>View</Button>
-                  <Button icon={<EditOutlined />} onClick={() => handleEditFamily(family)}>Edit</Button>
-                  {family.isMoved ? <Popconfirm title="Restore this family as active?" onConfirm={() => handleRestoreFamily(family)}><Button>Restore</Button></Popconfirm> : <Button title="Move family" aria-label={`Move ${family.familyName}`} icon={<ReloadOutlined />} onClick={() => { setMovingFamily(family); setMoveModalVisible(true); }} />}
-                  <Popconfirm title="Are you sure you want to delete this family?" onConfirm={() => handleDeleteFamily(family.id)}><Button danger icon={<DeleteOutlined />} aria-label={`Delete ${family.familyName}`} /></Popconfirm>
-                </div>
               </article>;
             })}
           </div>}
