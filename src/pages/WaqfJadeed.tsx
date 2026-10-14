@@ -26,6 +26,8 @@ import {
     Tooltip,
     Popconfirm,
     DatePicker,
+    Dropdown,
+    Grid,
     Segmented,
     Pagination,
     Empty,
@@ -37,7 +39,6 @@ const { Option } = Select;
 const { Panel } = Collapse;
 
 import {
-    UserOutlined,
     SearchOutlined,
     CheckCircleOutlined,
     DeleteOutlined,
@@ -47,7 +48,6 @@ import {
     FilePdfOutlined,
     SaveOutlined,
     ShareAltOutlined,
-    BookOutlined,
     DownloadOutlined,
     WarningOutlined
 } from '@ant-design/icons';
@@ -67,9 +67,12 @@ import { printFamilyReceiptBluetooth } from '../utils/bluetoothPrinter';
 import { LayoutGrid, List as ListIcon, ArrowRight } from 'lucide-react';
 import './Families.css';
 import './WaqfJadeed.css';
+import WaqfJadeedSettings from './WaqfJadeedSettings';
 
 const WaqfJadeed: React.FC = () => {
     const { message } = App.useApp();
+    const screens = Grid.useBreakpoint();
+    const isMobile = !screens.md;
     const [loading, setLoading] = useState(false);
     const [allMembers, setAllMembers] = useState<Member[]>([]);
     const [members, setMembers] = useState<Member[]>([]);
@@ -80,7 +83,7 @@ const WaqfJadeed: React.FC = () => {
     const [prevRecords, setPrevRecords] = useState<WaqfJadeedRecord[]>([]);
     const [prevSpecialRecords, setPrevSpecialRecords] = useState<WaqfJadeedSpecialRecord[]>([]);
 
-    const [selectedYear, setSelectedYear] = useState<number>(2026);
+    const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
     const [searchTerm, setSearchTerm] = useState('');
     const [activeTab, setActiveTab] = useState('families');
     const [memberView, setMemberView] = useState<'cards' | 'list'>('cards');
@@ -91,6 +94,7 @@ const WaqfJadeed: React.FC = () => {
     const [targetAmount, setTargetAmount] = useState<number>(0);
 
     const [familySort, setFamilySort] = useState<'default' | 'zero_promise_first' | 'pending_first'>('pending_first');
+    const effectiveFamilySort = isMobile ? 'pending_first' : familySort;
 
     // Drawer & Edit State
     const [drawerVisible, setDrawerVisible] = useState(false);
@@ -500,7 +504,7 @@ const WaqfJadeed: React.FC = () => {
                  <!-- Markaz Payments Section -->
                  <div style="margin-top: 30px; border: 1px solid #000; padding: 20px; border-radius: 8px; background-color: #fafafa;">
                      <h3 style="margin: 0 0 20px 0; border-bottom: 2px solid #000; padding-bottom: 5px; font-size: 18px;">Markaz Payments & Net Balance (مرکز کو ادائیگی اور نیٹ بیلنس)</h3>
-                     
+
                      <!-- Markaz Summary Stats -->
                      <div style="display: flex; gap: 15px; margin-bottom: 25px;">
                          <div style="flex: 1; border: 1px solid #adc6ff; border-radius: 8px; padding: 12px; background: #f0f5ff;">
@@ -1082,11 +1086,11 @@ const WaqfJadeed: React.FC = () => {
         });
 
         return dataWithPromise.sort((a, b) => {
-            if (familySort === 'zero_promise_first') {
+            if (effectiveFamilySort === 'zero_promise_first') {
                 // If one has 0 promise and other doesn't, put 0 promise first
                 if (a.totalPromise === 0 && b.totalPromise > 0) return -1;
                 if (a.totalPromise > 0 && b.totalPromise === 0) return 1;
-            } else if (familySort === 'pending_first') {
+            } else if (effectiveFamilySort === 'pending_first') {
                 // Pending (promised but not fully paid) at top, no promise in middle, 100% paid at bottom
                 const rank = (f: { totalPromise: number; totalPaid: number }) =>
                     f.totalPromise === 0 ? 1 : f.totalPaid >= f.totalPromise ? 2 : 0;
@@ -1099,7 +1103,7 @@ const WaqfJadeed: React.FC = () => {
             const numB = b.familyNumber || 999999;
             return numA - numB;
         });
-    }, [families, searchTerm, familySort, members, records, specialRecords]);
+    }, [families, searchTerm, effectiveFamilySort, members, records, specialRecords]);
 
     const handleExportFamilyFitranaEid = async () => {
         const rows: { col1: string; col2: string; col3: string; col4: string }[] = [];
@@ -2164,7 +2168,7 @@ const WaqfJadeed: React.FC = () => {
         <strong>اطفال/ناصرات:</strong>
         <span style="display: inline-flex; align-items: center; gap: 4px;"><div style="width: 12px; height: 12px; background-color: #e6f7ff; border: 1px solid #91d5ff;"></div> ≥ 1,000</span>
         <span style="display: inline-flex; align-items: center; gap: 4px;"><div style="width: 12px; height: 12px; background-color: #fff7e6; border: 1px solid #ffd591;"></div> < 1,000</span>
-                                
+
         <strong style="margin-right: 15px;">دیگر:</strong>
         <span style="display: inline-flex; align-items: center; gap: 4px;"><div style="width: 12px; height: 12px; background-color: #f6ffed; border: 1px solid #b7eb8f;"></div> ≥ 5,000</span>
         <span style="display: inline-flex; align-items: center; gap: 4px;"><div style="width: 12px; height: 12px; background-color: #fff1f0; border: 1px solid #ffccc7;"></div> ≥ 2,500</span>
@@ -2485,65 +2489,10 @@ const WaqfJadeed: React.FC = () => {
 
     return (
         <div style={{ margin: 0, padding: '0 8px', width: '100%', maxWidth: '100%', boxSizing: 'border-box', paddingBottom: 80 }} className="waqf-jadeed-container">
-            <header className="families-header"><span className="section-eyebrow">COMMUNITY CONTRIBUTIONS</span><h1>Waqf-e-Jadeed</h1></header>
+            <header className="families-header waqf-page-heading"><h1>Waqf-e-Jadeed</h1><Dropdown trigger={['click']} menu={{ items: Array.from({ length: Math.max(4, new Date().getFullYear() - 2023 + 1) }, (_, index) => ({ key: String(2023 + index), label: String(2023 + index) })), selectedKeys: [String(selectedYear)], onClick: ({ key }) => setSelectedYear(Number(key)) }}><Button aria-label="Choose contribution year">{selectedYear}</Button></Dropdown></header>
             {/* Search Header */}
             <Card className="waqf-toolbar" style={{ marginBottom: 16 }}>
-                <Row gutter={[8, 8]} align="middle">
-                    <Col xs={24} sm={12} md={8}>
-                        <Text type="secondary">Contribution year & records</Text>
-                    </Col>
-                    <Col xs={24} sm={6} md={4}>
-                        <Select
-                            value={selectedYear}
-                            onChange={setSelectedYear}
-                            style={{ width: '100%' }}
-                        >
-                            {Array.from({ length: Math.max(4, new Date().getFullYear() - 2023 + 1) }, (_, index) => 2023 + index).map(y => (
-                                <Option key={y} value={y}>{y}</Option>
-                            ))}
-                        </Select>
-                    </Col>
-                    <Col xs={24} sm={6} md={4}>
-                        <Input
-                            prefix={<SearchOutlined />}
-                            placeholder="Search members or families"
-                            aria-label="Search Waqf-e-Jadeed records"
-                            value={searchTerm}
-                            onChange={e => setSearchTerm(e.target.value)}
-                            allowClear
-                        />
-                    </Col>
-                    <Col xs={24} sm={24} md={8} style={{ textAlign: 'right' }}>
-                        <Space wrap>
-                            {activeTab === 'dashboard' && (
-                                <Button
-                                    icon={<FilePdfOutlined />}
-                                    onClick={handleExportDashboard}
-                                    loading={loading}
-                                >
-                                    Export PDF
-                                </Button>
-                            )}
-                            <Button
-                                type="primary"
-                                icon={<PlusOutlined />}
-                                onClick={() => {
-                                    setEditingMember(null);
-                                    form.resetFields();
-                                    setDrawerVisible(true);
-                                }}
-                            >
-                                Add Member
-                            </Button>
-                            <Button
-                                icon={<BookOutlined />}
-                                onClick={() => setManageBooksModalVisible(true)}
-                            >
-                                Manage Books
-                            </Button>
-                        </Space>
-                    </Col>
-                </Row>
+                <Input className="waqf-main-search" prefix={<SearchOutlined />} placeholder="Search" aria-label="Search members or families" value={searchTerm} onChange={event => setSearchTerm(event.target.value)} allowClear />
                 <Tabs
                     activeKey={activeTab}
                     onChange={setActiveTab}
@@ -2551,11 +2500,11 @@ const WaqfJadeed: React.FC = () => {
                     type="line"
                     items={[
                         { key: 'dashboard', label: 'Dashboard' },
-                        { key: 'families', label: 'Family Wise' },
+                        { key: 'families', label: 'Families' },
                         { key: 'members', label: 'Members' },
-                        { key: 'tanzeem', label: 'Tanzeem Wise' },
+                        { key: 'tanzeem', label: 'Tanzeem' },
                         { key: 'reports', label: 'Reports' },
-                        { key: 'about', label: 'About' }
+                        { key: 'settings', label: 'Settings' }
                     ]}
                 />
 
@@ -2806,60 +2755,25 @@ const WaqfJadeed: React.FC = () => {
                     />}
                 </Card>
             ) : activeTab === 'families' ? (
-                <div className={`family-list waqf-family-${familyView}`}>
-                    <div className="families-view-toolbar"><span className="families-view-label">Family records</span><Segmented value={familyView} onChange={value => setFamilyView(value as 'cards' | 'list')} options={[{ value: 'cards', label: <span className="families-view-option"><LayoutGrid size={16} />Cards</span> }, { value: 'list', label: <span className="families-view-option"><ListIcon size={16} />List</span> }]} /></div>
-                    <Card style={{ marginBottom: 16, background: '#fafafa', border: '1px solid #d9d9d9' }} styles={{ body: { padding: '12px 24px' } }}>
-                        <Row gutter={[48, 16]} align="middle">
-                            <Col>
-                                <Statistic
-                                    title={<Text type="secondary">Total Promised (Filtered)</Text>}
-                                    value={filteredFamilyData.reduce((acc, curr) => acc + curr.totalPromise, 0)}
-                                    prefix="Rs."
-                                    precision={0}
-                                    valueStyle={{ color: '#1890ff', fontWeight: 'bold', fontSize: '20px' }}
-                                />
-                            </Col>
-                            <Col>
-                                <Divider type="vertical" style={{ height: '40px', backgroundColor: '#d9d9d9' }} />
-                            </Col>
-                            <Col>
-                                <Statistic
-                                    title={<Text type="secondary">Total Paid (Filtered)</Text>}
-                                    value={filteredFamilyData.reduce((acc, curr) => acc + (curr.totalPaid || 0), 0)}
-                                    prefix="Rs."
-                                    precision={0}
-                                    valueStyle={{ color: '#52c41a', fontWeight: 'bold', fontSize: '20px' }}
-                                />
-                            </Col>
-                            <Col>
-                                <Divider type="vertical" style={{ height: '40px', backgroundColor: '#d9d9d9' }} />
-                            </Col>
-                            <Col>
-                                <Statistic
-                                    title={<Text type="secondary">Family Count</Text>}
-                                    value={filteredFamilyData.length}
-                                    prefix={<UserOutlined />}
-                                    valueStyle={{ color: '#595959', fontWeight: 'bold', fontSize: '20px' }}
-                                />
-                            </Col>
-                        </Row>
-                    </Card>
+                <div className={`family-list waqf-family-${isMobile ? 'cards' : familyView}`}>
+                    <div className="families-view-toolbar"><span className="families-view-label">View</span><Segmented value={familyView} onChange={value => setFamilyView(value as 'cards' | 'list')} options={[{ value: 'cards', label: <span className="families-view-option"><LayoutGrid size={16} />Cards</span> }, { value: 'list', label: <span className="families-view-option"><ListIcon size={16} />List</span> }]} /></div>
 
-                    <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 16 }}>
+
+                    <div className="waqf-family-filter-toolbar" style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 16 }}>
                         <Space size="middle">
-                            <Text strong>Active Families ({families.filter(f => !f.isMoved).length})</Text>
+                            <Text strong>Families ({families.filter(f => !f.isMoved).length})</Text>
                             <Select
                                 value={familySort}
                                 onChange={setFamilySort}
-                                style={{ width: 220 }}
+                                style={{ width: 160 }}
                                 options={[
-                                    { value: 'default', label: 'Default (By Family #)' },
-                                    { value: 'zero_promise_first', label: 'Zero Promises First' },
-                                    { value: 'pending_first', label: 'Pending First, 100% Last' },
+                                    { value: 'default', label: 'Family number' },
+                                    { value: 'zero_promise_first', label: 'No promise first' },
+                                    { value: 'pending_first', label: 'Pending first' },
                                 ]}
                             />
                         </Space>
-                        <Space>
+                        <Space className="waqf-family-exports-desktop">
                             <Button
                                 icon={<DownloadOutlined />}
                                 onClick={handleExportFamilySummaryPDF}
@@ -2879,6 +2793,7 @@ const WaqfJadeed: React.FC = () => {
                                 Family Fitrana/Eid Export
                             </Button>
                         </Space>
+                        <Dropdown trigger={['click']} menu={{ items: [{ key: 'summary', label: 'Summary PDF' }, { key: 'balance', label: 'Balance PDF' }, { key: 'fitrana', label: 'Fitrana / Eid' }], onClick: ({ key }) => { if (key === 'summary') void handleExportFamilySummaryPDF(); else if (key === 'balance') void handleExportFamiliesBalancePDF(); else void handleExportFamilyFitranaEid(); } }}><Button className="waqf-family-exports-mobile" icon={<DownloadOutlined />}>Export</Button></Dropdown>
                     </div>
                     {loading ? <p>Loading...</p> : (
                         <Collapse
@@ -3358,7 +3273,7 @@ const WaqfJadeed: React.FC = () => {
                 />
             ) : activeTab === 'dashboard' ? (
                 <div className="dashboard-view">
-                    <div className="waqf-dashboard-heading"><div><span className="section-eyebrow">COLLECTION OVERVIEW</span><h2>{selectedYear} Dashboard</h2></div><Space wrap><Button icon={<FilePdfOutlined />} onClick={handleExportDashboard} loading={loading}>Export summary</Button><Button onClick={() => setActiveTab('families')}>View families</Button></Space></div>
+                    <div className="waqf-dashboard-heading"><Space wrap><Button icon={<FilePdfOutlined />} onClick={handleExportDashboard} loading={loading}>Export summary</Button><Button onClick={() => setActiveTab('families')}>View families</Button></Space></div>
                     <div className="waqf-dashboard-summary">
                         <Card><Statistic title="Total promised" value={stats.totalPromise} prefix="Rs." precision={0} /><span className="waqf-dashboard-caption">All categories including Nagar Parkar</span></Card>
                         <Card><Statistic title="Total collected" value={stats.totalPaid} prefix="Rs." precision={0} valueStyle={{ color: '#508b73' }} /><span className="waqf-dashboard-caption">{stats.percent.toFixed(1)}% of promises received</span></Card>
@@ -3945,222 +3860,8 @@ const WaqfJadeed: React.FC = () => {
                         />
                     </div>
                 </div>
-            ) : activeTab === 'about' ? (
-                <div className="about-view">
-                    <Card>
-                        <Title level={2} style={{ marginBottom: 24 }}>About Waqf-e-Jadeed System</Title>
-
-                        <div style={{ marginBottom: 32 }}>
-                            <Title level={3} style={{ marginBottom: 16 }}>تنظیم کی تقسیم (Tanzeem Division)</Title>
-                            <Card style={{ marginBottom: 16 }}>
-                                <Title level={4} style={{ marginBottom: 12 }}>How Tanzeems are Divided:</Title>
-                                <div style={{ lineHeight: 1.8, fontSize: '14px' }}>
-                                    <p><strong>Members are automatically assigned to tanzeems based on their age and gender:</strong></p>
-                                    <ul style={{ paddingLeft: 20 }}>
-                                        <li><strong>Boys:</strong>
-                                            <ul style={{ paddingLeft: 20, marginTop: 8 }}>
-                                                <li>Under 7 years → <strong>اطفال- صف اول</strong> (Saf-e-Awal)</li>
-                                                <li>7 to 15 years → <strong>اطفال</strong> (Atfal)</li>
-                                                <li>15 to 40 years → <strong>خدام الحمدیہ</strong> (Khuddam)</li>
-                                                <li>40+ years → <strong>انصار اللہ</strong> (Ansar)</li>
-                                            </ul>
-                                        </li>
-                                        <li style={{ marginTop: 12 }}><strong>Girls:</strong>
-                                            <ul style={{ paddingLeft: 20, marginTop: 8 }}>
-                                                <li>Under 7 years → <strong>اطفال- صف اول (Girls)</strong> (Saf-e-Awal Girls)</li>
-                                                <li>7 to 15 years → <strong>ناصرات</strong> (Nasirat)</li>
-                                                <li>15+ years → <strong>لجنہ</strong> (Lajna)</li>
-                                            </ul>
-                                        </li>
-                                    </ul>
-                                    <p style={{ marginTop: 16, fontStyle: 'italic', color: '#666' }}>
-                                        Note: Age is calculated from the member's date of birth. The system automatically updates tanzeem assignments when members reach age thresholds.
-                                    </p>
-                                </div>
-                            </Card>
-                        </div>
-
-                        <div style={{ marginBottom: 32 }}>
-                            <Title level={3} style={{ marginBottom: 16 }}>کل جمع (Total Calculations)</Title>
-
-                            <Card style={{ marginBottom: 16 }}>
-                                <Title level={4} style={{ marginBottom: 12 }}>Total Promise Calculation:</Title>
-                                <div style={{ lineHeight: 1.8, fontSize: '14px' }}>
-                                    <p>The <strong>Total Promise</strong> includes:</p>
-                                    <ul style={{ paddingLeft: 20 }}>
-                                        <li>Promise Amount (وعدہ شدہ رقم) from all members</li>
-                                        <li>Nagar Parkar Amount (نگرپارکر) from all members</li>
-                                        <li>Special records (خصوصی ریکارڈ) including deceased members</li>
-                                    </ul>
-                                    <p style={{ marginTop: 12, fontFamily: 'monospace', backgroundColor: '#f5f5f5', padding: '8px', borderRadius: '4px' }}>
-                                        Total Promise = Σ(Promise Amount + Nagar Parkar Amount) for all members + Special records
-                                    </p>
-                                </div>
-                            </Card>
-
-                            <Card style={{ marginBottom: 16 }}>
-                                <Title level={4} style={{ marginBottom: 12 }}>Total Paid Calculation:</Title>
-                                <div style={{ lineHeight: 1.8, fontSize: '14px' }}>
-                                    <p>The <strong>Total Paid</strong> includes:</p>
-                                    <ul style={{ paddingLeft: 20 }}>
-                                        <li>All payment amounts (ادا شدہ رقم) recorded for members</li>
-                                        <li>Payments from special records</li>
-                                        <li>Multiple payments per member are summed together</li>
-                                    </ul>
-                                    <p style={{ marginTop: 12, fontFamily: 'monospace', backgroundColor: '#f5f5f5', padding: '8px', borderRadius: '4px' }}>
-                                        Total Paid = Σ(All Payment Amounts) for all members + Special records
-                                    </p>
-                                </div>
-                            </Card>
-
-                            <Card style={{ marginBottom: 16 }}>
-                                <Title level={4} style={{ marginBottom: 12 }}>Collection Progress:</Title>
-                                <div style={{ lineHeight: 1.8, fontSize: '14px' }}>
-                                    <p>The progress percentage is calculated as:</p>
-                                    <p style={{ marginTop: 12, fontFamily: 'monospace', backgroundColor: '#f5f5f5', padding: '8px', borderRadius: '4px' }}>
-                                        Progress % = (Total Paid / Total Promise) × 100
-                                    </p>
-                                    <p style={{ marginTop: 12 }}>This shows what percentage of the total promise has been collected.</p>
-                                </div>
-                            </Card>
-                        </div>
-
-                        <div style={{ marginBottom: 32 }}>
-                            <Title level={3} style={{ marginBottom: 16 }}>Target Section Calculations</Title>
-
-                            <Card style={{ marginBottom: 16 }}>
-                                <Title level={4} style={{ marginBottom: 12 }}>Total Received:</Title>
-                                <div style={{ lineHeight: 1.8, fontSize: '14px' }}>
-                                    <p>The <strong>Total Received</strong> in the Target section includes paid amounts from:</p>
-                                    <ul style={{ paddingLeft: 20 }}>
-                                        <li><strong>انصار اللہ</strong> (Ansar) - Men 40+ years</li>
-                                        <li><strong>لجنہ</strong> (Lajna) - Women 15+ years</li>
-                                        <li><strong>خدام الحمدیہ</strong> (Khuddam) - Men 15-40 years</li>
-                                        <li><strong>All Deceased Members</strong> (متوفی اراکین) - Both male and female</li>
-                                    </ul>
-                                    <p style={{ marginTop: 12, fontFamily: 'monospace', backgroundColor: '#f5f5f5', padding: '8px', borderRadius: '4px' }}>
-                                        Total Received = Ansar Paid + Lajna Paid + Khuddam Paid + Total Deceased Paid
-                                    </p>
-                                </div>
-                            </Card>
-
-                            <Card style={{ marginBottom: 16 }}>
-                                <Title level={4} style={{ marginBottom: 12 }}>دفتر اطفال (Dafar Atfal):</Title>
-                                <div style={{ lineHeight: 1.8, fontSize: '14px' }}>
-                                    <p>The <strong>دفتر اطفال</strong> total includes paid amounts from:</p>
-                                    <ul style={{ paddingLeft: 20 }}>
-                                        <li><strong>اطفال</strong> (Atfal) - Boys 7-15 years</li>
-                                        <li><strong>اطفال- صف اول</strong> (Saf-e-Awal) - Boys under 7 years</li>
-                                        <li><strong>اطفال- صف اول (Girls)</strong> (Saf-e-Awal Girls) - Girls under 7 years</li>
-                                        <li><strong>ناصرات</strong> (Nasirat) - Girls 7-15 years</li>
-                                    </ul>
-                                    <p style={{ marginTop: 12, fontFamily: 'monospace', backgroundColor: '#f5f5f5', padding: '8px', borderRadius: '4px' }}>
-                                        Dafar Atfal Total = Atfal Paid + Saf-e-Awal Paid + Saf-e-Awal Girls Paid + Nasirat Paid
-                                    </p>
-                                </div>
-                            </Card>
-
-                            <Card style={{ marginBottom: 16 }}>
-                                <Title level={4} style={{ marginBottom: 12 }}>Remaining from Target:</Title>
-                                <div style={{ lineHeight: 1.8, fontSize: '14px' }}>
-                                    <p>This shows how much remains to be collected to reach the target:</p>
-                                    <p style={{ marginTop: 12, fontFamily: 'monospace', backgroundColor: '#f5f5f5', padding: '8px', borderRadius: '4px' }}>
-                                        Remaining = Target Amount - Total Received
-                                    </p>
-                                    <p style={{ marginTop: 12 }}>
-                                        <strong>Note:</strong> The remaining amount is displayed in green if positive (target not yet reached)
-                                        or red if negative (target exceeded).
-                                    </p>
-                                </div>
-                            </Card>
-                        </div>
-
-                        <div style={{ marginBottom: 32 }}>
-                            <Title level={3} style={{ marginBottom: 16 }}>Special Records</Title>
-
-                            <Card style={{ marginBottom: 16 }}>
-                                <Title level={4} style={{ marginBottom: 12 }}>Deceased Members (متوفی اراکین):</Title>
-                                <div style={{ lineHeight: 1.8, fontSize: '14px' }}>
-                                    <p>Deceased members are tracked separately and included in:</p>
-                                    <ul style={{ paddingLeft: 20 }}>
-                                        <li>Total Promise calculations</li>
-                                        <li>Total Paid calculations</li>
-                                        <li>Total Received in Target section</li>
-                                    </ul>
-                                    <p style={{ marginTop: 12 }}>They are displayed separately in the Dashboard with male and female breakdowns.</p>
-                                </div>
-                            </Card>
-
-                            <Card style={{ marginBottom: 16 }}>
-                                <Title level={4} style={{ marginBottom: 12 }}>اضافی (Additional Records):</Title>
-                                <div style={{ lineHeight: 1.8, fontSize: '14px' }}>
-                                    <p>Special records marked as "اضافی" (Additional) are included in:</p>
-                                    <ul style={{ paddingLeft: 20 }}>
-                                        <li>Total Promise calculations</li>
-                                        <li>Total Paid calculations</li>
-                                    </ul>
-                                    <p style={{ marginTop: 12 }}>These are displayed separately in the Dashboard.</p>
-                                </div>
-                            </Card>
-                        </div>
-
-                        <div style={{ marginBottom: 32 }}>
-                            <Title level={3} style={{ marginBottom: 16 }}>Tanzeem Wise Statistics</Title>
-
-                            <Card style={{ marginBottom: 16 }}>
-                                <Title level={4} style={{ marginBottom: 12 }}>How Tanzeem Stats are Calculated:</Title>
-                                <div style={{ lineHeight: 1.8, fontSize: '14px' }}>
-                                    <p>For each tanzeem, the system calculates:</p>
-                                    <ul style={{ paddingLeft: 20 }}>
-                                        <li><strong>Promise:</strong> Sum of (Promise Amount + Nagar Parkar Amount) for all members in that tanzeem</li>
-                                        <li><strong>Paid:</strong> Sum of all payment amounts for members in that tanzeem</li>
-                                        <li><strong>Count:</strong> Total number of members in that tanzeem</li>
-                                        <li><strong>Percent:</strong> (Paid / Promise) × 100</li>
-                                    </ul>
-                                    <p style={{ marginTop: 12 }}>Tanzeem statistics are displayed in both the "Tanzeem Wise" tab and the "Dashboard" tab.</p>
-                                </div>
-                            </Card>
-                        </div>
-
-                        <div style={{ marginBottom: 32 }}>
-                            <Title level={3} style={{ marginBottom: 16 }}>Family Wise Calculations</Title>
-
-                            <Card style={{ marginBottom: 16 }}>
-                                <Title level={4} style={{ marginBottom: 12 }}>Family Totals:</Title>
-                                <div style={{ lineHeight: 1.8, fontSize: '14px' }}>
-                                    <p>Each family's totals include:</p>
-                                    <ul style={{ paddingLeft: 20 }}>
-                                        <li>Promise amounts from all family members (excluding deceased)</li>
-                                        <li>Promise amounts from special records linked to the family</li>
-                                        <li>Paid amounts from all family members</li>
-                                        <li>Paid amounts from special records</li>
-                                    </ul>
-                                    <p style={{ marginTop: 12, fontFamily: 'monospace', backgroundColor: '#f5f5f5', padding: '8px', borderRadius: '4px' }}>
-                                        Family Total Promise = Σ(Member Promises) + Σ(Special Record Promises)
-                                    </p>
-                                    <p style={{ marginTop: 8, fontFamily: 'monospace', backgroundColor: '#f5f5f5', padding: '8px', borderRadius: '4px' }}>
-                                        Family Total Paid = Σ(Member Payments) + Σ(Special Record Payments)
-                                    </p>
-                                </div>
-                            </Card>
-                        </div>
-
-                        <div style={{ marginBottom: 16 }}>
-                            <Card>
-                                <Title level={4} style={{ marginBottom: 12 }}>Important Notes:</Title>
-                                <div style={{ lineHeight: 1.8, fontSize: '14px' }}>
-                                    <ul style={{ paddingLeft: 20 }}>
-                                        <li>All amounts are displayed in Pakistani Rupees (Rs.)</li>
-                                        <li>Percentages are rounded to the nearest whole number</li>
-                                        <li>Target amounts are saved per year and persist across sessions</li>
-                                        <li>Deceased members are excluded from family member lists but included in totals</li>
-                                        <li>The system automatically updates tanzeem assignments based on current age</li>
-                                    </ul>
-                                </div>
-                            </Card>
-                        </div>
-                    </Card>
-                </div>
+            ) : activeTab === 'settings' ? (
+                <WaqfJadeedSettings onAddMember={() => { setEditingMember(null); setEditingSpecial(null); form.resetFields(); setDrawerVisible(true); }} onManageBooks={() => setManageBooksModalVisible(true)} />
             ) : null
             }
 

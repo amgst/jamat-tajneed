@@ -22,7 +22,7 @@ import {
 
 
     LineChartOutlined,
-    PieChartOutlined,
+
     BookOutlined,
     DollarOutlined,
     FilePdfOutlined,
@@ -62,7 +62,7 @@ const WaqfReports: React.FC<WaqfReportsProps> = ({
     families = []
 }) => {
     const { message } = App.useApp();
-    const [activeReport, setActiveReport] = useState('halqa');
+    const [activeReport, setActiveReport] = useState('summary');
     const [selectedBook, setSelectedBook] = useState<string | null>(null);
     const [fitranaOverrides, setFitranaOverrides] = useState<Record<string, { fitrana: number; eidFund: number; sadqa: number }>>({});
     const [fitranaExtraRows, setFitranaExtraRows] = useState<FitranaExtra[]>([]);
@@ -129,25 +129,6 @@ const WaqfReports: React.FC<WaqfReportsProps> = ({
             setSelectedBook(uniqueBooks[0]);
         }
     }, [uniqueBooks, selectedBook]);
-
-    const halqaStats = useMemo(() => {
-        const stats: Record<string, { promised: number; paid: number; count: number }> = {};
-
-        // Regular members
-        records.forEach(r => {
-            const halqa = r.member.halqa || 'No Halqa';
-            if (!stats[halqa]) stats[halqa] = { promised: 0, paid: 0, count: 0 };
-            stats[halqa].promised += r.promise;
-            stats[halqa].paid += r.paid;
-            stats[halqa].count++;
-        });
-
-        return Object.entries(stats).map(([name, data]) => ({
-            name,
-            ...data,
-            percent: data.promised > 0 ? Math.round((data.paid / data.promised) * 100) : 0
-        })).sort((a, b) => b.percent - a.percent);
-    }, [records]);
 
     const tanzeemStats = useMemo(() => {
         const stats: Record<string, { promised: number; paid: number; count: number }> = {};
@@ -281,15 +262,7 @@ const WaqfReports: React.FC<WaqfReportsProps> = ({
                 paid: t.paid,
                 percent: t.percent
             })),
-            ...halqaStats.map(h => ({
-                key: `halqa-${h.name}`,
-                section: 'Halqa',
-                name: h.name,
-                count: h.count,
-                promised: h.promised,
-                paid: h.paid,
-                percent: h.percent
-            }))
+
         ];
 
         return {
@@ -300,7 +273,7 @@ const WaqfReports: React.FC<WaqfReportsProps> = ({
             participants,
             percent: totalPromised > 0 ? Math.round((totalPaid / totalPromised) * 100) : 0
         };
-    }, [records, specialRecords, tanzeemStats, halqaStats]);
+    }, [records, specialRecords, tanzeemStats]);
 
     const lajnaQuarterlyStats = useMemo(() => {
         const lajnaMembers = members.filter(m => m.tanzeem === 'lajna');
@@ -498,23 +471,6 @@ const WaqfReports: React.FC<WaqfReportsProps> = ({
 
     const exportReport = (data: any[], filename: string) => {
         exportToCSV(data, `${filename}_${selectedYear}.csv`);
-    };
-
-    const handleExportHalqaPDF = async () => {
-        const rows = halqaStats.map(r => ({
-            halqa: r.name,
-            members: r.count,
-            promised: r.promised,
-            paid: r.paid,
-            progress: `${r.percent}%`
-        }));
-        await exportToPDF(
-            rows,
-            ['halqa', 'members', 'promised', 'paid', 'progress'],
-            `halqa_performance_${selectedYear}`,
-            `Waqf-e-Jadeed - Halqa Performance - ${selectedYear}`
-        );
-        message.success('Halqa PDF exported');
     };
 
     const handleExportTanzeemSummaryPDF = async () => {
@@ -1077,28 +1033,6 @@ const WaqfReports: React.FC<WaqfReportsProps> = ({
                                     pagination={false}
                                     rowKey="receiptNo"
                                     scroll={{ y: 500, x: 600 }}
-                                />
-                            </div>
-                        )
-                    },
-                    {
-                        key: 'halqa',
-                        label: <span><PieChartOutlined /> Halqa Performance</span>,
-                        children: (
-                            <div>
-                                <Row justify="space-between" align="middle" style={{ marginBottom: 16 }}>
-                                    <Title level={5} style={{ margin: 0 }}>Halqa Collection Summary</Title>
-                                    <Space>
-                                        <Button icon={<DownloadOutlined />} onClick={() => exportReport(halqaStats, 'halqa_report')}>Export CSV</Button>
-                                        <Button icon={<FilePdfOutlined />} onClick={handleExportHalqaPDF}>Export PDF</Button>
-                                    </Space>
-                                </Row>
-                                <Table
-                                    dataSource={halqaStats}
-                                    columns={summaryColumns}
-                                    pagination={false}
-                                    rowKey="name"
-                                    scroll={{ x: 600 }}
                                 />
                             </div>
                         )
