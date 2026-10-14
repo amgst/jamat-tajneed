@@ -2492,7 +2492,7 @@ const WaqfJadeed: React.FC = () => {
                     <Col xs={24} sm={12} md={8}>
                         <Text type="secondary">Contribution year & records</Text>
                     </Col>
-                    <Col xs={12} sm={6} md={4}>
+                    <Col xs={24} sm={6} md={4}>
                         <Select
                             value={selectedYear}
                             onChange={setSelectedYear}
@@ -2503,7 +2503,7 @@ const WaqfJadeed: React.FC = () => {
                             ))}
                         </Select>
                     </Col>
-                    <Col xs={12} sm={6} md={4}>
+                    <Col xs={24} sm={6} md={4}>
                         <Input
                             prefix={<SearchOutlined />}
                             placeholder="Search members or families"

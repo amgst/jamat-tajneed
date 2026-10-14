@@ -96,3 +96,5 @@
 .family-mobile-member:focus-visible{outline:3px solid #587ac1;outline-offset:3px}
 @media(max-width:400px){.family-toolbar-actions{gap:4px!important}.family-toolbar-actions .ant-btn-icon-only{width:28px}.family-page-toolbar>.ant-btn{padding-inline:9px}}
 .family-members-table .ant-table-tbody>tr{cursor:pointer}
+.family-mobile-member-heading .family-member-demographics{font-size:11px;line-height:1.6;white-space:nowrap}
+.family-mobile-member-meta:empty{display:none}

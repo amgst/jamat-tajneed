@@ -105,3 +105,56 @@
 .receipt-book-actions{display:flex;flex-wrap:wrap;gap:6px;padding-top:12px;border-top:1px solid #edf0f4;margin-top:auto}
 @media(min-width:600px){.receipt-book-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 .waqf-jadeed-container .ant-table-tbody .ant-btn-icon-only{border:0!important;box-shadow:none!important;background:transparent!important}
+
+/* Phone layout for every Waqf-e-Jadeed view and its overlays. */
+.waqf-jadeed-container,.waqf-jadeed-container .ant-card,.waqf-jadeed-container .ant-tabs,.waqf-jadeed-container .ant-collapse,.waqf-finance-overlay .ant-drawer-body{min-width:0}
+.waqf-finance-overlay .ant-table-content{overflow-x:auto!important;overscroll-behavior-x:contain}
+@media(max-width:767px){
+ .waqf-jadeed-container .families-header{padding:8px 0 20px}
+ .waqf-jadeed-container .families-header h1{font-size:28px;line-height:1.3}
+ .waqf-toolbar>.ant-card-body>.ant-row>.ant-col{min-width:0}
+ .waqf-toolbar .ant-select,.waqf-toolbar .ant-input-affix-wrapper{width:100%;min-height:44px}
+ .waqf-toolbar>.ant-card-body>.ant-row>.ant-col:last-child>.ant-space{display:flex;width:100%;justify-content:flex-start}
+ .waqf-toolbar>.ant-card-body>.ant-row>.ant-col:last-child .ant-space-item{flex:1}
+ .waqf-toolbar>.ant-card-body>.ant-row>.ant-col:last-child .ant-btn{width:100%}
+ .waqf-jadeed-container .ant-btn,.waqf-finance-overlay .ant-btn{min-height:44px}
+ .waqf-jadeed-container .ant-btn-icon-only,.waqf-finance-overlay .ant-btn-icon-only{min-width:44px}
+ .waqf-jadeed-container .ant-input,.waqf-jadeed-container .ant-input-number-input,.waqf-finance-overlay input{font-size:16px!important}
+ .waqf-jadeed-container .ant-tabs-nav{max-width:100%;margin-bottom:14px}
+ .waqf-jadeed-container .ant-tabs-tab{min-height:44px;padding:10px 0;font-size:12px}
+ .waqf-jadeed-container .family-list>div:not(.ant-collapse):not(.ant-card),.waqf-jadeed-container .tanzeem-list>div:not(.ant-collapse):not(.ant-card){align-items:stretch!important;flex-direction:column;gap:12px}
+ .waqf-jadeed-container .family-list .ant-space,.waqf-jadeed-container .tanzeem-list .ant-space{justify-content:flex-start}
+ .waqf-jadeed-container .family-list>.ant-card>.ant-card-body>.ant-row{margin-inline:0!important}
+ .waqf-jadeed-container .family-list>.ant-card>.ant-card-body>.ant-row>.ant-col{padding-inline:0!important;flex:1 1 130px;max-width:100%}
+ .waqf-jadeed-container .family-list>.ant-card .ant-col:has(>.ant-divider-vertical){display:none}
+ .waqf-jadeed-container .family-list>.ant-card .ant-statistic-content{font-size:20px!important}
+ .waqf-jadeed-container .ant-table-wrapper{max-width:100%;min-width:0}
+ .waqf-jadeed-container .ant-table-content{overflow-x:auto!important;overscroll-behavior-x:contain}
+ .waqf-jadeed-container .ant-pagination{flex-wrap:wrap;row-gap:8px}
+ .waqf-member-open{padding:16px}
+ .waqf-member-name strong{font-size:16px}
+ .waqf-card-amounts{gap:6px}
+ .waqf-card-amounts strong{font-size:12px;line-height:1.6}
+ .waqf-family-card-footer>.ant-space{gap:4px!important}
+ .waqf-jadeed-container .dashboard-view .ant-statistic-content{overflow-wrap:anywhere}
+ .waqf-jadeed-container .about-view .ant-typography{overflow-wrap:anywhere}
+ .waqf-finance-overlay .ant-drawer-content-wrapper{width:100vw!important;max-width:100vw!important}
+ .waqf-finance-overlay .ant-drawer-header{padding:14px;align-items:flex-start;flex-wrap:wrap;gap:10px}
+ .waqf-finance-overlay .ant-drawer-extra{margin-inline-start:0;width:100%}
+ .waqf-finance-overlay .ant-drawer-extra>.ant-space{display:flex;justify-content:flex-end;width:100%;gap:6px!important}
+ .waqf-finance-overlay .ant-drawer-body{padding:14px}
+ .waqf-finance-overlay .ant-form .ant-row>.ant-col{flex:0 0 100%!important;max-width:100%!important}
+ .waqf-finance-overlay .ant-form-item{margin-bottom:16px}
+ .waqf-finance-overlay .ant-form-item-control-input-content>div[style*="justify-content"]{flex-wrap:wrap}
+ .waqf-finance-overlay .ant-modal-content{display:flex;flex-direction:column;max-height:calc(100dvh - 24px)}
+ .waqf-finance-overlay .ant-modal-header,.waqf-finance-overlay .ant-modal-footer{flex-shrink:0}
+ .waqf-finance-overlay .ant-modal-body{max-height:none;min-height:0;overflow-y:auto}
+ .waqf-finance-overlay .ant-modal-footer{padding-bottom:env(safe-area-inset-bottom)}
+ .waqf-finance-overlay .ant-radio-group{display:flex;flex-direction:column;gap:8px}
+ .waqf-finance-overlay .ant-radio-button-wrapper{width:100%!important;min-height:44px;white-space:normal;height:auto;line-height:1.8;padding:10px}
+ .waqf-finance-overlay .ant-radio-button-wrapper:first-child,.waqf-finance-overlay .ant-radio-button-wrapper:last-child{border-radius:9px}
+ .waqf-finance-overlay .ant-radio-button-wrapper:not(:first-child)::before{display:none}
+ .receipt-books-summary{flex-wrap:wrap}
+ .receipt-book-actions{gap:8px}
+}
+@media(max-width:767px){.waqf-members-panel>.ant-card-body>div:first-child{flex-wrap:wrap;gap:12px}.waqf-finance-overlay .ant-form .ant-col[style*="justify-content"]{flex-wrap:wrap;gap:8px}}

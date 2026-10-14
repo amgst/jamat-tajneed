@@ -550,8 +550,8 @@ const FamilyDetails: React.FC = () => {
     if (!people.length) return <Empty description="No members in this group" />;
     if (screens.md) return <Table className="family-members-table" columns={columns.filter(column => column.key !== 'actions')} dataSource={people} onRow={member => ({ onClick: event => { if ((event.target as HTMLElement).closest('a,button')) return; openMember(member.id, { fromFamilyId: id }); } })} rowKey="id" pagination={false} size="small" scroll={{ x: 700 }} />;
     return <div className="family-mobile-members">{people.map(member => <a className="family-mobile-member" key={member.id} href={`/members/${encodeURIComponent(member.id)}`} onClick={event => { event.preventDefault(); openMember(member.id, { fromFamilyId: id }); }}>
-      <div className="family-mobile-member-heading"><div><strong className="family-member-name" dir="auto">{member.name}</strong><span>{member.age} years · {member.gender === 'male' ? 'Male' : 'Female'}</span></div>{member.id === family.headId && <Tag color="gold">Head</Tag>}</div>
-      <div className="family-mobile-member-meta"><span>{getTanzeemDisplayName(member.tanzeem)}</span>{getRecordedPhone(member.phone) && <span>{getRecordedPhone(member.phone)}</span>}{member.isDeceased && <Tag>Deceased</Tag>}{member.isBList && <Tag>B List</Tag>}{member.isMoved && <Tag color="orange">Moved{member.movedTo ? ` · ${member.movedTo}` : ''}</Tag>}</div>
+      <div className="family-mobile-member-heading"><div><strong className="family-member-name" dir="auto">{member.name}</strong><span className="family-member-demographics">{member.age} yrs · {member.gender === 'male' ? 'Male' : 'Female'} · {getTanzeemDisplayName(member.tanzeem)}</span></div>{member.id === family.headId && <Tag color="gold">Head</Tag>}</div>
+      <div className="family-mobile-member-meta">{getRecordedPhone(member.phone) && <span>{getRecordedPhone(member.phone)}</span>}{member.isDeceased && <Tag>Deceased</Tag>}{member.isBList && <Tag>B List</Tag>}{member.isMoved && <Tag color="orange">Moved{member.movedTo ? ` · ${member.movedTo}` : ''}</Tag>}</div>
     </a>)}</div>;
   };
 
