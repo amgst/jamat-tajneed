@@ -1,11 +1,13 @@
 import useMemberNavigation from '../hooks/useMemberNavigation';
 import { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
-import { Alert, Button, Empty, Select, Spin, Card, Input, Segmented, Table, Pagination } from 'antd';
-import { Search, ArrowRight, Users, House, X, MapPin, RefreshCw, LayoutGrid, List } from 'lucide-react';
+import { Alert, Button, Empty, Select, Spin, Card, Input, Segmented, Table, Pagination, Modal, message } from 'antd';
+import { Search, ArrowRight, Users, House, X, MapPin, RefreshCw, LayoutGrid, List, Plus } from 'lucide-react';
 import { ApiService } from '../services/apiService';
 import type { Family, Member, Tanzeem } from '../types';
-import { getTanzeemDisplayName } from '../utils/helpers';
+import { getTanzeemDisplayName, calculateAge, determineTanzeem } from '../utils/helpers';
+import MemberForm from '../components/MemberForm';
+import { sanitizeMemberData } from '../utils/validation';
 import './PeopleHome.css';
 import './Families.css';
 
@@ -30,10 +32,21 @@ export default function PeopleHome() {
   const [sortOrder, setSortOrder] = useState('ascend');
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
+  const [addingMember, setAddingMember] = useState(false);
+  const [savingMember, setSavingMember] = useState(false);
+  const addMember = async (values: any) => {
+    setSavingMember(true);
+    try {
+      const dateOfBirth = values.dateOfBirth.format('YYYY-MM-DD');
+      const age = calculateAge(dateOfBirth);
+      await ApiService.createMember(sanitizeMemberData({ ...values, dateOfBirth, dateOfDeath: values.dateOfDeath?.format('YYYY-MM-DD'), age, tanzeem: determineTanzeem(age, values.gender) }));
+      setAddingMember(false); message.success('Member added'); await load();
+    } catch { message.error('Unable to add member. Please try again.'); }
+    finally { setSavingMember(false); }
+  };
   const group = params.get('tanzeem') || 'all';
   const status = params.get('status') || 'all';
   const membership = params.get('membership') || 'all';
-  const setMembership = (value: string) => setParams(previous => { const next = new URLSearchParams(previous); next.set('membership', value); return next; });
   const setGroup = (value: string) => setParams(previous => { const next = new URLSearchParams(previous); next.set('tanzeem', value); return next; });
   const setStatus = (value: string) => setParams(previous => { const next = new URLSearchParams(previous); next.set('status', value); return next; });
   const [loading, setLoading] = useState(true);
@@ -85,15 +98,15 @@ export default function PeopleHome() {
   }, [members, query, memberQuery, directory, group, status, membership, sortField, sortOrder]);
   const showResults = directory || !!query.trim() || group !== 'all' || status !== 'all' || membership !== 'all';
   if (directory) return <div className="families-page members-directory">
-    <header className="families-header"><div><span className="section-eyebrow">YOUR COMMUNITY DIRECTORY</span><h1>Members</h1></div></header>
-    <Card className="families-panel" title={`${results.length} of ${members.length} members`} extra={<Button icon={<RefreshCw size={15} />} onClick={load} loading={loading}>Refresh</Button>}>
+    <header className="families-header families-page-heading"><div className="families-title-line"><h1>Members</h1><span className="families-total">{members.length}</span></div><Button type="primary" icon={<Plus size={16} />} onClick={() => setAddingMember(true)}>Add Member</Button></header>
+    <Card className="families-panel">
       <div className="members-directory-controls">
         <Input aria-label="Search members" prefix={<Search size={16} />} placeholder="Search name, phone or membership number" allowClear value={memberQuery} onChange={event => setMemberQuery(event.target.value)} />
         <Select aria-label="Sort members" value={sortField} onChange={setSortField} options={[{ value: 'name', label: 'Member name' }, { value: 'age', label: 'Age' }]} />
         <Select aria-label="Sort order" value={sortOrder} onChange={setSortOrder} options={[{ value: 'ascend', label: 'Ascending' }, { value: 'descend', label: 'Descending' }]} />
       </div>
       <div className="members-directory-controls">
-        <Select aria-label="Filter by membership" value={membership} onChange={setMembership} options={[{ value: 'all', label: 'All memberships' }, ...memberships]} />
+
         <Select aria-label="Filter by Tanzeem" value={group} onChange={setGroup} options={[{ value: 'all', label: 'All Tanzeems' }, ...tanzeems.map(value => ({ value, label: getTanzeemDisplayName(value) }))]} />
         <Select aria-label="Filter by record status" value={status} onChange={setStatus} options={[{ value: 'all', label: 'All records' }, ...recordLists]} />
       </div>
@@ -116,6 +129,7 @@ export default function PeopleHome() {
         {results.length > 0 && <Pagination className="families-pagination" current={page} pageSize={pageSize} total={results.length} responsive showSizeChanger pageSizeOptions={[10, 20, 50, 100]} showTotal={(total, range) => `${range[0]}–${range[1]} of ${total} members`} onChange={(nextPage, size) => { setPage(size !== pageSize ? 1 : nextPage); setPageSize(size); }} />}
       </Spin>}
     </Card>
+    <Modal className="member-edit-modal" title="Add Member" open={addingMember} footer={null} onCancel={() => { if (!savingMember) setAddingMember(false); }} destroyOnHidden width={700}><MemberForm onFinish={addMember} isSaving={savingMember} existingMembers={members} showCancel onCancel={() => setAddingMember(false)} submitText="Add Member" /></Modal>
   </div>;
   return <div className={`people-app ${directory || showResults ? 'directory-layout' : ''}`}>
     <section className={`people-hero ${showResults ? 'compact' : ''}`}>
@@ -174,7 +188,7 @@ export default function PeopleHome() {
       </section>}
       {showResults && !searchingFamilies && <section id="people-results" className="people-results">
         <div className="results-heading"><div><span className="section-eyebrow">{[group === 'all' ? '' : getTanzeemDisplayName(group), memberships.find(item => item.value === membership)?.label].filter(Boolean).join(' · ').toUpperCase() || 'PERSON DIRECTORY'}</span><h2>{results.length.toLocaleString()} {results.length === 1 ? 'person' : 'people'}</h2></div><Button type="text" aria-label="Refresh directory" icon={<RefreshCw size={17} />} onClick={load} /></div>
-        <div className="people-filters"><Select aria-label="Filter by membership" value={membership} onChange={setMembership} options={[{ value: 'all', label: 'All memberships' }, ...memberships]} /><Select aria-label="Filter by Tanzeem" value={group} onChange={setGroup} options={[{ value: 'all', label: 'All Tanzeems' }, ...Array.from(new Set(members.map(m => m.tanzeem))).map(value => ({ value, label: getTanzeemDisplayName(value) }))]} /><Select aria-label="Filter by record status" value={status} onChange={setStatus} options={[{ value: 'all', label: 'All records' }, ...recordLists]} /></div>
+        <div className="people-filters"><Select aria-label="Filter by Tanzeem" value={group} onChange={setGroup} options={[{ value: 'all', label: 'All Tanzeems' }, ...Array.from(new Set(members.map(m => m.tanzeem))).map(value => ({ value, label: getTanzeemDisplayName(value) }))]} /><Select aria-label="Filter by record status" value={status} onChange={setStatus} options={[{ value: 'all', label: 'All records' }, ...recordLists]} /></div>
         {results.length === 0 ? <Empty description="No people found. Try a different name or clear the filters." /> : <div className="people-list">{results.slice(0, limit).map(member => <button className="person-card" key={member.id} onClick={() => openMember(member.id)}>
           <div className="person-copy"><div className="person-name-line"><strong>{member.name}</strong>{Number.isFinite(member.age) && <span className="person-age">{member.age} yrs</span>}</div><span>{member.fatherName ? `Father: ${member.fatherName}` : member.husbandName ? `Husband: ${member.husbandName}` : getTanzeemDisplayName(member.tanzeem)}</span>{membership === 'mossi' && <span>Musi number: {member.wasitNo}</span>}{recordedLocation(member.halqa, member.address) && <small><MapPin size={12} />{recordedLocation(member.halqa, member.address)}</small>}</div>
           <div className="person-meta"><span>{member.isDeceased ? 'Deceased' : member.isMoved ? 'Moved' : getTanzeemDisplayName(member.tanzeem)}</span><ArrowRight size={17} /></div>

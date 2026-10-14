@@ -488,33 +488,13 @@ const Families: React.FC = () => {
 
   return (
     <div className="families-page">
-      <header className="families-header"><div><span className="section-eyebrow">YOUR COMMUNITY DIRECTORY</span><h1>Families</h1><p>Family records and connections, together in one place.</p></div></header>
+      <header className="families-header families-page-heading"><div className="families-title-line"><h1>Families</h1><span className="families-total">{families.length}</span></div><Button type="primary" icon={<PlusOutlined />} onClick={handleAddFamily}>Add Family</Button></header>
       <Card
         className="families-panel"
-        title={`${visibleFamilies.length} of ${families.length} families`}
-        extra={
-          <Space>
-            <Button
-              type="default"
-              icon={<ReloadOutlined />}
-              onClick={loadData}
-              loading={loading}
-            >
-              Refresh
-            </Button>
-            <Button
-              type="primary"
-              icon={<PlusOutlined />}
-              onClick={handleAddFamily}
-            >
-              Add Family
-            </Button>
-          </Space>
-        }
       >
         {/* Search and Sort Controls */}
         <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
-          <Col xs={24} sm={12} md={8}>
+          <Col xs={24} sm={24} md={8}>
             <Input
               placeholder="Search by family name, number, head, or halqa..."
               prefix={<SearchOutlined />}
@@ -524,7 +504,7 @@ const Families: React.FC = () => {
               style={{ width: '100%' }}
             />
           </Col>
-          <Col xs={24} sm={12} md={8}>
+          <Col xs={12} sm={12} md={8}>
             <Select
               placeholder="Sort by..."
               value={sortField}
@@ -539,7 +519,7 @@ const Families: React.FC = () => {
               <Option value="createdAt">Created Date</Option>
             </Select>
           </Col>
-          <Col xs={24} sm={12} md={8}>
+          <Col xs={12} sm={12} md={8}>
             <Select
               placeholder="Sort order..."
               value={sortOrder}
@@ -559,15 +539,15 @@ const Families: React.FC = () => {
           items={[
             {
               key: 'active',
-              label: `Active Families (${families.filter(f => !f.isMoved && !f.isBList).length})`,
+              label: `Active (${families.filter(f => !f.isMoved && !f.isBList).length})`,
             },
             {
               key: 'b-list',
-              label: `B List Families (${families.filter(f => !!f.isBList && !f.isMoved).length})`,
+              label: `B List (${families.filter(f => !!f.isBList && !f.isMoved).length})`,
             },
             {
               key: 'moved',
-              label: `Moved Families (${families.filter(f => f.isMoved).length})`,
+              label: `Moved (${families.filter(f => f.isMoved).length})`,
             }
           ]}
         />

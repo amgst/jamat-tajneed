@@ -62,3 +62,4 @@
 .member-directory-name{border:0;background:transparent;padding:0;color:#345eae;text-align:left;cursor:pointer;font:inherit}
 .member-directory-name:focus-visible{outline:2px solid #587ac1;outline-offset:3px}
 @media(min-width:600px){.members-directory-controls{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(max-width:767px){.members-directory-controls{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.members-directory-controls>.ant-input-affix-wrapper{grid-column:1/-1}.members-directory-controls .ant-select-selection-item{font-size:12px}}
