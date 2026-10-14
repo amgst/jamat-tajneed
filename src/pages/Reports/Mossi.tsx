@@ -1,14 +1,15 @@
+import useMemberNavigation from '../../hooks/useMemberNavigation';
 import React, { useMemo, useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+
 import {
   Card,
-  Table,
+
   Space,
   Input,
   Button,
   Tag,
   Typography,
-  Avatar,
+
   Tabs,
   Row,
   Col,
@@ -18,32 +19,32 @@ import {
 } from 'antd';
 import {
   SearchOutlined,
-  ReloadOutlined,
+
   DownloadOutlined,
-  UserOutlined
+
 } from '@ant-design/icons';
 import { ApiService } from '../../services/apiService';
 import type { Member } from '../../types';
 import {
   getTanzeemDisplayName,
-  getTanzeemUrduName,
-  exportToCSV
+
+
 } from '../../utils/helpers';
-import { generateAvatarFromName } from '../../utils/imageUtils';
-import jsPDF from 'jspdf';
+import MembershipRecords from '../../components/MembershipRecords';
+import { exportMembershipPDF } from '../../utils/membershipPdf';
 import dayjs from 'dayjs';
-import html2canvas from 'html2canvas';
 
 import MemberForm from '../../components/MemberForm';
 
 const { Text, Title } = Typography;
 
 const Mossi: React.FC = () => {
-  const navigate = useNavigate();
+
+  const openMember = useMemberNavigation();
   const [members, setMembers] = useState<Member[]>([]);
   const [loading, setLoading] = useState(false);
+  const [exporting, setExporting] = useState(false);
   const [searchText, setSearchText] = useState('');
-  const [pageSize, setPageSize] = useState(10);
   const [modalVisible, setModalVisible] = useState(false);
   const [editingMember, setEditingMember] = useState<Member | null>(null);
   const [isSaving, setIsSaving] = useState(false);
@@ -130,231 +131,14 @@ const Mossi: React.FC = () => {
       }));
   }, [filteredMembers]);
 
-  const tablePagination = useMemo(
-    () => ({
-      pageSize,
-      showSizeChanger: true,
-      pageSizeOptions: [10, 20, 50, 100],
-      onShowSizeChange: (_current: number, size: number) => setPageSize(size),
-      showTotal: (total: number, range: [number, number]) => `${range[0]}-${range[1]} of ${total} records`,
-    }),
-    [pageSize]
-  );
-
-  const getExportData = () => {
-    return filteredMembers.map(m => ({
-      'Wasiyyat No': m.wasitNo,
-      'Name': m.name,
-      'Father/Husband Name': getGuardianName(m),
-      'Tanzeem': getTanzeemDisplayName(m.tanzeem),
-      'Age': m.age
-    }));
-  };
-
-  const handleExportCSV = () => {
-    exportToCSV(getExportData(), 'mossi-members');
-  };
-
-  const applyPdfDomBaseStyles = (el: HTMLDivElement) => {
-    el.setAttribute('dir', 'rtl');
-    el.style.position = 'fixed';
-    el.style.left = '-10000px';
-    el.style.top = '0';
-    el.style.width = '794px'; // ~A4 at 96dpi
-    el.style.background = '#fff';
-    el.style.color = '#111';
-    el.style.fontFamily =
-      "Noto Nastaliq Urdu, Noto Naskh Arabic, Amiri, 'Segoe UI', Arial, sans-serif";
-  };
 
   const handleExportPDF = async () => {
-    const headerDiv = document.createElement('div');
-    applyPdfDomBaseStyles(headerDiv);
-    headerDiv.style.padding = '18px 20px 10px';
-
-    const titleEl = document.createElement('div');
-    titleEl.textContent = 'رپورٹ موصی ممبران';
-    titleEl.style.fontSize = '20px';
-    titleEl.style.fontWeight = '800';
-    titleEl.style.textAlign = 'right';
-    titleEl.style.marginBottom = '6px';
-    headerDiv.appendChild(titleEl);
-
-    const metaEl = document.createElement('div');
-    metaEl.textContent = `کل ممبران: ${filteredMembers.length} • تاریخ: ${dayjs().format('DD-MM-YYYY')}`;
-    metaEl.style.fontSize = '12px';
-    metaEl.style.opacity = '0.8';
-    metaEl.style.textAlign = 'right';
-    metaEl.style.paddingBottom = '6px';
-    headerDiv.appendChild(metaEl);
-
-    const bodyDiv = document.createElement('div');
-    applyPdfDomBaseStyles(bodyDiv);
-    bodyDiv.style.padding = '0 20px 18px';
-
-    const columns = [
-      // In RTL, the FIRST column renders on the RIGHT.
-      { key: 'no', label: 'نمبر شمار', align: 'center', numeric: true, width: '12%' },
-      { key: 'wasitNo', label: 'وصیت نمبر', align: 'center', numeric: true, width: '18%' },
-      { key: 'name', label: 'نام', align: 'right', numeric: false, width: '26%' },
-      { key: 'fatherName', label: 'والد / شوہر کا نام', align: 'right', numeric: false, width: '26%' },
-      { key: 'age', label: 'عمر', align: 'center', numeric: true, width: '12%' },
-    ] as const;
-
-    const makeTable = (rows: Array<Record<string, string | number>>) => {
-      const table = document.createElement('table');
-      table.style.width = '100%';
-      table.style.borderCollapse = 'collapse';
-      table.style.tableLayout = 'fixed';
-      table.style.fontSize = '12px';
-
-      const thead = document.createElement('thead');
-      const trh = document.createElement('tr');
-      columns.forEach(col => {
-        const th = document.createElement('th');
-        th.textContent = col.label;
-        th.style.width = col.width;
-        th.style.border = '1px solid #e5e7eb';
-        th.style.background = '#16a085';
-        th.style.color = '#fff';
-        th.style.padding = '8px 6px';
-        th.style.textAlign = col.align as any;
-        th.style.fontWeight = '800';
-        th.style.wordBreak = 'break-word';
-        trh.appendChild(th);
-      });
-      thead.appendChild(trh);
-      table.appendChild(thead);
-
-      const tbody = document.createElement('tbody');
-      rows.forEach((row, idx) => {
-        const tr = document.createElement('tr');
-        if (idx % 2 === 1) tr.style.background = '#fafafa';
-        columns.forEach(col => {
-          const td = document.createElement('td');
-          const value = row[col.key];
-          td.textContent = value === null || value === undefined ? '' : String(value);
-          td.style.border = '1px solid #e5e7eb';
-          td.style.padding = '7px 6px';
-          td.style.verticalAlign = 'top';
-          td.style.textAlign = col.align as any;
-          td.style.wordBreak = 'break-word';
-          if (col.numeric) {
-            td.style.direction = 'ltr';
-            td.style.unicodeBidi = 'embed';
-          }
-          tr.appendChild(td);
-        });
-        tbody.appendChild(tr);
-      });
-      table.appendChild(tbody);
-      return table;
-    };
-
-    groupedByTanzeem.forEach(group => {
-      const groupMembers = [...group.members].sort((a, b) => (b.age ?? 0) - (a.age ?? 0));
-      if (groupMembers.length === 0) return;
-
-      const sectionTitle = document.createElement('div');
-      const urduTanzeemName =
-        group.key === 'other'
-          ? 'دیگر'
-          : group.key === 'unknown'
-            ? 'نامعلوم'
-            : getTanzeemUrduName(group.key);
-      sectionTitle.textContent = `${urduTanzeemName} (${groupMembers.length})`;
-      sectionTitle.style.fontSize = '16px';
-      sectionTitle.style.fontWeight = '800';
-      sectionTitle.style.color = '#16a085';
-      sectionTitle.style.textAlign = 'right';
-      sectionTitle.style.margin = '14px 0 8px';
-      bodyDiv.appendChild(sectionTitle);
-
-      const rows = groupMembers.map((m, index) => ({
-        no: index + 1,
-        wasitNo: m.wasitNo || '',
-        name: m.name || '',
-        fatherName: group.key === 'lajna' ? (m.husbandName || m.fatherName || '') : (m.fatherName || ''),
-        age: m.age ?? ''
-      }));
-      bodyDiv.appendChild(makeTable(rows));
-    });
-
-    document.body.appendChild(headerDiv);
-    document.body.appendChild(bodyDiv);
-
-    try {
-      const scale = Math.max(2, window.devicePixelRatio || 1);
-
-      const headerCanvas = await html2canvas(headerDiv, {
-        scale,
-        backgroundColor: '#ffffff'
-      });
-      const bodyCanvas = await html2canvas(bodyDiv, {
-        scale,
-        backgroundColor: '#ffffff'
-      });
-
-      const headerImg = headerCanvas.toDataURL('image/png');
-
-      const pdf = new jsPDF('p', 'mm', 'a4');
-      const pageWidth = pdf.internal.pageSize.getWidth();
-      const pageHeight = pdf.internal.pageSize.getHeight();
-
-      const margin = 10;
-      const usableWidth = pageWidth - margin * 2;
-
-      const headerHeightMm = (headerCanvas.height * usableWidth) / headerCanvas.width;
-      const bodyHeightMm = (bodyCanvas.height * usableWidth) / bodyCanvas.width;
-
-      const gapMm = 2;
-      const contentTopMm = margin + headerHeightMm + gapMm;
-      const contentHeightPerPageMm = pageHeight - contentTopMm - margin;
-
-      const mmPerBodyPx = bodyHeightMm / bodyCanvas.height;
-      const sliceHeightPx = Math.max(1, Math.floor(contentHeightPerPageMm / mmPerBodyPx));
-
-      let pageIndex = 0;
-      for (let startPx = 0; startPx < bodyCanvas.height; startPx += sliceHeightPx) {
-        const thisSlicePx = Math.min(sliceHeightPx, bodyCanvas.height - startPx);
-        const thisSliceMm = thisSlicePx * mmPerBodyPx;
-
-        const sliceCanvas = document.createElement('canvas');
-        sliceCanvas.width = bodyCanvas.width;
-        sliceCanvas.height = thisSlicePx;
-        const ctx = sliceCanvas.getContext('2d');
-        if (!ctx) break;
-
-        ctx.fillStyle = '#ffffff';
-        ctx.fillRect(0, 0, sliceCanvas.width, sliceCanvas.height);
-        ctx.drawImage(
-          bodyCanvas,
-          0,
-          startPx,
-          bodyCanvas.width,
-          thisSlicePx,
-          0,
-          0,
-          bodyCanvas.width,
-          thisSlicePx
-        );
-
-        const sliceImg = sliceCanvas.toDataURL('image/png');
-
-        if (pageIndex > 0) pdf.addPage();
-        pdf.addImage(headerImg, 'PNG', margin, margin, usableWidth, headerHeightMm);
-        pdf.addImage(sliceImg, 'PNG', margin, contentTopMm, usableWidth, thisSliceMm);
-
-        pageIndex += 1;
-      }
-
-      pdf.save(`mossi-members-${dayjs().format('DD-MM-YYYY')}.pdf`);
-    } finally {
-      document.body.removeChild(headerDiv);
-      document.body.removeChild(bodyDiv);
-    }
+    if (exporting) return;
+    setExporting(true);
+    try { await exportMembershipPDF('Mossi Members', 'mossi-members', groupedByTanzeem.map(group => ({ title: group.label, rows: group.members.map((member, index) => [String(index + 1), member.wasitNo || '', member.name, getGuardianName(member), String(member.age)]) })), ['S.No', 'Musi number', 'Name', 'Father / Husband', 'Age']); }
+    catch { message.error('Unable to export PDF. Please try again.'); }
+    finally { setExporting(false); }
   };
-
   const handleEdit = (record: Member) => {
     setEditingMember(record);
     setModalVisible(true);
@@ -401,13 +185,7 @@ const Mossi: React.FC = () => {
         key: 'name',
         render: (_: any, record: Member) => (
           <Space>
-            <Avatar 
-              src={record.profilePhoto} 
-              icon={<UserOutlined />}
-              style={{ backgroundColor: record.profilePhoto ? 'transparent' : '#1890ff' }}
-            >
-              {!record.profilePhoto && generateAvatarFromName(record.name)}
-            </Avatar>
+
             <Space direction="vertical" size={0}>
               <Text 
                 strong 
@@ -463,46 +241,35 @@ const Mossi: React.FC = () => {
             <Button type="link" onClick={() => handleEdit(record)}>
               Edit
             </Button>
-            <Button type="link" onClick={() => navigate(`/members/${record.id}`)}>
+            <Button type="link" onClick={() => openMember(record.id)}>
               Details
             </Button>
           </Space>
         ),
       },
     ];
-  }, [navigate]);
+  }, [openMember]);
 
   const columnsGroup = useMemo(() => {
     return columnsAll.filter(col => (col as any).key !== 'tanzeem');
   }, [columnsAll]);
 
   return (
-    <div style={{ padding: '24px' }}>
-      <div style={{ marginBottom: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+    <div className="membership-page">
+      <div className="membership-header">
         <div>
           <Title level={2} style={{ margin: 0 }}>Mossi Members</Title>
           <Text type="secondary">Total: {filteredMembers.length}</Text>
         </div>
         <Space>
+
           <Button 
             icon={<DownloadOutlined />} 
-            onClick={handleExportCSV}
-          >
-            Export CSV
-          </Button>
-          <Button 
-            icon={<DownloadOutlined />} 
-            onClick={handleExportPDF}
+            onClick={handleExportPDF} loading={exporting}
           >
             Export PDF
           </Button>
-          <Button 
-            icon={<ReloadOutlined />} 
-            onClick={loadMembers}  
-            loading={loading}
-          >
-            Refresh
-          </Button>
+
         </Space>
       </div>
 
@@ -529,31 +296,20 @@ const Mossi: React.FC = () => {
         </Row>
 
         <Tabs
+          defaultActiveKey="all"
           items={[
             ...groupedByTanzeem.map(group => ({
               key: group.key,
               label: `${group.label} (${group.members.length})`,
               children: (
-                <Table
-                  columns={columnsGroup as any}
-                  dataSource={group.members}
-                  rowKey="id"
-                  loading={loading}
-                  pagination={tablePagination as any}
-                />
+                <MembershipRecords kind="mossi" columns={columnsGroup as any} members={group.members} loading={loading} />
               )
             })),
             {
               key: 'all',
               label: `All (${filteredMembers.length})`,
               children: (
-                <Table
-                  columns={columnsAll as any}
-                  dataSource={filteredMembers}
-                  rowKey="id"
-                  loading={loading}
-                  pagination={tablePagination as any}
-                />
+                <MembershipRecords kind="mossi" columns={columnsAll as any} members={filteredMembers} loading={loading} />
               )
             }
           ]}

@@ -1,3 +1,4 @@
+import useMemberNavigation from '../hooks/useMemberNavigation';
 import { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { Alert, Button, Empty, Select, Spin, Card, Input, Segmented, Table, Pagination } from 'antd';
@@ -17,6 +18,7 @@ const matchesMembership = (member: Member, membership: string) => membership ===
 
 export default function PeopleHome() {
   const navigate = useNavigate();
+  const openMember = useMemberNavigation();
   const directory = useLocation().pathname === '/people';
   const [members, setMembers] = useState<Member[]>([]);
   const [families, setFamilies] = useState<Family[]>([]);
@@ -97,14 +99,14 @@ export default function PeopleHome() {
       </div>
       <div className="families-view-toolbar"><span className="families-view-label">Choose your view</span><Segmented value={viewMode} onChange={value => setViewMode(value as 'cards' | 'list')} options={[{ value: 'cards', label: <span className="families-view-option"><LayoutGrid size={16} />Cards</span> }, { value: 'list', label: <span className="families-view-option"><List size={16} />List</span> }]} /></div>
       {error ? <Alert type="error" message="Unable to load members. Please try again." action={<Button onClick={load}>Retry</Button>} /> : <Spin spinning={loading}>
-        {!loading && !results.length ? <Empty description="No members found. Try another search or filter." /> : viewMode === 'cards' ? <div className="family-search-grid families-card-grid">{results.slice((page - 1) * pageSize, page * pageSize).map(member => <button className="family-search-card member-directory-card" key={member.id} onClick={() => navigate(`/members/${encodeURIComponent(member.id)}`)}>
+        {!loading && !results.length ? <Empty description="No members found. Try another search or filter." /> : viewMode === 'cards' ? <div className="family-search-grid families-card-grid">{results.slice((page - 1) * pageSize, page * pageSize).map(member => <button className="family-search-card member-directory-card" key={member.id} onClick={() => openMember(member.id)}>
           <div className="person-name-line"><strong className="family-card-name" dir="auto">{member.name}</strong>{Number.isFinite(member.age) && <span className="person-age">{member.age} yrs</span>}<ArrowRight size={17} /></div>
           {(member.fatherName || member.husbandName) && <span className="family-card-head">{member.fatherName ? `Father: ${member.fatherName}` : `Husband: ${member.husbandName}`}</span>}
           {membership === 'mossi' && <span className="family-card-head">Musi number: {member.wasitNo}</span>}
           {recordedLocation(member.halqa, member.address) && <span className="family-card-location"><MapPin size={14} />{recordedLocation(member.halqa, member.address)}</span>}
           <div className="family-card-bottom"><span className="family-card-members">{getTanzeemDisplayName(member.tanzeem)}</span><span className={`family-status ${recordCategory(member) !== 'active' ? 'muted' : ''}`}>{recordLists.find(item => item.value === recordCategory(member))?.label.replace('Active in tanzeems', 'Active')}</span></div>
-        </button>)}</div> : <Table className="families-list" size="small" rowKey="id" dataSource={results.slice((page - 1) * pageSize, page * pageSize)} pagination={false} scroll={{ x: 650 }} onRow={member => ({ onClick: () => navigate(`/members/${encodeURIComponent(member.id)}`), style: { cursor: 'pointer' } })} columns={[
-          { title: 'Member', key: 'name', render: (member: Member) => <button className="member-directory-name" onClick={event => { event.stopPropagation(); navigate(`/members/${encodeURIComponent(member.id)}`); }}>{member.name}</button> },
+        </button>)}</div> : <Table className="families-list" size="small" rowKey="id" dataSource={results.slice((page - 1) * pageSize, page * pageSize)} pagination={false} scroll={{ x: 650 }} onRow={member => ({ onClick: () => openMember(member.id), style: { cursor: 'pointer' } })} columns={[
+          { title: 'Member', key: 'name', render: (member: Member) => <button className="member-directory-name" onClick={event => { event.stopPropagation(); openMember(member.id); }}>{member.name}</button> },
           { title: 'Age', dataIndex: 'age', key: 'age', width: 70 },
           { title: 'Tanzeem', dataIndex: 'tanzeem', key: 'tanzeem', render: getTanzeemDisplayName },
           ...(membership === 'mossi' ? [{ title: 'Musi number', dataIndex: 'wasitNo', key: 'wasitNo' }] : []),
@@ -173,7 +175,7 @@ export default function PeopleHome() {
       {showResults && !searchingFamilies && <section id="people-results" className="people-results">
         <div className="results-heading"><div><span className="section-eyebrow">{[group === 'all' ? '' : getTanzeemDisplayName(group), memberships.find(item => item.value === membership)?.label].filter(Boolean).join(' · ').toUpperCase() || 'PERSON DIRECTORY'}</span><h2>{results.length.toLocaleString()} {results.length === 1 ? 'person' : 'people'}</h2></div><Button type="text" aria-label="Refresh directory" icon={<RefreshCw size={17} />} onClick={load} /></div>
         <div className="people-filters"><Select aria-label="Filter by membership" value={membership} onChange={setMembership} options={[{ value: 'all', label: 'All memberships' }, ...memberships]} /><Select aria-label="Filter by Tanzeem" value={group} onChange={setGroup} options={[{ value: 'all', label: 'All Tanzeems' }, ...Array.from(new Set(members.map(m => m.tanzeem))).map(value => ({ value, label: getTanzeemDisplayName(value) }))]} /><Select aria-label="Filter by record status" value={status} onChange={setStatus} options={[{ value: 'all', label: 'All records' }, ...recordLists]} /></div>
-        {results.length === 0 ? <Empty description="No people found. Try a different name or clear the filters." /> : <div className="people-list">{results.slice(0, limit).map(member => <button className="person-card" key={member.id} onClick={() => navigate(`/members/person-${encodeURIComponent(member.id)}`)}>
+        {results.length === 0 ? <Empty description="No people found. Try a different name or clear the filters." /> : <div className="people-list">{results.slice(0, limit).map(member => <button className="person-card" key={member.id} onClick={() => openMember(member.id)}>
           <div className="person-copy"><div className="person-name-line"><strong>{member.name}</strong>{Number.isFinite(member.age) && <span className="person-age">{member.age} yrs</span>}</div><span>{member.fatherName ? `Father: ${member.fatherName}` : member.husbandName ? `Husband: ${member.husbandName}` : getTanzeemDisplayName(member.tanzeem)}</span>{membership === 'mossi' && <span>Musi number: {member.wasitNo}</span>}{recordedLocation(member.halqa, member.address) && <small><MapPin size={12} />{recordedLocation(member.halqa, member.address)}</small>}</div>
           <div className="person-meta"><span>{member.isDeceased ? 'Deceased' : member.isMoved ? 'Moved' : getTanzeemDisplayName(member.tanzeem)}</span><ArrowRight size={17} /></div>
         </button>)}</div>}

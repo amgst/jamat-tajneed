@@ -6,7 +6,6 @@ import { useAuth } from './contexts/useAuth';
 import AppLayout from './components/Layout';
 import Login from './pages/Login';
 import PeopleHome from './pages/PeopleHome';
-import Members from './pages/Members';
 import Families from './pages/Families';
 import FamilyDetails from './pages/FamilyDetails';
 import MemberDetails from './pages/MemberDetails';
@@ -16,12 +15,9 @@ import Settings from './pages/Settings';
 import Profile from './pages/Profile';
 
 import WaqfJadeed from './pages/WaqfJadeed';
-import WaqfJadeedPro from './pages/WaqfJadeedPro';
-import TajneedPro from './pages/TajneedPro';
 import Ansarullah from './pages/Ansarullah';
 import WaqfeNau from './pages/Reports/WaqfeNau';
 import Mossi from './pages/Reports/Mossi';
-import FamilyFullReport from './pages/Reports/FamilyFullReport';
 
 // Protected Route component
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -79,22 +75,17 @@ function App() {
               >
                 <Route index element={<PeopleHome />} />
                 <Route path="people" element={<PeopleHome />} />
-                <Route path="members" element={<Members />} />
-                <Route path="tajneed-pro" element={<TajneedPro />} />
                 <Route path="members/:slugId" element={<MemberDetails />} />
                 <Route path="families" element={<Families key="families" />} />
-                <Route path="families-old" element={<Families key="families-old" legacy />} />
                 <Route path="families/:id" element={<FamilyDetails />} />
                 <Route path="tanzeem" element={<TanzeemView />} />
                 <Route path="religious-activities" element={<ReligiousActivitiesPage />} />
                 <Route path="settings" element={<Settings />} />
                 <Route path="profile" element={<Profile />} />
                 <Route path="waqf-jadeed" element={<WaqfJadeed />} />
-                <Route path="waqf-jadeed-pro" element={<WaqfJadeedPro />} />
                 <Route path="ansar-uallah" element={<Ansarullah />} />
                 <Route path="reports/waqfe-nau" element={<WaqfeNau />} />
                 <Route path="reports/mossi" element={<Mossi />} />
-                <Route path="reports/family-full" element={<FamilyFullReport />} />
               </Route>
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>

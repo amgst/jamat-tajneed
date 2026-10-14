@@ -16,7 +16,7 @@ import {
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 // import { logout } from '../services/storage'; // Using mock logout
 import { useAuth } from '../contexts/useAuth';
-import { Search, Users, House, Menu as MenuIcon } from 'lucide-react';
+import { Search, Users, House, Wallet, Menu as MenuIcon } from 'lucide-react';
 import InstallApp from './InstallApp';
 
 const { Header, Sider, Content } = Layout;
@@ -82,48 +82,19 @@ const AppLayout: React.FC = () => {
       label: 'Ansar uallah',
     },
     {
-      key: 'reports-menu',
+      key: '/reports/waqfe-nau',
       icon: <SolutionOutlined />,
-      label: 'Reports',
-      children: [
-        {
-          key: '/reports/waqfe-nau',
-          label: 'Waqf-e-Nau',
-        },
-        {
-          key: '/reports/mossi',
-          label: 'Mossi',
-        },
-        {
-          key: '/reports/family-full',
-          label: 'Family Full Report',
-        }
-      ]
+      label: 'Waqf-e-Nau',
     },
     {
-      key: '/families-old',
-      icon: <TeamOutlined />,
-      label: 'Families (Old)',
-    },
-    {
-      key: '/members',
-      icon: <UserOutlined />,
-      label: 'Members (Old)',
+      key: '/reports/mossi',
+      icon: <SolutionOutlined />,
+      label: 'Mossi',
     },
     {
       key: '/settings',
       icon: <SettingOutlined />,
       label: 'Settings',
-    },
-    {
-      key: '/tajneed-pro',
-      icon: <TeamOutlined />,
-      label: 'Tajneed Pro (Old)',
-    },
-    {
-      key: '/waqf-jadeed-pro',
-      icon: <BankOutlined />,
-      label: 'Waqf-e-Jadeed Pro (Old)',
     },
   ];
 
@@ -215,6 +186,8 @@ const AppLayout: React.FC = () => {
               <Button
                 type="text"
                 icon={<MenuOutlined />}
+                aria-label="Open navigation menu"
+                aria-expanded={drawerVisible}
                 onClick={() => setDrawerVisible(true)}
                 style={{ fontSize: '16px', width: 64, height: 64 }}
               />
@@ -222,6 +195,7 @@ const AppLayout: React.FC = () => {
               <Button
                 type="text"
                 icon={collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
+                aria-label={collapsed ? 'Expand navigation' : 'Collapse navigation'}
                 onClick={() => setCollapsed(!collapsed)}
                 style={{ fontSize: '16px', width: 64, height: 64 }}
               />
@@ -245,10 +219,10 @@ const AppLayout: React.FC = () => {
               placement="bottomRight"
               trigger={['click']}
             >
-              <Space style={{ cursor: 'pointer' }}>
+              <button className="account-menu-trigger" aria-label="Open account menu">
                 <Avatar size="small" icon={<UserOutlined />} />
                 {!isMobile && <Text>{user?.email}</Text>}
-              </Space>
+              </button>
             </Dropdown>
           </Space>
         </Header>
@@ -263,9 +237,10 @@ const AppLayout: React.FC = () => {
           <Outlet />
         </Content>
         {isMobile && <nav className="mobile-bottom-nav" aria-label="Main navigation">
-          <button className={location.pathname === '/' ? 'active' : ''} onClick={() => navigate('/')}><Search /><span>Search</span></button>
+          <button className={location.pathname === '/' ? 'active' : ''} onClick={() => navigate('/')}><Search /><span>Home</span></button>
           <button className={location.pathname === '/families' || location.pathname.startsWith('/families/') ? 'active' : ''} onClick={() => navigate('/families')}><House /><span>Families</span></button>
           <button className={location.pathname.startsWith('/people') || location.pathname.startsWith('/members/') ? 'active' : ''} onClick={() => navigate('/people')}><Users /><span>Members</span></button>
+          <button className={location.pathname === '/waqf-jadeed' ? 'active' : ''} onClick={() => navigate('/waqf-jadeed')}><Wallet /><span>Waqf</span></button>
           <button onClick={() => setDrawerVisible(true)}><MenuIcon /><span>More</span></button>
         </nav>}
       </Layout>

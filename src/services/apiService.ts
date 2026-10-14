@@ -9,7 +9,8 @@ import {
   deleteDoc,
   query,
   where,
-  setDoc
+  setDoc,
+  writeBatch
 } from 'firebase/firestore';
 import type { Member, Family, FitranaExtra, WaqfJadeedRecord, WaqfJadeedSpecialRecord, TahreqJadeedRecord, TahreqJadeedSpecialRecord, AnsarullahRecord, Payment, MarkazPayment, WaqfJadeedMarkazPayment, TahreqJadeedMarkazPayment } from '../types';
 
@@ -984,6 +985,15 @@ export class ApiService {
       ...data,
       updatedAt: new Date().toISOString()
     }));
+  }
+
+  static async setDefaultReceiptBook(id: string): Promise<void> {
+    const books = await getDocs(collection(db, 'receiptBooks'));
+    const selected = books.docs.find(book => book.id === id);
+    if (!selected || selected.data().status !== 'active') throw new Error('Choose an active book');
+    const batch = writeBatch(db);
+    books.docs.forEach(book => batch.update(book.ref, { isDefault: book.id === id }));
+    await batch.commit();
   }
 
   static async deleteReceiptBook(id: string): Promise<void> {

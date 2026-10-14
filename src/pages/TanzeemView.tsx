@@ -1,417 +1,62 @@
-import React, { useState, useEffect } from 'react';
-import {
-  Card,
-  Row,
-  Col,
-  Table,
-  Tabs,
-  Statistic,
-  Tag,
-  Avatar,
-  Space,
-  Typography,
-  Button,
-  Modal,
-  message
-} from 'antd';
-import {
-  UserOutlined,
-  DownloadOutlined,
-  FilePdfOutlined,
-  EditOutlined,
-  TeamOutlined,
-} from '@ant-design/icons';
-import { jsPDF } from 'jspdf';
-import autoTable from 'jspdf-autotable';
+import useMemberNavigation from '../hooks/useMemberNavigation';
+import { useEffect, useMemo, useState } from 'react';
+import { Alert, Button, Card, Input, Space, Tabs } from 'antd';
+import { DownloadOutlined, FilePdfOutlined, ReloadOutlined, SearchOutlined } from '@ant-design/icons';
+
+import type { TableProps } from 'antd';
 import { ApiService } from '../services/apiService';
-import MemberForm from '../components/MemberForm';
 import type { Member, Tanzeem } from '../types';
-import { getTanzeemDisplayName, exportToCSV, calculateAge, determineTanzeem } from '../utils/helpers';
+import { exportToCSV, exportToPDF, getTanzeemDisplayName } from '../utils/helpers';
+import MembershipRecords from '../components/MembershipRecords';
+import './TanzeemView.css';
 
+const tanzeems: Tanzeem[] = ['saf-e-awal', 'saf-e-awal-girls', 'atfal', 'nasirat', 'khuddam', 'ansar', 'lajna'];
+const groups = [...tanzeems.map(value => ({ value, label: getTanzeemDisplayName(value) })), { value: 'b-list', label: 'B List' }, { value: 'moved', label: 'Moved' }, { value: 'deceased', label: 'Deceased' }, { value: 'unassigned', label: 'Unassigned' }];
+const category = (member: Member) => member.isDeceased ? 'deceased' : member.isMoved ? 'moved' : member.isBList ? 'b-list' : tanzeems.includes(member.tanzeem) ? member.tanzeem : 'unassigned';
 
-const { TabPane } = Tabs;
-const { Title, Text } = Typography;
+export default function TanzeemView() {
 
-const TanzeemView: React.FC = () => {
-  const [members, setMembers] = useState<Member[]>([]);
+  const openMember = useMemberNavigation();
+  const [members, setMembers] = useState<Member[]>(ApiService.getDirectorySnapshot().members);
   const [loading, setLoading] = useState(false);
-  const [modalVisible, setModalVisible] = useState(false);
-  const [editingMember, setEditingMember] = useState<Member | null>(null);
-
-  useEffect(() => {
-    loadMembers();
-  }, []);
-
-  const loadMembers = async () => {
-    setLoading(true);
-    try {
-      const data = await ApiService.getAllMembers();
-      setMembers(data);
-    } catch (error) {
-      console.error('Error loading members:', error);
-    } finally {
-      setLoading(false);
-    }
+  const [error, setError] = useState(false);
+  const [activeGroup, setActiveGroup] = useState('saf-e-awal');
+  const [search, setSearch] = useState('');
+  const [exporting, setExporting] = useState(false);
+  const load = async () => {
+    setLoading(true); setError(false);
+    try { setMembers(await ApiService.getAllMembers()); }
+    catch { setError(true); }
+    finally { setLoading(false); }
   };
-
-  const getMembersByTanzeem = (tanzeem: Tanzeem): Member[] => {
-    return members.filter(member => member.tanzeem === tanzeem && !member.isBList);
+  useEffect(() => { void load(); }, []);
+  const filtered = useMemo(() => {
+    const words = search.trim().toLocaleLowerCase().split(/\s+/).filter(Boolean);
+    return members.filter(member => category(member) === activeGroup && words.every(word => [member.name, member.fatherName, member.husbandName, member.phone, member.tajneedCode].filter(Boolean).join(' ').toLocaleLowerCase().includes(word))).sort((a, b) => a.name.localeCompare(b.name));
+  }, [members, activeGroup, search]);
+  const label = groups.find(group => group.value === activeGroup)?.label || 'Members';
+  const exportRows = () => filtered.map(member => ({ name: member.name, guardian: member.husbandName || member.fatherName || '', age: member.age, tanzeem: getTanzeemDisplayName(member.tanzeem), phone: member.phone || '', halqa: member.halqa?.trim().toLowerCase() === 'unknown' ? '' : member.halqa || '' }));
+  const exportPDF = async () => {
+    setExporting(true);
+    try { await exportToPDF(exportRows(), ['name', 'guardian', 'age', 'tanzeem', 'phone', 'halqa'], `${activeGroup}_members`, `${label} Members`, { renderMode: 'canvas' }); }
+    catch { setError(true); }
+    finally { setExporting(false); }
   };
-
-
-  const handleExportTanzeem = (tanzeem: Tanzeem) => {
-    const tanzeemMembers = getMembersByTanzeem(tanzeem);
-    const exportData = tanzeemMembers.map(member => ({
-      Name: member.name,
-      'Father Name': member.fatherName,
-      Age: member.age,
-      Phone: member.phone,
-      Address: member.address,
-      Halqa: member.halqa || '',
-    }));
-
-    exportToCSV(exportData, `${getTanzeemDisplayName(tanzeem).toLowerCase()}_members.csv`);
-  };
-
-  const handleExportTanzeemPDF = (tanzeem: Tanzeem) => {
-    const tanzeemMembers = getMembersByTanzeem(tanzeem);
-
-    // Create new PDF document
-    const doc = new jsPDF();
-
-    // Add title
-    doc.setFontSize(18);
-    doc.text(`${getTanzeemDisplayName(tanzeem)} Members List`, 14, 20);
-
-    // Add generation date
-    doc.setFontSize(12);
-    doc.text(`Generated on: ${new Date().toLocaleDateString()}`, 14, 30);
-
-    // Prepare table data
-    const tableData = tanzeemMembers.map((member, index) => [
-      index + 1,
-      member.name,
-      member.fatherName || '',
-      member.age.toString(),
-      member.phone || '',
-      member.halqa || ''
-    ]);
-
-    // Add table
-    autoTable(doc, {
-      head: [['S.No', 'Name', 'Father Name', 'Age', 'Phone', 'Halqa']],
-      body: tableData,
-      startY: 40,
-      styles: { fontSize: 8 },
-      headStyles: { fillColor: [24, 144, 255] },
-      alternateRowStyles: { fillColor: [240, 240, 240] },
-      didDrawCell: (_data) => {
-        // This helps with character encoding
-        doc.setTextColor(0, 0, 0);
-      }
-    });
-
-    // Save the PDF
-    doc.save(`${getTanzeemDisplayName(tanzeem).toLowerCase()}_members.pdf`);
-  };
-
-  const handleEdit = (member: Member) => {
-    setEditingMember(member);
-    setModalVisible(true);
-  };
-
-  const handleModalCancel = () => {
-    setModalVisible(false);
-    setEditingMember(null);
-  };
-
-  const handleModalOk = async (values: any) => {
-    try {
-      if (editingMember) {
-        const age = calculateAge(values.dateOfBirth.format('YYYY-MM-DD'));
-        const tanzeem = determineTanzeem(age, values.gender);
-
-        const updatedMember = {
-          ...editingMember,
-          ...values,
-          age,
-          tanzeem,
-          dateOfBirth: values.dateOfBirth.format('YYYY-MM-DD'),
-          dateOfDeath: values.dateOfDeath ? values.dateOfDeath.format('YYYY-MM-DD') : undefined,
-          updatedAt: new Date().toISOString(),
-        };
-        await ApiService.updateMember(updatedMember.id, updatedMember);
-        message.success('Member updated successfully');
-        setModalVisible(false);
-        setEditingMember(null);
-        loadMembers(); // Refresh the data
-      }
-    } catch (error) {
-      message.error('Failed to update member');
-      console.error(error);
-    }
-  };
-
-  const createTanzeemTable = (tanzeem: Tanzeem) => {
-    const tanzeemMembers = getMembersByTanzeem(tanzeem);
-
-    const columns = [
-      {
-        title: 'S.No',
-        key: 'serial',
-        width: 80,
-        render: (_: any, __: any, index: number) => index + 1,
-      },
-      {
-        title: 'Photo',
-        key: 'photo',
-        render: () => (
-          <Avatar size="small" icon={<UserOutlined />} />
-        ),
-        width: 60,
-      },
-      {
-        title: 'Name',
-        dataIndex: 'name',
-        key: 'name',
-        sorter: (a: Member, b: Member) => a.name.localeCompare(b.name),
-      },
-      {
-        title: 'Father Name',
-        dataIndex: 'fatherName',
-        key: 'fatherName',
-      },
-      {
-        title: 'Age',
-        dataIndex: 'age',
-        key: 'age',
-        sorter: (a: Member, b: Member) => a.age - b.age,
-        width: 70,
-      },
-      {
-        title: 'Phone',
-        dataIndex: 'phone',
-        key: 'phone',
-      },
-      {
-        title: 'Halqa',
-        dataIndex: 'halqa',
-        key: 'halqa',
-        render: (halqa: string) => halqa || '-',
-      },
-      {
-        title: 'Actions',
-        key: 'actions',
-        render: (__: any, record: Member) => (
-          <Space>
-            <Button
-              type="primary"
-              size="small"
-              icon={<EditOutlined />}
-              onClick={() => handleEdit(record)}
-            >
-              Edit
-            </Button>
-          </Space>
-        ),
-        width: 100,
-      },
-    ];
-
-    return (
-      <Table
-        columns={columns}
-        dataSource={tanzeemMembers}
-        rowKey="id"
-        loading={loading}
-        pagination={{
-          defaultPageSize: 10,
-          pageSizeOptions: [10, 20, 50, 100],
-          showSizeChanger: true,
-          showTotal: (total, range) =>
-            `${range[0]}-${range[1]} of ${total} members`,
-          responsive: true,
-        }}
-      />
-    );
-  };
-
-  const tanzeemList: Tanzeem[] = [
-    'saf-e-awal',
-    'atfal',
-    'khuddam',
-    'ansar',
-    'nasirat',
-    'lajna'
+  const columns: TableProps<Member>['columns'] = [
+    { title: 'Member', key: 'name', render: (member: Member) => <button className="tanzeem-member-name" onClick={() => openMember(member.id)}>{member.name}</button>, sorter: (a, b) => a.name.localeCompare(b.name) },
+    { title: 'Father / Husband', key: 'guardian', render: (member: Member) => member.husbandName || member.fatherName || '' },
+    { title: 'Age', dataIndex: 'age', width: 70, sorter: (a, b) => a.age - b.age },
+    { title: 'Phone', dataIndex: 'phone' },
+    { title: 'Tanzeem', dataIndex: 'tanzeem', render: getTanzeemDisplayName },
   ];
-
-  return (
-    <div>
-      <Title level={2} style={{ marginBottom: 24 }}>
-        Tanzeem Management
-      </Title>
-
-      {/* Summary Statistics */}
-      <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
-        {tanzeemList.map(tanzeem => {
-          const count = getMembersByTanzeem(tanzeem).length;
-          const color = {
-            'saf-e-awal': '#1890ff',
-            'atfal': '#52c41a',
-            'khuddam': '#faad14',
-            'ansar': '#722ed1',
-            'nasirat': '#f759ab',
-            'lajna': '#13c2c2',
-            'saf-e-awal-girls': '#999999', // Added for completeness
-          }[tanzeem];
-
-          return (
-            <Col xs={24} sm={12} md={8} lg={4} key={tanzeem}>
-              <Card>
-                <Statistic
-                  title={getTanzeemDisplayName(tanzeem)}
-                  value={count}
-                  prefix={<TeamOutlined style={{ color }} />}
-                  valueStyle={{ color }}
-                />
-              </Card>
-            </Col>
-          );
-        })}
-      </Row>
-
-
-      {/* Tanzeem Details Tabs */}
-      <Card>
-        <Tabs defaultActiveKey="saf-e-awal" type="card">
-          {tanzeemList.map(tanzeem => {
-            const count = getMembersByTanzeem(tanzeem).length;
-            return (
-              <TabPane
-                tab={
-                  <Space>
-                    <span>{getTanzeemDisplayName(tanzeem)}</span>
-                    <Tag color="blue">{count}</Tag>
-                  </Space>
-                }
-                key={tanzeem}
-              >
-                <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <div>
-                    <Title level={4} style={{ margin: 0 }}>
-                      {getTanzeemDisplayName(tanzeem)} Members
-                    </Title>
-                    <Text type="secondary">
-                      Total: {count} members
-                    </Text>
-                  </div>
-                  <div>
-                    <Button
-                      type="primary"
-                      icon={<DownloadOutlined />}
-                      onClick={() => handleExportTanzeem(tanzeem)}
-                      disabled={count === 0}
-                      style={{ marginRight: 8 }}
-                    >
-                      Export CSV
-                    </Button>
-                    <Button
-                      type="primary"
-                      icon={<FilePdfOutlined />}
-                      onClick={() => handleExportTanzeemPDF(tanzeem)}
-                      disabled={count === 0}
-                    >
-                      Export PDF
-                    </Button>
-                  </div>
-                </div>
-                {createTanzeemTable(tanzeem)}
-              </TabPane>
-            );
-          })}
-          <TabPane
-            tab={
-              <Space>
-                <span>B List</span>
-                <Tag color="orange">{members.filter(m => m.isBList).length}</Tag>
-              </Space>
-            }
-            key="b-list"
-          >
-            <div style={{ marginBottom: 16 }}>
-              <Title level={4}>B List Members</Title>
-              <Text type="secondary">Members marked for B List tracking</Text>
-            </div>
-            <Table
-              columns={[
-                {
-                  title: 'S.No',
-                  key: 'serial',
-                  width: 80,
-                  render: (_: any, __: any, index: number) => index + 1,
-                },
-                {
-                  title: 'Name',
-                  dataIndex: 'name',
-                  key: 'name',
-                },
-                {
-                  title: 'Father Name',
-                  dataIndex: 'fatherName',
-                  key: 'fatherName',
-                },
-                {
-                  title: 'Tanzeem',
-                  dataIndex: 'tanzeem',
-                  key: 'tanzeem',
-                  render: (t: Tanzeem) => getTanzeemDisplayName(t),
-                },
-                {
-                  title: 'Moved To',
-                  dataIndex: 'movedTo',
-                  key: 'movedTo',
-                },
-                {
-                  title: 'Actions',
-                  key: 'actions',
-                  render: (__: any, record: Member) => (
-                    <Button
-                      type="primary"
-                      size="small"
-                      icon={<EditOutlined />}
-                      onClick={() => handleEdit(record)}
-                    >
-                      Edit
-                    </Button>
-                  ),
-                }
-              ]}
-              dataSource={members.filter(m => m.isBList)}
-              rowKey="id"
-              loading={loading}
-            />
-          </TabPane>
-        </Tabs>
-      </Card>
-      <Modal
-        title={`Edit Member: ${editingMember?.name}`}
-        open={modalVisible}
-        onCancel={handleModalCancel}
-        footer={null}
-        width={700}
-        destroyOnHidden
-      >
-        <MemberForm
-          initialValues={editingMember || undefined}
-          onFinish={handleModalOk}
-          isSaving={false} // Use a separate isSaving state if needed
-          showCancel
-          onCancel={handleModalCancel}
-          existingMembers={members}
-        />
-      </Modal>
-    </div>
-  );
-};
-
-export default TanzeemView;
+  return <div className="membership-page tanzeem-page">
+    <header className="membership-header"><div><span className="section-eyebrow">YOUR COMMUNITY DIRECTORY</span><h1>Tanzeem Management</h1><p>{members.filter(member => tanzeems.includes(category(member) as Tanzeem)).length} active members · {members.length} total records</p></div><Button icon={<ReloadOutlined />} onClick={load} loading={loading}>Refresh</Button></header>
+    <div className="tanzeem-summary-grid">{groups.map(group => <button className={group.value === activeGroup ? 'selected' : ''} key={group.value} onClick={() => setActiveGroup(group.value)}><span>{group.label}</span><strong>{members.filter(member => category(member) === group.value).length}</strong></button>)}</div>
+    <Card>
+      {error && <Alert type="error" message="Unable to complete the request. Please try again." closable onClose={() => setError(false)} style={{ marginBottom: 16 }} />}
+      <div className="tanzeem-record-toolbar"><Input prefix={<SearchOutlined />} placeholder="Search name, phone or Tajneed code" aria-label="Search tanzeem members" value={search} onChange={event => setSearch(event.target.value)} allowClear /><Space wrap><Button icon={<DownloadOutlined />} disabled={!filtered.length} onClick={() => exportToCSV(exportRows(), `${activeGroup}_members`)}>Export CSV</Button><Button icon={<FilePdfOutlined />} disabled={!filtered.length} loading={exporting} onClick={exportPDF}>Export PDF</Button></Space></div>
+      <Tabs activeKey={activeGroup} onChange={setActiveGroup} items={groups.map(group => ({ key: group.value, label: group.label }))} />
+      <MembershipRecords key={activeGroup} members={filtered} columns={columns} loading={loading} kind="tanzeem" />
+    </Card>
+  </div>;
+}

@@ -14,8 +14,9 @@ const MemberDetails: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const fromFamilyId = typeof location.state?.fromFamilyId === 'string' ? location.state.fromFamilyId : null;
-  const backTo = fromFamilyId ? `/families/${encodeURIComponent(fromFamilyId)}` : '/people';
-  const backLabel = fromFamilyId ? 'Back to family tree' : 'Back to people';
+  const returnTo = typeof location.state?.returnTo === 'string' && (/^\/(?:[?#]|$)/.test(location.state.returnTo) || /^\/(?:people|tanzeem|reports\/(?:mossi|waqfe-nau)|families\/[^/?#]+)(?:[?#]|$)/.test(location.state.returnTo)) ? location.state.returnTo : null;
+  const backTo = returnTo || (fromFamilyId ? `/families/${encodeURIComponent(fromFamilyId)}` : '/people');
+  const backLabel = /^\/(?:[?#]|$)/.test(backTo) ? 'Back to home' : backTo.startsWith('/families/') ? 'Back to family tree' : backTo.startsWith('/reports/mossi') ? 'Back to Mossi' : backTo.startsWith('/reports/waqfe-nau') ? 'Back to Waqf-e-Nau' : backTo.startsWith('/tanzeem') ? 'Back to Tanzeem' : 'Back to members';
   const { slugId } = useParams<{ slugId: string }>();
   const snapshot = ApiService.getDirectorySnapshot();
   const initialMember = snapshot.members.find(person => slugId === person.id || slugId?.endsWith(`-${person.id}`)) || null;

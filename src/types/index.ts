@@ -201,6 +201,7 @@ export interface ReceiptBook {
   id: string;
   bookNo: string;
   status: 'active' | 'completed';
+  isDefault?: boolean;
   createdAt: string;
 }
 

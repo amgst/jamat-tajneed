@@ -49,3 +49,59 @@
 @media(min-width:600px){.waqf-member-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(min-width:1100px){.waqf-member-grid{grid-template-columns:repeat(3,minmax(0,1fr))}.waqf-family-cards>.ant-collapse{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;align-items:start}.waqf-family-cards>.ant-collapse>.ant-collapse-item{margin:0}.waqf-family-cards>.ant-collapse>.ant-collapse-item:has(.ant-collapse-content-active){grid-column:1/-1}}
 @media(max-width:767px){.waqf-jadeed-container{padding-inline:0!important}.waqf-jadeed-container .ant-card-body{padding:14px!important}.waqf-jadeed-container .ant-card-head{padding:14px}.waqf-jadeed-container .ant-collapse>.ant-collapse-item>.ant-collapse-header{padding:14px}.waqf-jadeed-container .ant-collapse-content-box{padding:12px}.waqf-jadeed-container .ant-btn{white-space:normal;height:auto;min-height:40px}.waqf-jadeed-container .ant-space{flex-wrap:wrap;gap:8px!important}.waqf-finance-overlay .ant-modal{max-width:calc(100vw - 16px);top:8px}.waqf-finance-overlay .ant-input,.waqf-finance-overlay .ant-input-number-input{font-size:16px;min-height:40px}}
+.waqf-tanzeem-grid.ant-collapse{display:grid;grid-template-columns:minmax(0,1fr);gap:14px;align-items:start}
+.waqf-jadeed-container .waqf-tanzeem-grid.ant-collapse>.ant-collapse-item{margin:0;border-radius:18px;box-shadow:0 3px 12px #26334a05;min-width:0}
+.waqf-tanzeem-grid .ant-collapse-header-text{min-width:0}
+.waqf-tanzeem-summary{display:flex;flex-direction:column;gap:14px;width:100%}
+.waqf-tanzeem-title{display:flex;align-items:center;flex-wrap:wrap;justify-content:space-between;gap:8px}
+.waqf-tanzeem-title>strong{font-size:16px;color:#26334a}
+.waqf-tanzeem-title>span{font-size:10px;color:#526783;background:#edf2fc;border-radius:7px;padding:5px 8px}
+.waqf-tanzeem-summary .ant-progress{margin:0}
+.waqf-tanzeem-grid>.ant-collapse-item:has(.ant-collapse-content-active){grid-column:1/-1}
+@media(min-width:600px){.waqf-tanzeem-grid.ant-collapse{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(min-width:1200px){.waqf-tanzeem-grid.ant-collapse{grid-template-columns:repeat(3,minmax(0,1fr))}}
+.waqf-dashboard-heading{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin:4px 0 20px}
+.waqf-dashboard-heading h2{font-size:24px;letter-spacing:-.5px;margin:8px 0 0;color:#26334a}
+.waqf-dashboard-summary{display:grid;grid-template-columns:minmax(0,1fr);gap:14px;margin-bottom:18px}
+.waqf-dashboard-summary>.ant-card{height:100%}
+.waqf-dashboard-summary .ant-statistic-content{font-size:26px!important;font-weight:600;overflow-wrap:anywhere}
+.waqf-dashboard-summary .ant-statistic-content-prefix{font-size:14px;font-weight:400}
+.waqf-dashboard-caption{display:block;font-size:11px;line-height:1.7;color:#8590a1;margin-top:8px}
+.waqf-dashboard-balance button{display:block;text-align:left;background:transparent;border:0;padding:0;width:100%;cursor:pointer;color:inherit}
+.waqf-dashboard-balance button:focus-visible{outline:3px solid #587ac1;outline-offset:5px}
+.waqf-dashboard-progress{padding:18px 20px;background:#f1f5fb;border:1px solid #e6ebf2;border-radius:16px;margin-bottom:24px}
+.waqf-dashboard-progress>div:first-child{display:flex;justify-content:space-between;gap:12px;align-items:center;font-size:13px;margin-bottom:8px}
+.waqf-dashboard-progress>div:first-child span{color:#508b73;font-size:12px}
+.waqf-dashboard-progress p{font-size:11px;color:#8590a1;margin:6px 0 0}
+.waqf-target-section{padding:20px;background:#f9fafc;border:1px solid #e6ebf2;border-radius:18px;margin-bottom:24px}
+.dashboard-view>.ant-divider{font-size:15px;font-weight:600;color:#526783}
+.dashboard-view>.ant-row{align-items:stretch}
+.dashboard-view>.ant-row>.ant-col>.ant-card{height:100%}
+@media(min-width:600px){.waqf-dashboard-summary{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(min-width:1200px){.waqf-dashboard-summary{grid-template-columns:repeat(4,minmax(0,1fr))}}
+@media(max-width:767px){.waqf-target-section{padding:14px}.waqf-dashboard-progress{padding:16px}.waqf-dashboard-summary .ant-statistic-content{font-size:23px!important}}
+.waqf-family-summary{display:flex;flex-direction:column;gap:12px;width:100%}
+.waqf-family-identity{display:flex;flex-direction:column;gap:7px;align-items:flex-start}
+.waqf-family-number{font-size:10px;color:#8590a1}
+.waqf-family-card-footer{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;border-top:1px solid #edf0f4;padding-top:10px}
+.waqf-family-card-footer>span{font-size:11px;color:#7b899b}
+.waqf-jadeed-container .family-list>.ant-collapse>.ant-collapse-item>.ant-collapse-header>.ant-collapse-expand-icon{display:none}
+.waqf-family-summary .ant-progress{margin:0}
+@media(min-width:600px){.waqf-family-cards>.ant-collapse{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;align-items:start}.waqf-family-cards>.ant-collapse>.ant-collapse-item{margin:0!important}.waqf-family-cards>.ant-collapse>.ant-collapse-item:has(.ant-collapse-content-active){grid-column:1/-1}}
+@media(min-width:1100px){.waqf-family-cards>.ant-collapse{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(min-width:1100px){.waqf-family-cards>.ant-collapse{grid-template-columns:repeat(4,minmax(0,1fr))}}
+.waqf-tanzeem-grid>.ant-collapse-item>.ant-collapse-header>.ant-collapse-expand-icon{display:none}
+.receipt-books-summary{display:flex;align-items:center;justify-content:space-between;gap:12px;color:#8590a1;font-size:12px;margin-bottom:16px}
+.receipt-books-summary strong{color:#345eae}
+.receipt-book-grid{display:grid;grid-template-columns:minmax(0,1fr);gap:12px;margin-bottom:16px}
+.receipt-book-card{padding:16px;border:1px solid #e0e7ed;background:#fff;border-radius:14px;display:flex;flex-direction:column;gap:14px}
+.receipt-book-card.default-book{border-color:#8aa1d0;background:#fbfcff}
+.receipt-book-heading{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px}
+.receipt-book-heading>strong{font-size:16px;color:#26334a}
+.receipt-book-heading .ant-tag{font-size:10px;border-radius:6px;margin:0}
+.receipt-book-total{display:flex;flex-direction:column;gap:5px}
+.receipt-book-total>span,.receipt-book-total small{font-size:11px;color:#8590a1}
+.receipt-book-total strong{font-size:22px;color:#345eae;font-weight:600}
+.receipt-book-actions{display:flex;flex-wrap:wrap;gap:6px;padding-top:12px;border-top:1px solid #edf0f4;margin-top:auto}
+@media(min-width:600px){.receipt-book-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.waqf-jadeed-container .ant-table-tbody .ant-btn-icon-only{border:0!important;box-shadow:none!important;background:transparent!important}

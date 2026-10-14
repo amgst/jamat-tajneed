@@ -19,8 +19,8 @@ import {
 import {
     FilterOutlined,
     DownloadOutlined,
-    HistoryOutlined,
-    UserOutlined,
+
+
     LineChartOutlined,
     PieChartOutlined,
     BookOutlined,
@@ -181,62 +181,6 @@ const WaqfReports: React.FC<WaqfReportsProps> = ({
             percent: data.promised > 0 ? Math.round((data.paid / data.promised) * 100) : 0
         })).sort((a, b) => b.percent - a.percent);
     }, [records, specialRecords]);
-
-    const defaulters = useMemo(() => {
-        const list = records
-            .filter(r => r.promise > r.paid)
-            .map(r => ({
-                key: r.member.id,
-                name: r.member.name,
-                halqa: r.member.halqa,
-                tanzeem: r.member.tanzeem,
-                promised: r.promise,
-                paid: r.paid,
-                balance: r.promise - r.paid
-            }))
-            .sort((a, b) => b.balance - a.balance);
-
-        // Also include special records that have balance
-        specialRecords.forEach(sr => {
-            const promised = (sr.promiseAmount || 0) + (sr.nagarparAmount || 0);
-            if (promised > sr.paidAmount) {
-                list.push({
-                    key: sr.id,
-                    name: `${sr.name} (Special)`,
-                    halqa: 'N/A',
-                    tanzeem: 'special' as any,
-                    promised: promised,
-                    paid: sr.paidAmount,
-                    balance: promised - sr.paidAmount
-                });
-            }
-        });
-
-        return list;
-    }, [records, specialRecords]);
-
-    const transactionLogs = useMemo(() => {
-        return allPayments.map(p => {
-            // Find member or special record name
-            let name = 'Unknown';
-            const memberRecord = records.find(r => r.record?.id === p.waqfJadeedId);
-            if (memberRecord) {
-                name = memberRecord.member.name;
-            } else {
-                const special = specialRecords.find(sr => sr.id === p.waqfJadeedId);
-                if (special) name = `${special.name} (Special)`;
-            }
-
-            return {
-                Date: dayjs(p.date).format('DD MMM YYYY'),
-                Member: name,
-                'Book #': p.bookNo || 'N/A',
-                'Receipt #': p.receiptNo || 'N/A',
-                Amount: p.amount,
-                key: p.id
-            };
-        }).sort((a, b) => dayjs(b.Date).unix() - dayjs(a.Date).unix());
-    }, [allPayments, records, specialRecords]);
 
     const comparisonStats = useMemo(() => {
         const stats: Record<string, { currentPaid: number; prevPaid: number; currentPromise: number; prevPromise: number }> = {};
@@ -674,24 +618,6 @@ const WaqfReports: React.FC<WaqfReportsProps> = ({
         message.success('Summary PDF exported');
     };
 
-    const handleExportDefaultersPDF = async () => {
-        const rows = defaulters.map(r => ({
-            name: r.name,
-            halqa: r.halqa,
-            tanzeem: getTanzeemDisplayName(r.tanzeem),
-            promised: r.promised,
-            paid: r.paid,
-            balance: r.balance
-        }));
-        await exportToPDF(
-            rows,
-            ['name', 'halqa', 'tanzeem', 'promised', 'paid', 'balance'],
-            `defaulters_list_${selectedYear}`,
-            `Waqf-e-Jadeed - Defaulters List - ${selectedYear}`
-        );
-        message.success('Defaulters PDF exported');
-    };
-
     const handleExportComparisonPDF = async () => {
         const rows = comparisonStats.map(r => ({
             halqa: r.name,
@@ -707,23 +633,6 @@ const WaqfReports: React.FC<WaqfReportsProps> = ({
             `Waqf-e-Jadeed - Year Comparison - ${selectedYear}`
         );
         message.success('Comparison PDF exported');
-    };
-
-    const handleExportTransactionsPDF = async () => {
-        const rows = transactionLogs.map(r => ({
-            date: r.Date,
-            member: r.Member,
-            book: r['Book #'],
-            receipt: r['Receipt #'],
-            amount: r.Amount
-        }));
-        await exportToPDF(
-            rows,
-            ['date', 'member', 'book', 'receipt', 'amount'],
-            `transaction_log_${selectedYear}`,
-            `Waqf-e-Jadeed - Transaction Log - ${selectedYear}`
-        );
-        message.success('Transactions PDF exported');
     };
 
     const handleExportReceiptBookPDF = async () => {
@@ -820,21 +729,6 @@ const WaqfReports: React.FC<WaqfReportsProps> = ({
             render: (val: number) => <Progress percent={val} size="small" strokeColor={val >= 100 ? '#52c41a' : '#1890ff'} />,
             width: 160
         }
-    ];
-
-    const defaulterColumns = [
-        { title: 'Member Name', dataIndex: 'name', key: 'name' },
-        { title: 'Halqa', dataIndex: 'halqa', key: 'halqa' },
-        { title: 'Tanzeem', dataIndex: 'tanzeem', key: 'tanzeem', render: (t: any) => t === 'special' ? <Tag>Special</Tag> : <Tag color="blue">{getTanzeemDisplayName(t)}</Tag> },
-        { title: 'Balance Due', dataIndex: 'balance', key: 'balance', render: (val: number) => <Text strong type="danger">Rs. {val.toLocaleString()}</Text>, align: 'right' as const, sorter: (a: any, b: any) => a.balance - b.balance }
-    ];
-
-    const transactionColumns = [
-        { title: 'Date', dataIndex: 'Date', key: 'Date' },
-        { title: 'Member', dataIndex: 'Member', key: 'Member' },
-        { title: 'Book #', dataIndex: 'Book #', key: 'Book #', width: 100 },
-        { title: 'Receipt #', dataIndex: 'Receipt #', key: 'Receipt #', width: 100 },
-        { title: 'Amount', dataIndex: 'Amount', key: 'Amount', render: (val: number) => <Text strong style={{ color: '#52c41a' }}>Rs. {val.toLocaleString()}</Text>, align: 'right' as const }
     ];
 
     const comparisonColumns = [
@@ -1332,48 +1226,6 @@ const WaqfReports: React.FC<WaqfReportsProps> = ({
                                     pagination={false}
                                     rowKey="key"
                                     scroll={{ x: 700 }}
-                                />
-                            </div>
-                        )
-                    },
-                    {
-                        key: 'defaulters',
-                        label: <span><UserOutlined /> Defaulters List</span>,
-                        children: (
-                            <div>
-                                <Row justify="space-between" align="middle" style={{ marginBottom: 16 }}>
-                                    <Title level={5} style={{ margin: 0 }}>Pending Collections (Defaulters)</Title>
-                                    <Space>
-                                        <Button icon={<DownloadOutlined />} onClick={() => exportReport(defaulters, 'defaulters_list')}>Export CSV</Button>
-                                        <Button icon={<FilePdfOutlined />} onClick={handleExportDefaultersPDF}>Export PDF</Button>
-                                    </Space>
-                                </Row>
-                                <Table
-                                    dataSource={defaulters}
-                                    columns={defaulterColumns}
-                                    pagination={{ pageSize: 15 }}
-                                    scroll={{ x: 600 }}
-                                />
-                            </div>
-                        )
-                    },
-                    {
-                        key: 'transactions',
-                        label: <span><HistoryOutlined /> Transaction Log</span>,
-                        children: (
-                            <div>
-                                <Row justify="space-between" align="middle" style={{ marginBottom: 16 }}>
-                                    <Title level={5} style={{ margin: 0 }}>Recent Payments Log</Title>
-                                    <Space>
-                                        <Button icon={<DownloadOutlined />} onClick={() => exportReport(transactionLogs, 'transaction_log')}>Export CSV</Button>
-                                        <Button icon={<FilePdfOutlined />} onClick={handleExportTransactionsPDF}>Export PDF</Button>
-                                    </Space>
-                                </Row>
-                                <Table
-                                    dataSource={transactionLogs}
-                                    columns={transactionColumns}
-                                    pagination={{ pageSize: 15 }}
-                                    scroll={{ x: 600 }}
                                 />
                             </div>
                         )

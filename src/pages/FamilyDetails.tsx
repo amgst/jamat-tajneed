@@ -1,3 +1,4 @@
+import useMemberNavigation from '../hooks/useMemberNavigation';
 import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
@@ -53,6 +54,7 @@ const FamilyDetails: React.FC = () => {
   const { message } = App.useApp();
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const openMember = useMemberNavigation();
   const screens = Grid.useBreakpoint();
   const snapshot = ApiService.getDirectorySnapshot();
   const initialFamily = snapshot.families.find(item => item.id === id) || null;
@@ -424,7 +426,7 @@ const FamilyDetails: React.FC = () => {
             <button
               className="family-member-name"
               onClick={() => {
-                navigate(`/members/${encodeURIComponent(record.id)}`, { state: { fromFamilyId: id } });
+                openMember(record.id, { fromFamilyId: id });
               }}
             >
               {name}
@@ -485,7 +487,7 @@ const FamilyDetails: React.FC = () => {
             icon={<EyeOutlined />}
             title="View member"
             aria-label={`View ${record.name}`}
-            onClick={() => navigate(`/members/${encodeURIComponent(record.id)}`, { state: { fromFamilyId: id } })}
+            onClick={() => openMember(record.id, { fromFamilyId: id })}
           />
           <Button size="small" icon={<EditOutlined />} title="Edit member" aria-label={`Edit ${record.name}`} onClick={() => { setSelectedMember(record); setMemberDetailModalVisible(true); }} />
           <Button
@@ -546,8 +548,8 @@ const FamilyDetails: React.FC = () => {
   const tanzeemStats = getTanzeemStats();
   const renderMembers = (people: Member[]) => {
     if (!people.length) return <Empty description="No members in this group" />;
-    if (screens.md) return <Table className="family-members-table" columns={columns.filter(column => column.key !== 'actions')} dataSource={people} onRow={member => ({ onClick: event => { if ((event.target as HTMLElement).closest('a,button')) return; navigate(`/members/${encodeURIComponent(member.id)}`, { state: { fromFamilyId: id } }); } })} rowKey="id" pagination={false} size="small" scroll={{ x: 700 }} />;
-    return <div className="family-mobile-members">{people.map(member => <a className="family-mobile-member" key={member.id} href={`/members/${encodeURIComponent(member.id)}`} onClick={event => { event.preventDefault(); navigate(`/members/${encodeURIComponent(member.id)}`, { state: { fromFamilyId: id } }); }}>
+    if (screens.md) return <Table className="family-members-table" columns={columns.filter(column => column.key !== 'actions')} dataSource={people} onRow={member => ({ onClick: event => { if ((event.target as HTMLElement).closest('a,button')) return; openMember(member.id, { fromFamilyId: id }); } })} rowKey="id" pagination={false} size="small" scroll={{ x: 700 }} />;
+    return <div className="family-mobile-members">{people.map(member => <a className="family-mobile-member" key={member.id} href={`/members/${encodeURIComponent(member.id)}`} onClick={event => { event.preventDefault(); openMember(member.id, { fromFamilyId: id }); }}>
       <div className="family-mobile-member-heading"><div><strong className="family-member-name" dir="auto">{member.name}</strong><span>{member.age} years · {member.gender === 'male' ? 'Male' : 'Female'}</span></div>{member.id === family.headId && <Tag color="gold">Head</Tag>}</div>
       <div className="family-mobile-member-meta"><span>{getTanzeemDisplayName(member.tanzeem)}</span>{getRecordedPhone(member.phone) && <span>{getRecordedPhone(member.phone)}</span>}{member.isDeceased && <Tag>Deceased</Tag>}{member.isBList && <Tag>B List</Tag>}{member.isMoved && <Tag color="orange">Moved{member.movedTo ? ` · ${member.movedTo}` : ''}</Tag>}</div>
     </a>)}</div>;

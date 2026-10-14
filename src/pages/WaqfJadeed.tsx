@@ -39,7 +39,6 @@ const { Panel } = Collapse;
 import {
     UserOutlined,
     SearchOutlined,
-    DollarOutlined,
     CheckCircleOutlined,
     DeleteOutlined,
     PlusOutlined,
@@ -91,7 +90,7 @@ const WaqfJadeed: React.FC = () => {
     // Target amount state (stored per year in localStorage)
     const [targetAmount, setTargetAmount] = useState<number>(0);
 
-    const [familySort, setFamilySort] = useState<'default' | 'zero_promise_first' | 'pending_first'>('default');
+    const [familySort, setFamilySort] = useState<'default' | 'zero_promise_first' | 'pending_first'>('pending_first');
 
     // Drawer & Edit State
     const [drawerVisible, setDrawerVisible] = useState(false);
@@ -130,6 +129,12 @@ const WaqfJadeed: React.FC = () => {
     const [manageBooksModalVisible, setManageBooksModalVisible] = useState(false);
     const [editingBookId, setEditingBookId] = useState<string | null>(null);
     const [editingBookName, setEditingBookName] = useState('');
+    const [savingDefaultBook, setSavingDefaultBook] = useState<string | null>(null);
+    const selectedPaymentBookId = Form.useWatch('bookId', paymentForm);
+    useEffect(() => {
+        const defaultBook = books.find(book => book.isDefault && book.status === 'active');
+        if (drawerVisible && !paymentEditingId && !selectedPaymentBookId && defaultBook) paymentForm.setFieldsValue({ bookId: defaultBook.id });
+    }, [books, drawerVisible, paymentEditingId, selectedPaymentBookId, paymentForm]);
     const [newBookForm] = Form.useForm();
 
     // Markaz Payment State
@@ -632,6 +637,8 @@ const WaqfJadeed: React.FC = () => {
     };
 
     const handleEdit = (member: Member) => {
+        setPaymentEditingId(null);
+        paymentForm.resetFields();
         setEditingMember(member);
         setEditingSpecial(null);
         const record = records.find(r => r.memberId === member.id);
@@ -644,6 +651,8 @@ const WaqfJadeed: React.FC = () => {
     };
 
     const handleEditSpecial = (record: WaqfJadeedSpecialRecord) => {
+        setPaymentEditingId(null);
+        paymentForm.resetFields();
         setEditingMember(null);
         setEditingSpecial(record);
         form.setFieldsValue({
@@ -719,6 +728,13 @@ const WaqfJadeed: React.FC = () => {
         } catch (error) {
             message.error('Failed to delete book');
         }
+    };
+
+    const handleDefaultBook = async (id: string) => {
+        setSavingDefaultBook(id);
+        try { await ApiService.setDefaultReceiptBook(id); await loadBooks(); message.success('Default receipt book updated'); }
+        catch { message.error('Unable to set default book'); }
+        finally { setSavingDefaultBook(null); }
     };
 
     const handleUpdateBook = async (id: string) => {
@@ -2534,14 +2550,11 @@ const WaqfJadeed: React.FC = () => {
                     style={{ marginTop: 12 }}
                     type="line"
                     items={[
-                        { key: 'members', label: 'Members' },
+                        { key: 'dashboard', label: 'Dashboard' },
                         { key: 'families', label: 'Family Wise' },
+                        { key: 'members', label: 'Members' },
                         { key: 'tanzeem', label: 'Tanzeem Wise' },
                         { key: 'reports', label: 'Reports' },
-                        {
-                            key: 'dashboard',
-                            label: 'Dashboard',
-                        },
                         { key: 'about', label: 'About' }
                     ]}
                 />
@@ -2869,6 +2882,7 @@ const WaqfJadeed: React.FC = () => {
                     </div>
                     {loading ? <p>Loading...</p> : (
                         <Collapse
+                            expandIcon={() => null}
                             defaultActiveKey={[]}
                             ghost
                             items={filteredFamilyData.map(family => {
@@ -2895,13 +2909,14 @@ const WaqfJadeed: React.FC = () => {
                                 return {
                                     key: family.id,
                                     label: (
-                                        <Row justify="space-between" align="middle" style={{ width: '100%' }} gutter={[8, 8]}>
-                                            <Col xs={24} sm={16} md={14}>
+                                        <div className="waqf-family-summary">
+                                            <div className="waqf-family-identity">
+                                                <span className="waqf-family-number">{family.familyNumber ? `Family #${family.familyNumber}` : 'Family record'}</span>
                                                 <Text
                                                     strong
                                                     style={{
                                                         fontSize: 'clamp(14px, 3.5vw, 16px)',
-                                                        color: familyPercent >= 100 && familyTotalPromise > 0 ? '#52c41a' : undefined
+                                                        color: '#26334a'
                                                     }}
                                                 >
                                                     {family.familyName}
@@ -2909,28 +2924,15 @@ const WaqfJadeed: React.FC = () => {
                                                 {family.isMoved && family.movedTo && (
                                                     <Tag color="orange" style={{ marginLeft: 8 }}>Moved to {family.movedTo}</Tag>
                                                 )}
-                                                <br />
                                                 <Text type="secondary" style={{ fontSize: 'clamp(11px, 2.5vw, 12px)' }}>
-                                                    {family.familyNumber ? <span>#{family.familyNumber} • </span> : ''}
-                                                    Head: {getMemberData(family.headId)?.member.name || 'Unknown'} • {familyMembersCtx.length + familySpecialRecords.length} Cards
+                                                    Head: {getMemberData(family.headId)?.member.name || 'Not recorded'}
                                                 </Text>
-                                            </Col>
-                                            <Col xs={18} sm={6} md={6} style={{ textAlign: 'right' }}>
-                                                <Text type="secondary" style={{ fontSize: 'clamp(11px, 2.5vw, 12px)' }}>Paid / Promise</Text>
-                                                <div style={{ fontWeight: 500, fontSize: 'clamp(12px, 3vw, 14px)' }}>
-                                                    {familyTotalPaid.toLocaleString()} / {familyTotalPromise.toLocaleString()}
-                                                </div>
-                                                <Progress percent={familyPercent} steps={5} size="small" strokeColor="#52c41a" />
-                                            </Col>
-                                            <Col xs={6} sm={2} md={4} style={{ textAlign: 'right' }}>
+                                            </div>
+                                            <div className="waqf-card-amounts"><div><span>Promised</span><strong>Rs. {familyTotalPromise.toLocaleString()}</strong></div><div><span>Paid</span><strong>Rs. {familyTotalPaid.toLocaleString()}</strong></div><div><span>{familyTotalPaid > familyTotalPromise ? 'Overpaid' : 'Remaining'}</span><strong>Rs. {Math.abs(familyTotalPromise - familyTotalPaid).toLocaleString()}</strong></div></div>
+                                            <Progress percent={Math.min(100, familyPercent)} size="small" strokeColor="#70a58a" />
+                                            <div className="waqf-family-card-footer">
+                                                <span>{familyMembersCtx.length + familySpecialRecords.length} members</span>
                                                 <Space>
-                                                    <Button
-                                                        type="text"
-                                                        icon={<DeleteOutlined style={{ color: '#faad14' }} />}
-                                                        size="small"
-                                                        disabled={true}
-                                                        title="Move Family feature is now in Families page"
-                                                    />
                                                     <Button
                                                         type="text"
                                                         icon={<ShareAltOutlined />}
@@ -2972,8 +2974,8 @@ const WaqfJadeed: React.FC = () => {
                                                         title="Download PDF"
                                                     />
                                                 </Space>
-                                            </Col>
-                                        </Row>
+                                            </div>
+                                        </div>
                                     ),
                                     children: (
                                         <>
@@ -3227,30 +3229,17 @@ const WaqfJadeed: React.FC = () => {
                         </Space>
                     </div>
                     {loading ? <p>Loading...</p> : (
-                        <Collapse defaultActiveKey={[]} ghost>
+                        <Collapse className="waqf-tanzeem-grid" expandIcon={() => null} defaultActiveKey={[]} ghost>
                             {tanzeemGroupedData.map(group => {
                                 return (
                                     <Panel
                                         key={group.tanzeem}
                                         header={
-                                            <Row justify="space-between" align="middle" style={{ width: '100%' }} gutter={[8, 8]}>
-                                                <Col xs={24} sm={16} md={16}>
-                                                    <Text strong style={{ fontSize: 'clamp(14px, 3.5vw, 16px)' }}>
-                                                        {getTanzeemDisplayName(group.tanzeem as any)}
-                                                    </Text>
-                                                    <br />
-                                                    <Text type="secondary" style={{ fontSize: 'clamp(11px, 2.5vw, 12px)' }}>
-                                                        {group.count} Members
-                                                    </Text>
-                                                </Col>
-                                                <Col xs={24} sm={8} md={6} style={{ textAlign: 'right' }}>
-                                                    <Text type="secondary" style={{ fontSize: 'clamp(11px, 2.5vw, 12px)' }}>Paid / Promise</Text>
-                                                    <div style={{ fontWeight: 500, fontSize: 'clamp(12px, 3vw, 14px)' }}>
-                                                        {group.totalPaid.toLocaleString()} / {group.totalPromise.toLocaleString()}
-                                                    </div>
-                                                    <Progress percent={group.percent} steps={5} size="small" strokeColor="#52c41a" />
-                                                </Col>
-                                            </Row>
+                                            <div className="waqf-tanzeem-summary">
+                                                <div className="waqf-tanzeem-title"><strong>{getTanzeemDisplayName(group.tanzeem as any)}</strong><span>{group.count} members</span></div>
+                                                <div className="waqf-card-amounts"><div><span>Promised</span><strong>Rs. {group.totalPromise.toLocaleString()}</strong></div><div><span>Paid</span><strong>Rs. {group.totalPaid.toLocaleString()}</strong></div><div><span>{group.totalPaid > group.totalPromise ? 'Overpaid' : 'Remaining'}</span><strong>Rs. {Math.abs(group.totalPromise - group.totalPaid).toLocaleString()}</strong></div></div>
+                                                <Progress percent={Math.min(100, group.percent)} size="small" strokeColor="#70a58a" />
+                                            </div>
                                         }
                                     >
                                         {/* Table for Tanzeem Members */}
@@ -3369,46 +3358,16 @@ const WaqfJadeed: React.FC = () => {
                 />
             ) : activeTab === 'dashboard' ? (
                 <div className="dashboard-view">
-                    {/* High-Level Stats Cards */}
-                    <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
-                        <Col xs={24} sm={12} md={8}>
-                            <Tooltip title="Total promising amount including all members, special records, and Nagar Parkar">
-                                <Card styles={{ body: { padding: 16 } }}>
-                                    <Statistic
-                                        title="Overall Promise"
-                                        value={stats.totalPromise}
-                                        prefix={<DollarOutlined />}
-                                        precision={0}
-                                        valueStyle={{ fontSize: 'clamp(20px, 4vw, 24px)' }}
-                                    />
-                                </Card>
-                            </Tooltip>
-                        </Col>
-                        <Col xs={24} sm={12} md={8}>
-                            <Tooltip title="Total collection received so far from all categories">
-                                <Card styles={{ body: { padding: 16 } }}>
-                                    <Statistic
-                                        title="Overall Paid"
-                                        value={stats.totalPaid}
-                                        prefix={<CheckCircleOutlined />}
-                                        suffix={<span style={{ fontSize: '14px', color: '#888', marginLeft: 8 }}>({Math.round(stats.percent)}%)</span>}
-                                        valueStyle={{ color: '#3f8600', fontSize: 'clamp(20px, 4vw, 24px)' }}
-                                        precision={0}
-                                    />
-                                </Card>
-                            </Tooltip>
-                        </Col>
-                        <Col xs={24} sm={24} md={8}>
-                            <Tooltip title="Overall collection status against total promise">
-                                <Card styles={{ body: { padding: 16 } }}>
-                                    <Text type="secondary" style={{ fontSize: '12px' }}>Collection Progress</Text>
-                                    <Progress percent={Math.round(stats.percent)} status="active" />
-                                </Card>
-                            </Tooltip>
-                        </Col>
-                    </Row>
+                    <div className="waqf-dashboard-heading"><div><span className="section-eyebrow">COLLECTION OVERVIEW</span><h2>{selectedYear} Dashboard</h2></div><Space wrap><Button icon={<FilePdfOutlined />} onClick={handleExportDashboard} loading={loading}>Export summary</Button><Button onClick={() => setActiveTab('families')}>View families</Button></Space></div>
+                    <div className="waqf-dashboard-summary">
+                        <Card><Statistic title="Total promised" value={stats.totalPromise} prefix="Rs." precision={0} /><span className="waqf-dashboard-caption">All categories including Nagar Parkar</span></Card>
+                        <Card><Statistic title="Total collected" value={stats.totalPaid} prefix="Rs." precision={0} valueStyle={{ color: '#508b73' }} /><span className="waqf-dashboard-caption">{stats.percent.toFixed(1)}% of promises received</span></Card>
+                        <Card><Statistic title={stats.totalPaid > stats.totalPromise ? 'Above promise' : 'Outstanding promises'} value={Math.abs(stats.totalPromise - stats.totalPaid)} prefix="Rs." precision={0} /><span className="waqf-dashboard-caption">Difference between promised and collected</span></Card>
+                        <Card className="waqf-dashboard-balance"><button onClick={() => setNetBalanceBreakdownVisible(true)}><Statistic title="Balance in hand" value={netBalanceInHand} prefix="Rs." precision={0} valueStyle={{ color: '#345eae' }} /><span className="waqf-dashboard-caption">After Rs. {totalMarkazPaid.toLocaleString()} paid to Markaz · View split →</span></button></Card>
+                    </div>
+                    <div className="waqf-dashboard-progress"><div><strong>Collection progress</strong><span>{stats.percent.toFixed(1)}% received</span></div><Progress percent={Math.min(100, Math.max(0, stats.percent))} showInfo={false} strokeColor="#70a58a" /><p>{stats.totalPromise > 0 ? stats.totalPaid >= stats.totalPromise ? 'Overall promises have been collected.' : `Rs. ${(stats.totalPromise - stats.totalPaid).toLocaleString()} remains to collect.` : 'No promises recorded for this year yet.'}</p></div>
                     {/* Target Tracking Section */}
-                    <div style={{ background: '#f0f2f5', padding: '20px', borderRadius: '8px', marginBottom: '24px' }}>
+                    <div className="waqf-target-section">
                         <Title level={4} style={{ marginBottom: 20 }}>Target Tracking (Daftar Baligan)</Title>
                         <Row gutter={[16, 16]} align="top">
                             <Col xs={24} sm={12} md={6}>
@@ -4353,7 +4312,7 @@ const WaqfJadeed: React.FC = () => {
                                                 )}
                                             >
                                                 {books.map(book => (
-                                                    <Option key={book.id} value={book.id}>{book.bookNo} ({book.status})</Option>
+                                                    <Option key={book.id} value={book.id}>{book.bookNo} ({book.isDefault ? 'Default · ' : ''}{book.status})</Option>
                                                 ))}
                                             </Select>
                                         </Form.Item>
@@ -4703,37 +4662,28 @@ const WaqfJadeed: React.FC = () => {
             </Modal>
 
             <Modal rootClassName="waqf-finance-overlay"
-                title="Manage Receipt Books"
+                title="Manage Receipt Books" width={720}
                 open={manageBooksModalVisible}
                 onCancel={() => setManageBooksModalVisible(false)}
                 footer={null}
             >
-                <List
-                    dataSource={books}
-                    renderItem={item => (
-                        <List.Item
-                            actions={[
-                                editingBookId === item.id ? (
-                                    <Button type="link" onClick={() => handleUpdateBook(item.id)}>Save</Button>
-                                ) : (
-                                    <Button type="link" icon={<EditOutlined />} onClick={() => {
-                                        setEditingBookId(item.id);
-                                        setEditingBookName(item.bookNo);
-                                    }} />
-                                ),
-                                <Popconfirm title="Delete book?" onConfirm={() => handleDeleteBook(item.id)} okText="Yes" cancelText="No">
-                                    <Button type="link" danger icon={<DeleteOutlined />} />
-                                </Popconfirm>
-                            ]}
-                        >
-                            {editingBookId === item.id ? (
-                                <Input value={editingBookName} onChange={e => setEditingBookName(e.target.value)} />
-                            ) : (
-                                item.bookNo
-                            )}
-                        </List.Item>
-                    )}
-                />
+                <div className="receipt-books-summary"><span><strong>{books.length}</strong> books</span><span>Totals for <strong>{selectedYear}</strong></span></div>
+                <div className="receipt-book-grid">{books.map(book => {
+                    const payments = Array.from(new Map(allPayments.filter(payment => payment.bookId === book.id || (!payment.bookId && payment.bookNo === book.bookNo)).map(payment => [payment.id, payment])).values());
+                    const total = payments.reduce((sum, payment) => sum + (payment.amount || 0), 0);
+                    const receipts = new Set(payments.map(payment => payment.receiptNo != null ? String(payment.receiptNo) : payment.id)).size;
+                    return <div className={`receipt-book-card ${book.isDefault ? 'default-book' : ''}`} key={book.id}>
+                        <div className="receipt-book-heading"><strong>{book.bookNo}</strong><Space size={4}>{book.isDefault && <Tag color="blue">Default</Tag>}<Tag>{book.status === 'active' ? 'Active' : 'Completed'}</Tag></Space></div>
+                        <div className="receipt-book-total"><span>Total collected</span><strong>{loading ? 'Loading…' : `Rs. ${total.toLocaleString()}`}</strong><small>{receipts} receipts · {payments.length} payments · {selectedYear}</small></div>
+                        {editingBookId === book.id && <Input aria-label="Edit book number" value={editingBookName} onChange={event => setEditingBookName(event.target.value)} />}
+                        <div className="receipt-book-actions">
+                            <Button disabled={book.isDefault || book.status !== 'active' || savingDefaultBook !== null} loading={savingDefaultBook === book.id} onClick={() => handleDefaultBook(book.id)}>{book.isDefault ? 'Default book' : 'Set default'}</Button>
+                            {editingBookId === book.id ? <><Button onClick={() => handleUpdateBook(book.id)}>Save</Button><Button onClick={() => setEditingBookId(null)}>Cancel</Button></> : <Button icon={<EditOutlined />} title="Edit book number" aria-label={`Edit book ${book.bookNo}`} onClick={() => { setEditingBookId(book.id); setEditingBookName(book.bookNo); }} />}
+                            <Popconfirm title="Delete book?" onConfirm={() => handleDeleteBook(book.id)} okText="Delete" cancelText="Cancel"><Button danger icon={<DeleteOutlined />} aria-label={`Delete book ${book.bookNo}`} /></Popconfirm>
+                        </div>
+                    </div>;
+                })}</div>
+                {!books.length && <Empty description="No receipt books yet" />}
                 <Button block type="dashed" onClick={() => {
                     setManageBooksModalVisible(false);
                     setAddBookModalVisible(true);
