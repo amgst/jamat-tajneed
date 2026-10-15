@@ -12,8 +12,7 @@ import {
   Row,
   Col,
   Spin,
-  Alert,
-  Radio
+  Alert
 } from 'antd';
 import {
   DownloadOutlined,
@@ -32,6 +31,9 @@ import {
   getTanzeemDisplayName
 } from '../utils/helpers';
 import type { ImportResult, Member } from '../types';
+import { ApiService } from '../services/apiService';
+import { db } from '../lib/firebase';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
 
 const { Title, Text } = Typography;
 
@@ -43,14 +45,12 @@ interface AppSettings {
   enableNotifications: boolean;
   autoBackup: boolean;
   backupFrequency: string;
-  storageMode?: 'api' | 'json';
 }
 
 
 
 const getAllMembersFromDatabase = async (): Promise<Member[]> => {
-  // Now using PostgreSQL database instead of Firestore
-  return [];
+  return ApiService.getAllMembers();
 };
 
 const Settings: React.FC = () => {
@@ -62,19 +62,19 @@ const Settings: React.FC = () => {
   const [authError] = useState<string | null>(null);
 
   useEffect(() => {
-    const fetchSettings = () => {
+    const fetchSettings = async () => {
       try {
-        const savedSettings = localStorage.getItem('app_settings');
+        const snapshot = await getDoc(doc(db, 'settings', 'app'));
+        const savedSettings = snapshot.exists() ? snapshot.data() : null;
         if (savedSettings) {
-          const settings = JSON.parse(savedSettings);
+          const settings = savedSettings;
           form.setFieldsValue(settings);
         } else {
           // Set default values
           form.setFieldsValue({
             jammatName: 'Jamaat Ahmadiyya Muridke',
             adminEmail: 'admin@jaamatmuridke.org',
-            defaultHalqa: 'Muridke Center',
-            storageMode: localStorage.getItem('storage_mode') === 'json' ? 'json' : 'api'
+            defaultHalqa: 'Muridke Center'
           });
         }
       } catch (error) {
@@ -86,13 +86,10 @@ const Settings: React.FC = () => {
     fetchSettings();
   }, [form]);
 
-  const onSaveSettings = (values: AppSettings) => {
+  const onSaveSettings = async (values: AppSettings) => {
     setIsSaving(true);
     try {
-      localStorage.setItem('app_settings', JSON.stringify(values));
-      if (values.storageMode) {
-        localStorage.setItem('storage_mode', values.storageMode);
-      }
+      await setDoc(doc(db, 'settings', 'app'), values, { merge: true });
       message.success({
         content: `Settings saved successfully! Jamaat: ${values.jammatName}`,
         duration: 3,
@@ -100,9 +97,7 @@ const Settings: React.FC = () => {
           marginTop: '20vh',
         },
       });
-      if (values.storageMode) {
-        message.info(`Storage mode set to ${values.storageMode.toUpperCase()}. Reload the app to apply everywhere.`);
-      }
+
     } catch (error) {
       message.error('Failed to save settings');
       console.error('Error saving settings:', error);
@@ -181,28 +176,11 @@ const Settings: React.FC = () => {
             try {
               const age = calculateAge(row['Date of Birth']);
               const tanzeem = determineTanzeem(age, row.Gender.toLowerCase() as 'male' | 'female');
-              console.log(tanzeem); // Prevent unused warning
-
-              // const memberData: Omit<Member, 'id'> = {
-              //   name: row.Name.trim(),
-              //   fatherName: row['Father Name']?.trim() || undefined,
-              //   husbandName: row['Husband Name']?.trim() || undefined,
-              //   gender: row.Gender.toLowerCase() as 'male' | 'female',
-              //   cnic: formatCNIC(row.CNIC),
-              //   dateOfBirth: row['Date of Birth'],
-              //   age,
-              //   phone: row.Phone.trim(),
-              //   address: row.Address.trim(),
-              //   tanzeem,
-              //   halqa: row.Halqa?.trim() || '',
-              //   profilePhoto: '',
-              //   createdAt: new Date().toISOString(),
-              //   updatedAt: new Date().toISOString(),
-              //   hasNewTanzeemTransition: false,
-              // };
-
-              // Now using PostgreSQL database instead of Firestore
-              // await addMemberToDatabase(memberData);
+              await ApiService.createMember({
+                name: row.Name.trim(), fatherName: row['Father Name']?.trim() || '', husbandName: row['Husband Name']?.trim() || '',
+                gender: row.Gender.toLowerCase(), cnic: row.CNIC, dateOfBirth: row['Date of Birth'], age,
+                phone: row.Phone.trim(), address: row.Address.trim(), tanzeem, halqa: row.Halqa?.trim() || '',
+              });
               importResult.success++;
             } catch (error) {
               importResult.errors.push(`Row ${i + 1}: Failed to save member - ${error}`);
@@ -368,17 +346,7 @@ const Settings: React.FC = () => {
               layout="vertical"
               onFinish={onSaveSettings}
             >
-              <Form.Item
-                name="storageMode"
-                label="Storage Mode"
-                initialValue={localStorage.getItem('storage_mode') === 'json' ? 'json' : 'api'}
-                tooltip="Choose where data is loaded/saved. JSON mode uses local JSON (browser/localStorage)."
-              >
-                <Radio.Group>
-                  <Radio.Button value="api">Database (API)</Radio.Button>
-                  <Radio.Button value="json">JSON (Local)</Radio.Button>
-                </Radio.Group>
-              </Form.Item>
+
               <Form.Item
                 name="jammatName"
                 label="Jamaat Name"

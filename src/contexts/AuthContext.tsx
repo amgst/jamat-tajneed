@@ -5,6 +5,7 @@ import {
   onAuthStateChanged
 } from 'firebase/auth';
 import { auth } from '../lib/firebase';
+import { isAuthorizedAdmin } from '../lib/access';
 import type { AuthUser } from '../types';
 import { checkRateLimit, recordFailedAttempt, recordSuccess, getClientIdentifier } from '../utils/rateLimiter';
 
@@ -23,7 +24,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
-      if (firebaseUser) {
+      if (firebaseUser && isAuthorizedAdmin(firebaseUser.email)) {
         setUser({
           uid: firebaseUser.uid,
           email: firebaseUser.email || '',
@@ -31,6 +32,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         });
       } else {
         setUser(null);
+        if (firebaseUser) void signOut(auth);
       }
       setLoading(false);
     });
@@ -58,7 +60,11 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
     
     try {
-      await signInWithEmailAndPassword(auth, email, pass);
+      const credential = await signInWithEmailAndPassword(auth, email, pass);
+      if (!isAuthorizedAdmin(credential.user.email)) {
+        await signOut(auth);
+        throw new Error('This account is not authorized to access Tajneed.');
+      }
       // Success - reset rate limit
       recordSuccess(identifier);
     } catch (error: any) {
@@ -87,6 +93,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     setLoading(true);
     try {
       await signOut(auth);
+      window.location.replace('/login');
     } finally {
       setLoading(false);
     }

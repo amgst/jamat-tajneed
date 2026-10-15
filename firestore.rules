@@ -1,0 +1,16 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isAdmin() {
+      return request.auth != null && request.auth.token.email == 'amgst99@gmail.com';
+    }
+    match /{collection}/{document} {
+      allow read, write: if isAdmin() && collection in [
+        'members', 'families', 'graves', 'fitranaExtras', 'settings', 'profiles',
+        'waqfJadeed', 'waqfJadeedPayments', 'waqfJadeedSpecial', 'waqfJadeedMarkazPayments',
+        'tahreqJadeed', 'tahreqJadeedPayments', 'tahreqJadeedSpecial', 'tahreqJadeedMarkazPayments',
+        'ansarullah', 'markazPayments', 'receiptBooks', 'paymentPlans', 'paymentReminders', 'financialReports'
+      ];
+    }
+  }
+}

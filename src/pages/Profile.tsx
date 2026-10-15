@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { Card, Avatar, Descriptions, Typography, Space, Button, Form, Input, message } from 'antd';
 import { UserOutlined, EditOutlined, SaveOutlined } from '@ant-design/icons';
 import { useAuth } from '../contexts/useAuth';
+import { db } from '../lib/firebase';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
 
 const { Title } = Typography;
 
@@ -10,28 +12,32 @@ const Profile: React.FC = () => {
   const [editing, setEditing] = useState(false);
   const [form] = Form.useForm();
   const [profileData, setProfileData] = useState({
-    name: 'Admin User',
-    email: user?.email || 'admin@jaamatmuridke.org',
-    phone: '+92 300 1234567',
+    name: user?.displayName || '',
+    email: user?.email || '',
+    phone: '',
     organization: 'Jamaat Ahmadiyya Muridke'
   });
 
   React.useEffect(() => {
-    const savedProfile = localStorage.getItem('user_profile');
-    if (savedProfile) {
-      const data = JSON.parse(savedProfile);
+    if (!user) return;
+    let active = true;
+    void getDoc(doc(db, 'profiles', user.uid)).then(snapshot => {
+      if (!active) return;
+      const data = { name: user.displayName || '', email: user.email, phone: '', organization: 'Jamaat Ahmadiyya Muridke', ...snapshot.data() };
       setProfileData(data);
       form.setFieldsValue(data);
-    } else {
-      form.setFieldsValue(profileData);
-    }
-  }, [form]);
+    }).catch(() => message.error('Unable to load profile from Firebase.'));
+    return () => { active = false; };
+  }, [form, user]);
 
-  const handleSave = (values: any) => {
-    setProfileData(values);
-    localStorage.setItem('user_profile', JSON.stringify(values));
-    setEditing(false);
-    message.success('Profile updated successfully!');
+  const handleSave = async (values: any) => {
+    if (!user) return;
+    try {
+      await setDoc(doc(db, 'profiles', user.uid), values, { merge: true });
+      setProfileData(values);
+      setEditing(false);
+      message.success('Profile updated successfully!');
+    } catch { message.error('Unable to save profile to Firebase.'); }
   };
 
   const handleCancel = () => {

@@ -550,14 +550,17 @@ const convertToCSV = (data: Array<Record<string, unknown>>): string => {
   if (data.length === 0) return '';
 
   const headers = Object.keys(data[0]);
+  const escapeCell = (value: unknown) => {
+    let text = String(value ?? '');
+    if (/^[\s]*[=+\-@\t\r]/.test(text)) text = `'${text}`;
+    return `"${text.replace(/"/g, '""')}"`;
+  };
   const csvContent = [
-    headers.join(','),
+    headers.map(escapeCell).join(','),
     ...data.map(row =>
       headers.map(header => {
         const value = row[header] !== undefined && row[header] !== null ? row[header] : '';
-        return typeof value === 'string' && value.includes(',')
-          ? `"${value}"`
-          : value;
+        return escapeCell(value);
       }).join(',')
     )
   ].join('\n');

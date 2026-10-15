@@ -61,3 +61,6 @@ coverage/
 
 
 .dataconnect/
+
+.private-legacy-backup/
+security-audit*.json

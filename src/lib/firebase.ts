@@ -1,10 +1,10 @@
 import { initializeApp } from "firebase/app";
 import {
     initializeFirestore,
-    persistentLocalCache,
-    persistentMultipleTabManager
+    memoryLocalCache,
+    clearIndexedDbPersistence
 } from "firebase/firestore";
-import { getAuth } from "firebase/auth";
+import { initializeAuth, browserSessionPersistence } from "firebase/auth";
 
 const firebaseConfig = {
     apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -18,10 +18,14 @@ const firebaseConfig = {
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
 export const db = initializeFirestore(app, {
-    localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }),
+    localCache: memoryLocalCache(),
     experimentalForceLongPolling: true,
 });
-export const auth = getAuth(app);
+export const auth = initializeAuth(app, { persistence: browserSessionPersistence });
+// Purge the cache created by older releases before the first database operation.
+export const databaseReady = clearIndexedDbPersistence(db).catch(() => {
+    throw new Error('Close other Tajneed tabs and reload to clear the previous offline record cache.');
+});
 export default app;
 
 // Configure Firestore emulator if in development

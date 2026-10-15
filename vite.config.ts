@@ -1,6 +1,5 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
-import { nodePolyfills } from 'vite-plugin-node-polyfills'
 
 // https://vite.dev/config/
 export default defineConfig({
@@ -14,10 +13,7 @@ export default defineConfig({
         if (missing.length) throw new Error(`Missing Firebase environment variables: ${missing.join(', ')}. Add them to the Vercel environment being deployed, then rebuild.`);
       }
     },
-    react(),
-    nodePolyfills({
-      include: ['buffer', 'process', 'util', 'stream']
-    })
+    react()
   ],
   define: {
     global: 'globalThis'

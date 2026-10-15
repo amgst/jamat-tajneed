@@ -1,3 +1,4 @@
+import DOMPurify from 'dompurify';
 import React, { useState, useEffect, useMemo } from 'react';
 import {
     Card,
@@ -92,7 +93,7 @@ const WaqfJadeed: React.FC = () => {
     const [familyView, setFamilyView] = useState<'cards' | 'list'>('cards');
     useEffect(() => { setMembersCurrentPage(1); }, [searchTerm, selectedYear]);
 
-    // Target amount state (stored per year in localStorage)
+    // Target amount is stored per year in Firebase.
     const [targetAmount, setTargetAmount] = useState<number>(0);
 
     const [familySort, setFamilySort] = useState<'default' | 'zero_promise_first' | 'pending_first'>('pending_first');
@@ -567,7 +568,7 @@ const WaqfJadeed: React.FC = () => {
                  </div>
             `;
 
-            printDiv.innerHTML = htmlContent;
+            printDiv.innerHTML = DOMPurify.sanitize(htmlContent);
             document.body.appendChild(printDiv);
 
             // Convert to PDF
@@ -794,17 +795,12 @@ const WaqfJadeed: React.FC = () => {
                 receiptNo: values.receiptNo
             };
 
-            console.log('Submitting Payment Data:', paymentData);
-            console.log('Editing Mode:', paymentEditingId ? 'UPDATE' : 'CREATE');
-
             if (paymentEditingId) {
                 if (editingMember) {
-                    console.log('Updating Member Payment');
                     const updatedRecord = await ApiService.updateWaqfJadeedPayment(paymentData as any);
                     if (updatedRecord) updateLocalRecord(updatedRecord);
                     message.success('Payment updated');
                 } else if (editingSpecial) {
-                    console.log('Updating Special Payment');
                     const updatedRecord = await ApiService.updateWaqfJadeedSpecialPayment(paymentData as any);
                     if (updatedRecord) {
                         updateLocalSpecialRecord(updatedRecord as WaqfJadeedSpecialRecord);
@@ -815,12 +811,10 @@ const WaqfJadeed: React.FC = () => {
                 setPaymentEditingId(null);
             } else {
                 if (editingMember) {
-                    console.log('Adding Member Payment');
                     const updatedRecord = await ApiService.addWaqfJadeedPayment(paymentData as any);
                     if (updatedRecord) updateLocalRecord(updatedRecord);
                     message.success('Payment added');
                 } else if (editingSpecial) {
-                    console.log('Adding Special Payment');
                     const updatedRecord = await ApiService.addWaqfJadeedSpecialPayment(paymentData as any);
                     if (updatedRecord) {
                         updateLocalSpecialRecord(updatedRecord as WaqfJadeedSpecialRecord);
@@ -2285,7 +2279,7 @@ const WaqfJadeed: React.FC = () => {
                 </div>
             `;
 
-            printDiv.innerHTML = htmlContent;
+            printDiv.innerHTML = DOMPurify.sanitize(htmlContent);
             document.body.appendChild(printDiv);
 
             // Convert to canvas with high quality
@@ -2391,7 +2385,7 @@ const WaqfJadeed: React.FC = () => {
             const balance = promised - paid;
             const percent = promised > 0 ? Math.min(100, Math.round((paid / promised) * 100)) : 0;
 
-            cardDiv.innerHTML = `
+            cardDiv.innerHTML = DOMPurify.sanitize(`
                 <div style="text-align: center; margin-bottom: 20px;">
                     <h2 style="margin: 0; font-size: 24px; color: #1d4ed8;">Waqf-e-Jadeed ${selectedYear}</h2>
                     <p style="margin: 6px 0 18px 0; color: #6b7280; font-size: 13px; letter-spacing: 0.06em;">Personal Collection Card</p>
@@ -2421,7 +2415,7 @@ const WaqfJadeed: React.FC = () => {
                     <p style="margin: 0 0 10px 0; font-size: 13px; font-weight: 600; color: #111827;">${percent}% Completed</p>
                     <p style="margin: 0; font-size: 10px; color: #6b7280; letter-spacing: 0.06em;">Generated on ${new Date().toLocaleDateString()} • Jamat Tajneed System</p>
                 </div>
-            `;
+            `);
 
             document.body.appendChild(cardDiv);
             const canvas = await html2canvas(cardDiv, {
@@ -2461,7 +2455,7 @@ const WaqfJadeed: React.FC = () => {
             cardDiv.style.top = '0';
             cardDiv.style.boxShadow = '0 25px 50px -12px rgba(0, 0, 0, 0.5)';
 
-            cardDiv.innerHTML = `
+            cardDiv.innerHTML = DOMPurify.sanitize(`
                 <div style="text-align: center; margin-bottom: 30px;">
                     <h2 style="margin: 0; color: #34d399; font-size: 24px; direction: rtl;">وقف جدید</h2>
                     <p style="margin: 5px 0 0 0; font-size: 14px; opacity: 0.7;">Family Collection Summary ${selectedYear}</p>
@@ -2495,7 +2489,7 @@ const WaqfJadeed: React.FC = () => {
                     <p style="margin: 0; font-size: 16px; font-weight: bold;">${percent}% Completed</p>
                     <p style="margin: 30px 0 0 0; font-size: 11px; opacity: 0.5;">Generated on ${new Date().toLocaleDateString()} • Jamat Tajneed System</p>
                 </div>
-            `;
+            `);
 
             document.body.appendChild(cardDiv);
             const canvas = await html2canvas(cardDiv, {

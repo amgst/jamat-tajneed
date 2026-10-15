@@ -14,7 +14,6 @@ import {
   SolutionOutlined
 } from '@ant-design/icons';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
-// import { logout } from '../services/storage'; // Using mock logout
 import { useAuth } from '../contexts/useAuth';
 import { Search, Users, House, Wallet, Menu as MenuIcon } from 'lucide-react';
 import InstallApp from './InstallApp';
