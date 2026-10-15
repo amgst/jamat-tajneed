@@ -2,6 +2,7 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
+    <link rel="stylesheet" href="/startup.css" />
     <link rel="icon" type="image/svg+xml" href="/tajneed-icon.svg" />
     <link rel="manifest" href="/manifest.webmanifest" />
     <link rel="apple-touch-icon" sizes="180x180" href="/icons/apple-touch-icon.png" />
@@ -10,11 +11,20 @@
     <meta name="apple-mobile-web-app-title" content="Tajneed" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <meta name="robots" content="noindex, nofollow" />
+    <meta name="robots" content="noindex, nofollow, nosnippet, noimageindex, max-snippet:0, max-image-preview:none, max-video-preview:0" />
     <title>Tajneed — Person Directory</title>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <main class="tajneed-startup" role="status" aria-live="polite" aria-label="Loading Tajneed">
+        <div class="tajneed-startup-mark" aria-hidden="true">T</div>
+        <div class="tajneed-startup-wordmark" aria-hidden="true">Taj<span>need</span><i></i></div>
+        <div class="tajneed-startup-location">Muridke</div>
+        <div class="tajneed-startup-track" aria-hidden="true"></div>
+        <p class="tajneed-startup-message">Getting Tajneed ready…</p>
+        <span class="tajneed-startup-note">Your community, connected.</span>
+      </main>
+    </div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

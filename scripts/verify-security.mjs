@@ -24,6 +24,10 @@ const page = fs.readFileSync('src/pages/WaqfJadeed.tsx', 'utf8');
 assert.equal((page.match(/\.innerHTML\s*=/g) || []).length, (page.match(/\.innerHTML\s*= DOMPurify\.sanitize\(/g) || []).length);
 const config = JSON.parse(fs.readFileSync('vercel.json', 'utf8').replace(/^\uFEFF/, ''));
 assert.ok(config.headers.find(entry => entry.source === '/(.*)').headers.some(header => header.key === 'Content-Security-Policy' && header.value.includes("frame-ancestors 'none'")));
+const robotsHeader = config.headers.find(entry => entry.source === '/(.*)').headers.find(header => header.key === 'X-Robots-Tag');
+for (const directive of ['noindex', 'nofollow', 'nosnippet', 'noimageindex']) assert.ok(robotsHeader.value.includes(directive));
+assert.match(fs.readFileSync('public/robots.txt', 'utf8'), /User-agent: \*\s+Disallow: \//);
+assert.match(fs.readFileSync('index.html', 'utf8'), /name="robots" content="noindex, nofollow, nosnippet/);
 console.log('Passed: HTML injection, CSV formulas/escaping, public-data removal, export sinks and security headers.');
 window.close();
 

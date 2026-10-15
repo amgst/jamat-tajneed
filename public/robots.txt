@@ -1,2 +1,3 @@
+# Private administrative application. No automated crawling is permitted.
 User-agent: *
 Disallow: /

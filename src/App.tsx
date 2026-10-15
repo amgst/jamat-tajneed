@@ -1,4 +1,5 @@
 import React from 'react';
+import AppLoader from './components/AppLoader';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { ConfigProvider, App as AntdApp } from 'antd';
 import { AuthProvider } from './contexts/AuthContext';
@@ -25,7 +26,7 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
   const { user, loading } = useAuth();
 
   if (loading) {
-    return <div>Loading...</div>;
+    return <AppLoader />;
   }
 
   return user ? <>{children}</> : <Navigate to="/login" replace />;
@@ -36,7 +37,7 @@ const PublicRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user, loading } = useAuth();
 
   if (loading) {
-    return <div>Loading...</div>;
+    return <AppLoader />;
   }
 
   return user ? <Navigate to="/" replace /> : <>{children}</>;

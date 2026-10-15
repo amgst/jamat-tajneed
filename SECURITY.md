@@ -31,7 +31,23 @@ and publish using an authorized project account. Until this is done, live databa
 permissions have not changed. The current app administrator email and the project-owner
 Google account are separate concepts.
 
-## Verification
+## Search and AI crawler privacy
+
+`robots.txt` disallows all crawlers. The page and global HTTP headers request no
+indexing, following, snippets, or image/video previews. These are voluntary crawler
+instructions and cannot guarantee that the URL never appears in search results.
+In particular, a blocked crawler may not read the noindex header.
+
+For enforced access protection, configure Vercel Deployment Protection for **All
+Deployments**, including production/custom domains, and grant access only to the
+intended administrators. This requires an additional hosting login before the app
+login. This hosting setting has not been enabled by the source changes.
+
+Delete or protect historical deployments as well. If a URL is already indexed,
+request removal using the search engine's webmaster tools. Source changes cannot
+erase previously crawled copies or information already acquired by third parties.
+
+## Verification commands
 
 ```powershell
 npm run build
