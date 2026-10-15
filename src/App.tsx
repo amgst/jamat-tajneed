@@ -13,6 +13,7 @@ import TanzeemView from './pages/TanzeemView';
 import ReligiousActivitiesPage from './pages/ReligiousActivities';
 import Settings from './pages/Settings';
 import Profile from './pages/Profile';
+import GraveRecord from './pages/GraveRecord';
 
 import WaqfJadeed from './pages/WaqfJadeed';
 import Ansarullah from './pages/Ansarullah';
@@ -82,6 +83,7 @@ function App() {
                 <Route path="religious-activities" element={<ReligiousActivitiesPage />} />
                 <Route path="settings" element={<Settings />} />
                 <Route path="profile" element={<Profile />} />
+                <Route path="grave-record" element={<GraveRecord />} />
                 <Route path="waqf-jadeed" element={<WaqfJadeed />} />
                 <Route path="ansar-uallah" element={<Ansarullah />} />
                 <Route path="reports/waqfe-nau" element={<WaqfeNau />} />

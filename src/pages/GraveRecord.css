@@ -1,0 +1,9 @@
+.grave-directory-controls{display:grid;grid-template-columns:minmax(0,1fr);gap:12px;margin-bottom:20px}
+.grave-directory-controls .ant-select{width:100%}
+.grave-directory-controls .ant-input-prefix{color:#8590a1;margin-right:8px}
+.grave-record-icon{background:#edf2fc;color:#345eae}
+.grave-directory-card{height:100%;font:inherit}
+.grave-directory-card .family-card-bottom{margin-top:auto}
+.grave-detail-value{white-space:pre-wrap;overflow-wrap:anywhere}
+@media(min-width:600px){.grave-directory-controls{grid-template-columns:minmax(0,2fr) minmax(130px,1fr) minmax(150px,1fr)}}
+@media(max-width:767px){.grave-record-page .families-page-heading{flex-wrap:wrap}.grave-directory-controls{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.grave-directory-controls>.ant-input-affix-wrapper{grid-column:1/-1}.grave-record-page .families-view-toolbar{gap:8px}.grave-record-page .families-view-option{min-height:32px;font-size:12px}}

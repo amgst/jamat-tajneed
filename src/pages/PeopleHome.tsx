@@ -8,6 +8,7 @@ import type { Family, Member, Tanzeem } from '../types';
 import { getTanzeemDisplayName, calculateAge, determineTanzeem } from '../utils/helpers';
 import MemberForm from '../components/MemberForm';
 import { sanitizeMemberData } from '../utils/validation';
+import { matchesNameSearch } from '../utils/nameSearch';
 import './PeopleHome.css';
 import './Families.css';
 
@@ -26,6 +27,7 @@ export default function PeopleHome() {
   const [families, setFamilies] = useState<Family[]>([]);
   const [params, setParams] = useSearchParams();
   const [query, setQuery] = useState('');
+  const [searchMode, setSearchMode] = useState<'families' | 'members'>('families');
   const [memberQuery, setMemberQuery] = useState('');
   const [viewMode, setViewMode] = useState<'cards' | 'list'>('cards');
   const [sortField, setSortField] = useState('name');
@@ -62,7 +64,7 @@ export default function PeopleHome() {
     finally { setLoading(false); }
   };
   useEffect(() => { void load(); }, []);
-  useEffect(() => { setLimit(30); }, [query, group, status, membership]);
+  useEffect(() => { setLimit(30); }, [query, group, status, membership, searchMode]);
   useEffect(() => { setPage(1); }, [memberQuery, group, status, membership, sortField, sortOrder]);
   const familyRecords = useMemo(() => {
     const byId = new Map(members.map(member => [member.id, member]));
@@ -81,27 +83,26 @@ export default function PeopleHome() {
     });
   }, [families, members]);
   const familyResults = useMemo(() => {
-    const words = query.trim().toLocaleLowerCase().split(/\s+/).filter(Boolean);
-    return familyRecords.filter(record => words.every(word => record.text.includes(word)))
+    return familyRecords.filter(record => matchesNameSearch(record.text,
+      [record.family.familyName, ...record.people.flatMap(member => [member.name, member.fatherName, member.husbandName])].filter((value): value is string => !!value), query))
       .sort((a, b) => a.family.familyName.localeCompare(b.family.familyName));
   }, [familyRecords, query]);
-  const searchingFamilies = !!query.trim();
+  const searchingFamilies = !!query.trim() && searchMode === 'families';
   const results = useMemo(() => {
-    const words = (directory ? memberQuery : query).trim().toLocaleLowerCase().split(/\s+/).filter(Boolean);
     return members.filter(member => {
       const text = [member.name, member.fatherName, member.husbandName, member.phone,
         member.cnic, member.tajneedCode, member.address, member.halqa, member.wasitNo, member.waqfeNauNumber].filter(Boolean).join(' ').toLocaleLowerCase();
-      return words.every(word => text.includes(word)) && (group === 'all' || member.tanzeem === group)
+      return matchesNameSearch(text, [member.name, member.fatherName, member.husbandName].filter((value): value is string => !!value), directory ? memberQuery : query) && (group === 'all' || member.tanzeem === group)
         && matchesMembership(member, membership)
         && (status === 'all' || recordCategory(member) === status);
     }).sort((a, b) => (sortField === 'age' ? a.age - b.age : a.name.localeCompare(b.name)) * (sortOrder === 'descend' ? -1 : 1));
   }, [members, query, memberQuery, directory, group, status, membership, sortField, sortOrder]);
   const showResults = directory || !!query.trim() || group !== 'all' || status !== 'all' || membership !== 'all';
   if (directory) return <div className="families-page members-directory">
-    <header className="families-header families-page-heading"><div className="families-title-line"><h1>Members</h1><span className="families-total">{members.length}</span></div><Button type="primary" icon={<Plus size={16} />} onClick={() => setAddingMember(true)}>Add Member</Button></header>
+    <header className="families-header families-page-heading"><div className="families-title-line"><h1>Members</h1><span className="families-total" aria-live="polite">{results.length}</span></div><Button type="primary" icon={<Plus size={16} />} onClick={() => setAddingMember(true)}>Add Member</Button></header>
     <Card className="families-panel">
       <div className="members-directory-controls">
-        <Input aria-label="Search members" prefix={<Search size={16} />} placeholder="Search name, phone or membership number" allowClear value={memberQuery} onChange={event => setMemberQuery(event.target.value)} />
+        <Input aria-label="Search members" prefix={<Search size={16} />} placeholder="Search English or Urdu name, phone or membership number" allowClear value={memberQuery} onChange={event => setMemberQuery(event.target.value)} />
         <Select aria-label="Sort members" value={sortField} onChange={setSortField} options={[{ value: 'name', label: 'Member name' }, { value: 'age', label: 'Age' }]} />
         <Select aria-label="Sort order" value={sortOrder} onChange={setSortOrder} options={[{ value: 'ascend', label: 'Ascending' }, { value: 'descend', label: 'Descending' }]} />
       </div>
@@ -136,13 +137,14 @@ export default function PeopleHome() {
       <div className="people-wordmark">Taj<span>need</span><i /></div>
       <span className="people-logo-location">Muridke</span>
       {!directory && <p>Family records and community connections, in one place.</p>}
+      <Segmented aria-label="Search for families or members" value={searchMode} onChange={value => setSearchMode(value as 'families' | 'members')} options={[{ value: 'families', label: 'Families' }, { value: 'members', label: 'Members' }]} />
       <form className="people-search" onSubmit={event => { event.preventDefault(); document.getElementById('people-results')?.scrollIntoView({ behavior: 'smooth' }); }}>
         <Search size={22} aria-hidden="true" />
-        <input aria-label="Search families" placeholder="Search family, name or phone" value={query} onChange={event => setQuery(event.target.value)} />
+        <input aria-label={`Search ${searchMode}`} placeholder={searchMode === 'families' ? 'Search English or Urdu name, family or phone' : 'Search English or Urdu name, phone or membership number'} value={query} onChange={event => setQuery(event.target.value)} />
         {query && <button type="button" aria-label="Clear search" onClick={() => setQuery('')}><X size={18} /></button>}
         <button type="submit" className="search-submit" aria-label="Search"><ArrowRight size={20} /></button>
       </form>
-      <span className="search-hint">Search in English or Urdu · Results show families only</span>
+      <span className="search-hint">Search in English or Urdu · Results show {searchMode}</span>
     </section>
     {error ? <Alert type="error" showIcon message="Unable to load the directory" description="Check your connection and try again." action={<Button onClick={load}>Retry</Button>} /> : loading ? <div className="people-loading"><Spin /><p>Loading your directory…</p></div> : <>
       {!showResults && <>

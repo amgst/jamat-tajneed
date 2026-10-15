@@ -92,6 +92,11 @@ const AppLayout: React.FC = () => {
       label: 'Mossi',
     },
     {
+      key: '/grave-record',
+      icon: <BookOutlined />,
+      label: 'Grave Record',
+    },
+    {
       key: '/settings',
       icon: <SettingOutlined />,
       label: 'Settings',

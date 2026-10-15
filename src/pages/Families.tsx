@@ -42,6 +42,7 @@ import { ApiService } from '../services/apiService';
 import type { Family, Member } from '../types';
 import { getTanzeemDisplayName, formatDate } from '../utils/helpers';
 import { sanitizeFamilyData } from '../utils/validation';
+import { matchesNameSearch } from '../utils/nameSearch';
 import './PeopleHome.css';
 import './Families.css';
 
@@ -138,17 +139,14 @@ const Families: React.FC = () => {
 
     // Apply search filter
     if (searchText.trim()) {
-      const searchLower = searchText.toLowerCase();
       filtered = filtered.filter(family => {
-        const familyName = family.familyName.toLowerCase();
-        const headName = getMemberName(family.headId).toLowerCase();
-        const halqa = (family.halqa || '').toLowerCase();
-        const familyNumber = family.familyNumber?.toString() || '';
-
-        return familyName.includes(searchLower) ||
-          headName.includes(searchLower) ||
-          halqa.includes(searchLower) ||
-          familyNumber.includes(searchLower);
+        const people = getMembersByFamily(family.id);
+        const names = [family.familyName, getMemberName(family.headId),
+          ...people.flatMap(member => [member.name, member.fatherName, member.husbandName])]
+          .filter((value): value is string => !!value);
+        const text = [...names, family.familyNumber, family.halqa,
+          ...people.flatMap(member => [member.phone, member.cnic, member.tajneedCode])].filter(value => value != null).join(' ');
+        return matchesNameSearch(text, names, searchText);
       });
     }
 
@@ -496,7 +494,7 @@ const Families: React.FC = () => {
         <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
           <Col xs={24} sm={24} md={8}>
             <Input
-              placeholder="Search by family name, number, head, or halqa..."
+              placeholder="Search English or Urdu name, family number or phone"
               prefix={<SearchOutlined />}
               value={searchText}
               onChange={(e) => setSearchText(e.target.value)}
